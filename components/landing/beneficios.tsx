@@ -6,7 +6,8 @@ import {
   ClipboardCheck,
   MessageSquare,
   BookOpen,
-  GraduationCap
+  GraduationCap,
+  Star
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -14,67 +15,94 @@ const beneficios = [
   {
     icon: GraduationCap,
     title: 'Preparatoria en 2 años',
-    description: 'Termina tu bachillerato en menos tiempo con nuestro programa intensivo.'
+    description: 'Termina tu bachillerato en menos tiempo con nuestro programa intensivo de alto rendimiento.'
   },
   {
     icon: Clock,
     title: 'Horarios flexibles',
-    description: 'Estudia a tu propio ritmo, adaptándote a tus compromisos laborales y personales.'
+    description: 'Estudia a tu propio ritmo, adaptándote perfectamente a tus compromisos laborales y personales.'
   },
   {
     icon: Video,
     title: 'Clases virtuales',
-    description: 'Sesiones en vivo con profesores capacitados desde cualquier lugar.'
+    description: 'Sesiones interactivas en vivo con profesores capacitados desde cualquier lugar del mundo.'
   },
   {
     icon: Laptop,
-    title: 'Plataforma educativa propia',
-    description: 'Accede a materiales, tareas y calificaciones en un solo lugar.'
+    title: 'Plataforma vanguardista',
+    description: 'Accede a materiales, tareas y calificaciones en un entorno digital intuitivo y moderno.'
   },
   {
     icon: Users,
-    title: 'Docentes capacitados',
-    description: 'Profesores con experiencia profesional y académica de alto nivel.'
+    title: 'Docentes de élite',
+    description: 'Aprende de profesores con experiencia profesional y trayectoria académica de primer nivel.'
   },
   {
     icon: ClipboardCheck,
-    title: 'Seguimiento académico',
-    description: 'Monitoreo constante de tu progreso con reportes detallados.'
+    title: 'Seguimiento personalizado',
+    description: 'Monitoreo constante de tu progreso con reportes detallados y asesoría continua.'
   },
   {
     icon: BookOpen,
-    title: 'Acceso a tareas y calificaciones',
-    description: 'Consulta tu avance académico en tiempo real desde la plataforma.'
+    title: 'Control total de tus notas',
+    description: 'Consulta tu avance académico y calificaciones en tiempo real desde nuestra plataforma.'
   },
   {
     icon: MessageSquare,
     title: 'Comunicación directa',
-    description: 'Contacto inmediato con profesores y administración.'
+    description: 'Contacto inmediato y sin fricciones con tus profesores y el área administrativa.'
   }
 ]
 
 export function Beneficios() {
   return (
-    <section id="beneficios" className="bg-secondary/30 py-20">
-      <div className="container px-4 md:px-6">
-        <div className="mx-auto mb-12 max-w-2xl text-center">
-          <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            Beneficios de estudiar con nosotros
+    <section id="beneficios" className="relative py-24 bg-white dark:bg-black/95 overflow-hidden">
+      
+      {/* Luces decorativas de fondo (Esferas difuminadas) */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-brand-primary/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-brand-highlight/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
+
+      <div className="container relative z-10 px-4 md:px-6 mx-auto">
+        
+        {/* Encabezado de la sección */}
+        <div className="mx-auto mb-16 max-w-3xl text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-primary/5 text-brand-primary font-semibold text-sm mb-6 border border-brand-primary/10">
+            <Star className="h-4 w-4 text-brand-highlight" />
+            <span>¿Por qué elegirnos?</span>
+          </div>
+          
+          <h2 className="mb-6 text-4xl font-extrabold tracking-tight text-foreground md:text-5xl leading-tight">
+            Beneficios de <span className="text-gradient-brand">estudiar con nosotros</span>
           </h2>
-          <p className="text-muted-foreground">
-            Descubre por qué somos la mejor opción para tu formación profesional
+          
+          <p className="text-lg md:text-xl text-muted-foreground font-light text-balance">
+            Descubre las ventajas exclusivas que hacen de nuestra plataforma la mejor opción para potenciar tu futuro profesional.
           </p>
         </div>
 
+        {/* Cuadrícula de Beneficios */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {beneficios.map((beneficio, index) => (
-            <Card key={index} className="group border-border/50 bg-card transition-all hover:border-primary/30 hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
-                  <beneficio.icon className="h-6 w-6 text-primary" />
+            <Card 
+              key={index} 
+              className="group relative overflow-hidden border-border/40 bg-white/60 dark:bg-black/40 backdrop-blur-md transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-brand-primary/10 hover:border-brand-primary/30 z-10"
+            >
+              {/* Overlay de gradiente sutil al hacer hover */}
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/0 via-transparent to-brand-highlight/0 group-hover:from-brand-primary/5 group-hover:to-brand-highlight/10 transition-colors duration-500" />
+              
+              <CardContent className="p-8 relative z-20">
+                {/* Contenedor del Ícono Animado */}
+                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary/10 to-brand-highlight/10 group-hover:from-brand-primary group-hover:to-brand-highlight transition-all duration-500 group-hover:scale-110 shadow-sm">
+                  <beneficio.icon className="h-7 w-7 text-brand-primary group-hover:text-white transition-colors duration-500" />
                 </div>
-                <h3 className="mb-2 font-semibold text-foreground">{beneficio.title}</h3>
-                <p className="text-sm text-muted-foreground">{beneficio.description}</p>
+                
+                {/* Textos */}
+                <h3 className="mb-3 text-xl font-bold text-foreground group-hover:text-brand-primary transition-colors duration-300">
+                  {beneficio.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed font-medium">
+                  {beneficio.description}
+                </p>
               </CardContent>
             </Card>
           ))}
