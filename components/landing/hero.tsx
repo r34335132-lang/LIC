@@ -1,147 +1,109 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { BookOpen, Users, Laptop, Award, ArrowRight, Sparkles, Play, CheckCircle } from 'lucide-react'
+import { ArrowRight, GraduationCap, Tag } from 'lucide-react'
 
 export function Hero() {
   return (
-    <section className="relative min-h-screen overflow-hidden bg-background bg-grid-subtle flex items-center pt-28 pb-20 md:pt-32 md:pb-24">
-      {/* Elementos decorativos de fondo (Esferas de luz) */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute left-[5%] top-[10%] h-[500px] w-[500px] rounded-full bg-brand-primary/15 blur-[120px] animate-pulse" />
-        <div className="absolute right-[5%] bottom-[10%] h-[600px] w-[600px] rounded-full bg-brand-highlight/10 blur-[150px]" />
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+      
+      {/* IMAGEN DE FONDO A PANTALLA COMPLETA */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop" 
+          alt="Campus Universitario" 
+          /* La imagen ahora está a todo color, sin opacidades que la oscurezcan */
+          className="object-cover w-full h-full"
+        />
+        {/* Degradado muy sutil solo a la izquierda para que el texto blanco se pueda leer, el resto de la imagen queda intacta */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/20 to-transparent" />
       </div>
 
-      <div className="container relative z-10 px-4 md:px-6 mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+      <div className="container relative z-10 px-4 md:px-6 mx-auto flex flex-col items-center md:items-start text-center md:text-left mt-10">
+        
+        {/* Etiqueta Superior */}
+        <div className="animate-fade-in-down mb-6 inline-flex items-center gap-2 rounded-sm bg-brand-primary px-4 py-1.5 text-sm font-bold text-white uppercase tracking-widest shadow-lg">
+          <GraduationCap className="h-4 w-4" />
+          <span>Ciclo Escolar 2026</span>
+        </div>
+
+        {/* Título Masivo (Con sombra de texto para resaltar sobre la imagen clara) */}
+        <h1 className="animate-fade-in-down [animation-delay:200ms] mb-6 max-w-4xl text-5xl font-black tracking-tighter text-white md:text-7xl lg:text-8xl leading-[1.1] drop-shadow-xl">
+          PREPÁRATE PARA <br/>
+          <span className="text-brand-primary drop-shadow-md">DOMINAR TU FUTURO</span>
+        </h1>
+
+        {/* ================= BLOQUE DE PROMOCIÓN ================= */}
+        <div className="animate-fade-in [animation-delay:400ms] mb-8 relative border-l-4 border-brand-primary bg-black/40 backdrop-blur-md p-5 sm:p-6 shadow-2xl inline-block max-w-2xl text-left">
+          <div className="absolute -top-3 -right-3 bg-brand-highlight text-black font-black text-xs uppercase px-3 py-1 shadow-lg transform rotate-3">
+            Tiempo Limitado
+          </div>
           
-          {/* ================= COLUMNA IZQUIERDA (TEXTOS Y BOTONES) ================= */}
-          <div className="flex flex-col text-center lg:text-left mx-auto max-w-2xl lg:mx-0 lg:max-w-none">
-            
-            {/* Badge Animado */}
-            <div className="animate-fade-in-down [animation-fill-mode:backwards] mb-6 inline-flex items-center gap-2 rounded-full border border-brand-primary/30 bg-brand-primary/10 px-5 py-2 text-sm font-medium text-brand-primary backdrop-blur-md shadow-[0_0_15px_rgba(10,77,204,0.15)] self-center lg:self-start w-fit">
-              <Sparkles className="h-4 w-4 text-brand-highlight" />
-              <span>Educación de excelencia con horarios flexibles</span>
-            </div>
-
-            {/* Título Principal */}
-            <h1 className="animate-fade-in-down [animation-delay:200ms] [animation-fill-mode:backwards] mb-6 text-balance text-5xl font-extrabold tracking-tight text-foreground md:text-6xl lg:text-7xl leading-[1.05]">
-              Estudia a tu ritmo con{' '}
-              <span className="text-gradient-brand block mt-2">
-                horarios flexibles
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+            <div className="flex-1">
+              <span className="flex items-center gap-2 text-brand-primary font-bold text-sm uppercase tracking-wider mb-1">
+                <Tag className="h-4 w-4" /> Beca de Nuevo Ingreso
               </span>
-            </h1>
-
-            {/* Subtítulo */}
-            <p className="animate-fade-in [animation-delay:400ms] [animation-fill-mode:backwards] mb-10 text-pretty text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
-              Formación académica virtual diseñada para estudiantes que buscan avanzar sin descuidar su vida. Acompañamiento docente de élite y una plataforma de vanguardia.
-            </p>
-
-            {/* Botones de Acción (CTAs) */}
-            <div className="animate-fade-in [animation-delay:600ms] [animation-fill-mode:backwards] flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-              <Link href="#oferta" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto rounded-full px-8 bg-brand-primary hover:bg-brand-primary-dark text-white shadow-lg shadow-brand-primary/30 transition-all hover:scale-105 hover:shadow-brand-primary/50 text-base h-14">
-                  Ver oferta académica
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              
-              <Link href="/login" className="w-full sm:w-auto">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto rounded-full px-8 border-brand-primary/20 hover:bg-brand-primary/5 hover:text-brand-primary transition-all text-base h-14 backdrop-blur-sm">
-                  Iniciar sesión
-                </Button>
-              </Link>
+              <span className="text-white text-3xl font-black block leading-none mt-1">
+                INSCRIPCIÓN <span className="text-brand-primary">GRATIS</span>
+              </span>
+            </div>
+            
+            <div className="hidden sm:block w-px h-16 bg-white/30"></div>
+            <div className="block sm:hidden w-full h-px bg-white/30 my-2"></div>
+            
+            <div className="flex-1">
+              <span className="block text-gray-200 font-medium text-sm mb-1 uppercase tracking-wider">
+                1ª Mensualidad desde
+              </span>
+              <span className="text-white text-4xl font-black leading-none block">
+                $600 <span className="text-base font-normal text-gray-300">MXN</span>
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* ================= COLUMNA DERECHA (IMAGEN/VIDEO VISUAL) ================= */}
-          <div className="relative animate-fade-in [animation-delay:800ms] [animation-fill-mode:backwards] mx-auto w-full max-w-lg lg:max-w-none mt-10 lg:mt-0">
-            
-            {/* Brillo de fondo para la imagen */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/30 to-brand-highlight/30 rounded-[3rem] blur-3xl transform rotate-6 scale-105 -z-10" />
-            
-            {/* Contenedor Principal (Glassmorphism) */}
-            <div className="relative rounded-[2.5rem] border border-white/40 dark:border-white/10 bg-white/40 dark:bg-black/40 p-4 backdrop-blur-2xl shadow-2xl shadow-brand-primary/20 group">
-              
-              {/* Contenedor de la Imagen */}
-              <div className="relative aspect-[4/3] md:aspect-video lg:aspect-[4/3] w-full overflow-hidden rounded-[1.5rem] bg-muted">
-                
-                {/* AQUÍ ESTÁ LA IMAGEN NUEVA */}
-                <Image 
-                  src="/hero-img.png" 
-                  alt="Estudiantes en plataforma virtual" 
-                  fill 
-                  className="object-cover transition-transform duration-1000 group-hover:scale-110"
-                  priority
-                />
-                
-                {/* Capa oscura superpuesta y Botón de Play (Simulando un video) */}
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors duration-500 flex items-center justify-center cursor-pointer">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-md border border-white/50 shadow-2xl transition-transform duration-300 group-hover:scale-110 group-hover:bg-brand-primary/90 group-hover:border-transparent">
-                    <Play className="h-8 w-8 text-white ml-1 group-hover:text-white" fill="currentColor" />
-                  </div>
-                </div>
-              </div>
+        {/* Subtítulo */}
+        <p className="animate-fade-in [animation-delay:500ms] mb-10 max-w-2xl text-lg text-white font-medium leading-relaxed drop-shadow-md">
+          Formación académica de excelencia con validez oficial. Inicia tu carrera profesional hoy mismo sin comprometer tu economía ni tu horario.
+        </p>
 
-              {/* Insignia Flotante 1 (Clases en vivo) */}
-              <div className="absolute -left-6 lg:-left-12 top-10 rounded-2xl bg-white dark:bg-gray-900 border border-border/50 p-4 shadow-xl shadow-black/5 flex items-center gap-4 transition-transform duration-500 hover:-translate-y-2 cursor-default">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-                  <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">Clases en Vivo</p>
-                  <p className="text-xs font-medium text-muted-foreground">Plataforma 24/7</p>
-                </div>
-              </div>
+        {/* Botones de Acción */}
+        <div className="animate-fade-in [animation-delay:600ms] flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <Link href="#oferta" className="w-full sm:w-auto">
+            <Button size="lg" className="w-full sm:w-auto rounded-none px-10 bg-brand-primary hover:bg-white hover:text-black text-white transition-colors text-lg h-16 font-bold uppercase tracking-wider shadow-xl">
+              Aprovechar Promoción
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Link>
+          
+          <Link href="/login" className="w-full sm:w-auto">
+            <Button variant="outline" size="lg" className="w-full sm:w-auto rounded-none px-10 border-2 border-white text-white hover:bg-white hover:text-black transition-colors text-lg h-16 font-bold uppercase tracking-wider bg-black/20 backdrop-blur-sm shadow-xl">
+              Iniciar Sesión
+            </Button>
+          </Link>
+        </div>
+      </div>
 
-              {/* Insignia Flotante 2 (Alumnos) */}
-              <div className="absolute -right-4 lg:-right-8 bottom-12 rounded-2xl bg-white dark:bg-gray-900 border border-border/50 p-4 shadow-xl shadow-black/5 flex items-center gap-4 transition-transform duration-500 hover:-translate-y-2 cursor-default">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary/10">
-                  <Users className="h-6 w-6 text-brand-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">+500 Alumnos</p>
-                  <p className="text-xs font-medium text-muted-foreground">Activos hoy</p>
-                </div>
-              </div>
+      {/* Franja de Estadísticas inferior */}
+      <div className="absolute bottom-0 left-0 w-full bg-brand-primary text-white z-20 border-t-4 border-brand-highlight shadow-[0_-10px_30px_rgba(0,0,0,0.2)]">
+        <div className="container mx-auto px-4 py-6 md:py-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-x divide-white/20">
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-3xl md:text-4xl font-black block mb-1 drop-shadow-sm">+15</span>
+              <span className="text-xs md:text-sm font-semibold uppercase tracking-wider opacity-90">Años de Excelencia</span>
             </div>
-          </div>
-
-          {/* ================= FILA INFERIOR (TARJETAS DE ESTADÍSTICAS) ================= */}
-          <div className="lg:col-span-2 animate-slide-in-up [animation-delay:1000ms] [animation-fill-mode:backwards] mt-16 grid grid-cols-2 gap-4 md:gap-6 md:grid-cols-4">
-            
-            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 dark:bg-black/40 p-6 backdrop-blur-lg shadow-lg shadow-black/5 hover:-translate-y-2 transition-all duration-300 hover:border-brand-primary/30">
-              <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-primary/10 group-hover:bg-brand-primary transition-colors duration-300">
-                <Users className="h-6 w-6 text-brand-primary group-hover:text-white transition-colors" />
-              </div>
-              <p className="text-3xl font-black text-foreground mb-1 text-center">500+</p>
-              <p className="text-sm font-medium text-muted-foreground text-center">Estudiantes</p>
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-3xl md:text-4xl font-black block mb-1 drop-shadow-sm">100%</span>
+              <span className="text-xs md:text-sm font-semibold uppercase tracking-wider opacity-90">Validez Oficial SEP</span>
             </div>
-
-            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 dark:bg-black/40 p-6 backdrop-blur-lg shadow-lg shadow-black/5 hover:-translate-y-2 transition-all duration-300 hover:border-brand-primary/30">
-              <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-primary/10 group-hover:bg-brand-highlight transition-colors duration-300">
-                <BookOpen className="h-6 w-6 text-brand-primary group-hover:text-white transition-colors" />
-              </div>
-              <p className="text-3xl font-black text-foreground mb-1 text-center">10+</p>
-              <p className="text-sm font-medium text-muted-foreground text-center">Programas</p>
+            <div className="flex flex-col items-center justify-center hidden md:flex">
+              <span className="text-3xl md:text-4xl font-black block mb-1 drop-shadow-sm">24/7</span>
+              <span className="text-xs md:text-sm font-semibold uppercase tracking-wider opacity-90">Plataforma Virtual</span>
             </div>
-
-            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 dark:bg-black/40 p-6 backdrop-blur-lg shadow-lg shadow-black/5 hover:-translate-y-2 transition-all duration-300 hover:border-brand-primary/30">
-              <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-primary/10 group-hover:bg-brand-primary transition-colors duration-300">
-                <Laptop className="h-6 w-6 text-brand-primary group-hover:text-white transition-colors" />
-              </div>
-              <p className="text-3xl font-black text-foreground mb-1 text-center">100%</p>
-              <p className="text-sm font-medium text-muted-foreground text-center">Virtual</p>
+            <div className="flex flex-col items-center justify-center hidden md:flex">
+              <span className="text-3xl md:text-4xl font-black block mb-1 drop-shadow-sm">+500</span>
+              <span className="text-xs md:text-sm font-semibold uppercase tracking-wider opacity-90">Egresados Exitosos</span>
             </div>
-
-            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 dark:bg-black/40 p-6 backdrop-blur-lg shadow-lg shadow-black/5 hover:-translate-y-2 transition-all duration-300 hover:border-brand-primary/30">
-              <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-primary/10 group-hover:bg-brand-highlight transition-colors duration-300">
-                <Award className="h-6 w-6 text-brand-primary group-hover:text-white transition-colors" />
-              </div>
-              <p className="text-3xl font-black text-foreground mb-1 text-center">15+</p>
-              <p className="text-sm font-medium text-muted-foreground text-center">Años de exp.</p>
-            </div>
-
           </div>
         </div>
       </div>

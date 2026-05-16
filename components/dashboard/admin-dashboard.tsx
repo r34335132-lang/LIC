@@ -11,7 +11,10 @@ import {
   TrendingUp,
   AlertTriangle,
   Plus,
-  ArrowUpRight
+  ArrowUpRight,
+  ShieldAlert,
+  CalendarCheck,
+  MoreHorizontal
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -25,7 +28,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   const cursosActivos = cursos.filter(c => c.estado === 'activo').length
   const entregasPendientes = entregas.filter(e => e.estado === 'pendiente').length
 
-  // Alumnos recientes
+  // Alumnos recientes (Nuevo Ingreso)
   const alumnosRecientes = usuarios
     .filter(u => u.rol === 'alumno')
     .sort((a, b) => new Date(b.fechaIngreso).getTime() - new Date(a.fechaIngreso).getTime())
@@ -39,168 +42,199 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   }))
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-8 animate-fade-in pb-10">
+      
+      {/* ================= HEADER DEL DASHBOARD ================= */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between bg-white dark:bg-black/40 p-6 md:p-8 rounded-3xl border border-border/50 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-foreground md:text-3xl">
-            Panel de Administración
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/10 text-brand-primary font-bold text-xs uppercase tracking-widest mb-3">
+            <ShieldAlert className="h-4 w-4" /> Nivel de Acceso: Coordinador
+          </div>
+          <h1 className="text-3xl font-black text-foreground md:text-4xl tracking-tight">
+            Centro de Control Académico
           </h1>
-          <p className="text-muted-foreground">
-            Bienvenido, {user.nombre}
+          <p className="text-muted-foreground font-medium mt-1">
+            Bienvenido de vuelta, <span className="text-foreground font-bold">{user.nombre}</span>. Aquí tienes el resumen del campus.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-3">
           <Link href="/dashboard/alumnos">
-            <Button variant="outline">
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo alumno
+            <Button className="rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold shadow-md shadow-brand-primary/20">
+              <Plus className="mr-2 h-4 w-4" /> Matricular Alumno
             </Button>
           </Link>
           <Link href="/dashboard/cursos">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo curso
+            <Button variant="outline" className="rounded-xl border-border/50 font-bold hover:bg-gray-50 dark:hover:bg-gray-900">
+              <Plus className="mr-2 h-4 w-4" /> Abrir Grupo
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* ================= MÉTRICAS PRINCIPALES (KPIs) ================= */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Users className="h-6 w-6 text-primary" />
+        {/* KPI 1 */}
+        <Card className="rounded-3xl border-0 bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-black shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <Users className="h-6 w-6" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{totalAlumnos}</p>
-                <p className="text-sm text-muted-foreground">Total alumnos</p>
-              </div>
+              <TrendingUp className="h-5 w-5 text-blue-500 opacity-50" />
             </div>
-            <TrendingUp className="h-5 w-5 text-chart-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
-                <GraduationCap className="h-6 w-6 text-accent" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{totalMaestros}</p>
-                <p className="text-sm text-muted-foreground">Total maestros</p>
-              </div>
+            <div>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Matrícula Activa</p>
+              <p className="text-4xl font-black text-foreground">{totalAlumnos}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-chart-2/10">
-                <BookOpen className="h-6 w-6 text-chart-2" />
+        {/* KPI 2 */}
+        <Card className="rounded-3xl border-0 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-black shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                <GraduationCap className="h-6 w-6" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{cursosActivos}</p>
-                <p className="text-sm text-muted-foreground">Cursos activos</p>
-              </div>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Plantilla Docente</p>
+              <p className="text-4xl font-black text-foreground">{totalMaestros}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-chart-1/10">
-                <FileText className="h-6 w-6 text-chart-1" />
+        {/* KPI 3 */}
+        <Card className="rounded-3xl border-0 bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-black shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                <BookOpen className="h-6 w-6" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{programas.length}</p>
-                <p className="text-sm text-muted-foreground">Programas</p>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Grupos Activos</p>
+              <p className="text-4xl font-black text-foreground">{cursosActivos}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* KPI 4 */}
+        <Card className="rounded-3xl border-0 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-black shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <FileText className="h-6 w-6" />
               </div>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Oferta Educativa</p>
+              <p className="text-4xl font-black text-foreground">{programas.length}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content */}
+      {/* ================= CONTENIDO CENTRAL (Doble Columna) ================= */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Alertas y notificaciones */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Alertas
+        
+        {/* ALERTAS Y NOTIFICACIONES */}
+        <Card className="lg:col-span-1 rounded-3xl border-border/50 shadow-sm overflow-hidden flex flex-col">
+          <CardHeader className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-border/50 pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg font-black uppercase tracking-tight">
+              <AlertTriangle className="h-5 w-5 text-amber-500" /> Panel de Alertas
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                {entregasPendientes} tareas pendientes de revisión
-              </p>
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                Hay entregas sin calificar
-              </p>
+          <CardContent className="p-5 flex-1 space-y-4">
+            
+            {/* Alerta: Tareas */}
+            <div className="flex gap-4 rounded-2xl border border-amber-200/50 bg-amber-50/50 p-4 dark:border-amber-900/30 dark:bg-amber-950/20">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-amber-900 dark:text-amber-200 leading-tight">
+                  {entregasPendientes} Tareas en espera
+                </p>
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400/70 mt-1">
+                  Requieren revisión docente
+                </p>
+              </div>
             </div>
-            <div className="rounded-lg border border-border bg-muted/50 p-3">
-              <p className="text-sm font-medium text-foreground">
-                2 alumnos con baja asistencia
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Menos del 70% de asistencia
-              </p>
+
+            {/* Alerta: Riesgo */}
+            <div className="flex gap-4 rounded-2xl border border-red-200/50 bg-red-50/50 p-4 dark:border-red-900/30 dark:bg-red-950/20">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-red-900 dark:text-red-200 leading-tight">
+                  Riesgo de deserción
+                </p>
+                <p className="text-xs font-medium text-red-700 dark:text-red-400/70 mt-1">
+                  2 alumnos con asistencia baja
+                </p>
+              </div>
             </div>
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-              <p className="text-sm font-medium text-foreground">
-                Inscripciones abiertas
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Ciclo 2024-2025
-              </p>
+
+            {/* Alerta: Informativa */}
+            <div className="flex gap-4 rounded-2xl border border-emerald-200/50 bg-emerald-50/50 p-4 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400">
+                <CalendarCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200 leading-tight">
+                  Periodo de Inscripción
+                </p>
+                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400/70 mt-1">
+                  Ciclo escolar activo y abierto
+                </p>
+              </div>
             </div>
+
           </CardContent>
         </Card>
 
-        {/* Alumnos recientes */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
+        {/* ALUMNOS DE NUEVO INGRESO */}
+        <Card className="lg:col-span-2 rounded-3xl border-border/50 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 bg-gray-50/50 dark:bg-gray-900/50 pb-4">
             <div>
-              <CardTitle className="text-lg">Alumnos recientes</CardTitle>
-              <CardDescription>Últimos alumnos registrados</CardDescription>
+              <CardTitle className="text-lg font-black uppercase tracking-tight">Nuevo Ingreso</CardTitle>
+              <CardDescription className="font-medium">Últimas matrículas registradas en el sistema</CardDescription>
             </div>
             <Link href="/dashboard/alumnos">
-              <Button variant="ghost" size="sm">
-                Ver todos
-                <ArrowUpRight className="ml-1 h-4 w-4" />
+              <Button variant="ghost" size="sm" className="font-bold text-brand-primary hover:bg-brand-primary/10">
+                Directorio Completo <ArrowUpRight className="ml-1 h-4 w-4" />
               </Button>
             </Link>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="p-0">
+            <div className="divide-y divide-border/50">
               {alumnosRecientes.map((alumno) => {
                 const programa = programas.find(p => p.id === alumno.programaId)
                 return (
-                  <div
-                    key={alumno.id}
-                    className="flex items-center justify-between rounded-lg border border-border p-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+                  <div key={alumno.id} className="flex items-center justify-between p-5 hover:bg-gray-50/50 dark:hover:bg-gray-900/20 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-sm font-black text-foreground shadow-sm">
                         {alumno.nombre.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
                       <div>
-                        <p className="font-medium text-foreground">{alumno.nombre}</p>
-                        <p className="text-sm text-muted-foreground">{alumno.matricula}</p>
+                        <p className="font-bold text-foreground text-base">{alumno.nombre}</p>
+                        <p className="text-xs font-medium text-muted-foreground">{alumno.matricula}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge variant="secondary">{programa?.nombre || 'Sin programa'}</Badge>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {new Date(alumno.fechaIngreso).toLocaleDateString('es-MX')}
+                    <div className="text-right hidden sm:block">
+                      <Badge className="bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 border-0 font-bold px-3 py-1">
+                        {programa?.nombre || 'Sin programa'}
+                      </Badge>
+                      <p className="mt-2 text-xs font-medium text-muted-foreground flex items-center justify-end gap-1">
+                        Alta: {new Date(alumno.fechaIngreso).toLocaleDateString('es-MX')}
                       </p>
+                    </div>
+                    <div className="sm:hidden">
+                      <Button variant="ghost" size="icon" className="rounded-full">
+                        <MoreHorizontal className="h-5 w-5" />
+                      </Button>
                     </div>
                   </div>
                 )
@@ -210,31 +244,38 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         </Card>
       </div>
 
-      {/* Programas académicos */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      {/* ================= ESTADO DE PROGRAMAS ACADÉMICOS ================= */}
+      <Card className="rounded-3xl border-border/50 shadow-sm overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 bg-gray-50/50 dark:bg-gray-900/50 pb-4">
           <div>
-            <CardTitle className="text-lg">Programas académicos</CardTitle>
-            <CardDescription>Estadísticas por programa</CardDescription>
+            <CardTitle className="text-lg font-black uppercase tracking-tight">Rendimiento por Programa</CardTitle>
+            <CardDescription className="font-medium">Volumen de alumnos y grupos por oferta educativa</CardDescription>
           </div>
           <Link href="/dashboard/programas">
-            <Button variant="ghost" size="sm">Ver todos</Button>
+            <Button variant="outline" size="sm" className="rounded-xl font-bold">Ver catálogo</Button>
           </Link>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <CardContent className="p-6">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {estadisticasProgramas.map((programa) => (
               <div
                 key={programa.id}
-                className="rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+                className="group rounded-2xl border border-border/50 p-5 transition-all duration-300 hover:border-brand-primary/30 hover:shadow-lg hover:shadow-brand-primary/5 hover:-translate-y-1 bg-white dark:bg-black/20"
               >
-                <h4 className="font-medium text-foreground">{programa.nombre}</h4>
-                <Badge variant="outline" className="mt-1 mb-3">
+                <Badge variant="outline" className="mb-4 text-[10px] uppercase tracking-widest font-bold">
                   {programa.tipo}
                 </Badge>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>{programa.alumnos} alumnos inscritos</p>
-                  <p>{programa.cursos} cursos activos</p>
+                <h4 className="font-black text-foreground mb-4 line-clamp-2 leading-tight">{programa.nombre}</h4>
+                
+                <div className="space-y-3 pt-4 border-t border-border/50">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-medium flex items-center gap-2"><Users className="h-4 w-4" /> Alumnos</span>
+                    <span className="font-bold">{programa.alumnos}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-medium flex items-center gap-2"><BookOpen className="h-4 w-4" /> Grupos</span>
+                    <span className="font-bold">{programa.cursos}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -242,52 +283,68 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         </CardContent>
       </Card>
 
-      {/* Acciones rápidas */}
+      {/* ================= ACCESOS DIRECTOS DE GESTIÓN ================= */}
+      <div className="mb-2">
+        <h3 className="text-sm font-black text-muted-foreground uppercase tracking-widest pl-2">Gestión Rápida</h3>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        
         <Link href="/dashboard/alumnos">
-          <Card className="cursor-pointer transition-colors hover:bg-muted/50">
-            <CardContent className="flex items-center gap-4 p-4">
-              <Users className="h-8 w-8 text-primary" />
+          <Card className="group cursor-pointer rounded-2xl border-border/50 transition-all duration-300 hover:border-brand-primary/50 hover:shadow-md hover:-translate-y-1 overflow-hidden">
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-foreground group-hover:bg-brand-primary group-hover:text-white transition-colors">
+                <Users className="h-6 w-6" />
+              </div>
               <div>
-                <p className="font-medium text-foreground">Gestionar alumnos</p>
-                <p className="text-sm text-muted-foreground">Crear, editar, dar de baja</p>
+                <p className="font-bold text-foreground leading-tight">Expedientes</p>
+                <p className="text-xs font-medium text-muted-foreground mt-0.5">Control de Alumnos</p>
               </div>
             </CardContent>
           </Card>
         </Link>
+
         <Link href="/dashboard/maestros">
-          <Card className="cursor-pointer transition-colors hover:bg-muted/50">
-            <CardContent className="flex items-center gap-4 p-4">
-              <GraduationCap className="h-8 w-8 text-accent" />
+          <Card className="group cursor-pointer rounded-2xl border-border/50 transition-all duration-300 hover:border-brand-primary/50 hover:shadow-md hover:-translate-y-1 overflow-hidden">
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-foreground group-hover:bg-brand-primary group-hover:text-white transition-colors">
+                <GraduationCap className="h-6 w-6" />
+              </div>
               <div>
-                <p className="font-medium text-foreground">Gestionar maestros</p>
-                <p className="text-sm text-muted-foreground">Asignar cursos</p>
+                <p className="font-bold text-foreground leading-tight">Docentes</p>
+                <p className="text-xs font-medium text-muted-foreground mt-0.5">Asignación Académica</p>
               </div>
             </CardContent>
           </Card>
         </Link>
+
         <Link href="/dashboard/matriculas">
-          <Card className="cursor-pointer transition-colors hover:bg-muted/50">
-            <CardContent className="flex items-center gap-4 p-4">
-              <FileText className="h-8 w-8 text-chart-2" />
+          <Card className="group cursor-pointer rounded-2xl border-border/50 transition-all duration-300 hover:border-brand-primary/50 hover:shadow-md hover:-translate-y-1 overflow-hidden">
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-foreground group-hover:bg-brand-primary group-hover:text-white transition-colors">
+                <FileText className="h-6 w-6" />
+              </div>
               <div>
-                <p className="font-medium text-foreground">Matrículas</p>
-                <p className="text-sm text-muted-foreground">Crear y gestionar</p>
+                <p className="font-bold text-foreground leading-tight">Inscripciones</p>
+                <p className="text-xs font-medium text-muted-foreground mt-0.5">Control de Matrículas</p>
               </div>
             </CardContent>
           </Card>
         </Link>
+
         <Link href="/dashboard/reportes">
-          <Card className="cursor-pointer transition-colors hover:bg-muted/50">
-            <CardContent className="flex items-center gap-4 p-4">
-              <TrendingUp className="h-8 w-8 text-chart-1" />
+          <Card className="group cursor-pointer rounded-2xl border-border/50 transition-all duration-300 hover:border-brand-primary/50 hover:shadow-md hover:-translate-y-1 overflow-hidden">
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-foreground group-hover:bg-brand-primary group-hover:text-white transition-colors">
+                <TrendingUp className="h-6 w-6" />
+              </div>
               <div>
-                <p className="font-medium text-foreground">Reportes</p>
-                <p className="text-sm text-muted-foreground">Estadísticas y análisis</p>
+                <p className="font-bold text-foreground leading-tight">Reportes SEP</p>
+                <p className="text-xs font-medium text-muted-foreground mt-0.5">Métricas Oficiales</p>
               </div>
             </CardContent>
           </Card>
         </Link>
+
       </div>
     </div>
   )

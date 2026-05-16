@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { Menu, X, GraduationCap, ChevronRight } from 'lucide-react'
+import { Menu, X, GraduationCap, ChevronRight, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const navLinks = [
-  { href: '#oferta', label: 'Oferta Académica' },
-  { href: '#beneficios', label: 'Beneficios' },
-  { href: '#como-funciona', label: 'Cómo Funciona' },
-  { href: '#contacto', label: 'Contacto' },
+  { href: '/', label: 'Inicio', icon: Home },
+  { href: '/#oferta', label: 'Oferta Académica' },
+  { href: '/#beneficios', label: 'Beneficios' },
+  { href: '/#como-funciona', label: 'Modelo Educativo' },
+  { href: '/#contacto', label: 'Admisiones' },
 ]
 
 export function Header() {
@@ -56,8 +57,9 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="group relative text-sm font-semibold text-muted-foreground transition-colors hover:text-brand-primary"
+              className="flex items-center gap-1 group relative text-sm font-semibold text-muted-foreground transition-colors hover:text-brand-primary"
             >
+              {link.icon && <link.icon className="h-4 w-4 mb-0.5" />}
               {link.label}
               {/* Línea animada inferior al hacer hover */}
               <span className="absolute -bottom-1 left-0 h-[2px] w-0 bg-brand-highlight transition-all duration-300 group-hover:w-full rounded-full"></span>
@@ -67,16 +69,18 @@ export function Header() {
 
         {/* Desktop Actions */}
         <div className="hidden items-center gap-4 md:flex">
-          <Link href="/login">
-            <Button variant="ghost" size="sm" className="font-semibold text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/5 rounded-full px-5">
-              Iniciar Sesión
-            </Button>
-          </Link>
-          <Link href="#contacto">
-            <Button size="sm" className="rounded-full bg-brand-primary hover:bg-brand-primary/90 text-white shadow-md shadow-brand-primary/20 px-6 transition-all hover:scale-105">
-              Solicitar Información
-            </Button>
-          </Link>
+          {/* SOLUCIÓN APLICADA: Button usa asChild y el Link va adentro */}
+          <Button variant="ghost" size="sm" className="font-semibold text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/5 rounded-full px-5" asChild>
+            <Link href="/login">
+              Portal Alumnos
+            </Link>
+          </Button>
+          
+          <Button size="sm" className="rounded-full bg-brand-primary hover:bg-brand-primary/90 text-white shadow-md shadow-brand-primary/20 px-6 transition-all hover:scale-105" asChild>
+            <Link href="/#contacto">
+              Proceso de Admisión
+            </Link>
+          </Button>
         </div>
 
         {/* Mobile Menu Button */}
@@ -107,21 +111,26 @@ export function Header() {
               className="flex items-center justify-between rounded-lg px-4 py-3 text-sm font-semibold text-foreground hover:bg-brand-primary/5 hover:text-brand-primary transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
-              {link.label}
+              <div className="flex items-center gap-2">
+                {link.icon && <link.icon className="h-4 w-4 text-brand-primary" />}
+                {link.label}
+              </div>
               <ChevronRight className="h-4 w-4 text-brand-highlight" />
             </Link>
           ))}
           <div className="flex flex-col gap-3 pt-6 mt-2 border-t border-brand-primary/10">
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="outline" className="w-full rounded-full border-brand-primary/20 text-brand-primary h-12">
-                Iniciar Sesión
-              </Button>
-            </Link>
-            <Link href="#contacto" onClick={() => setMobileMenuOpen(false)}>
-              <Button className="w-full rounded-full bg-brand-primary text-white h-12 shadow-md shadow-brand-primary/20">
-                Solicitar Información
-              </Button>
-            </Link>
+            {/* SOLUCIÓN APLICADA TAMBIÉN EN EL MENÚ MÓVIL */}
+            <Button variant="outline" className="w-full rounded-full border-brand-primary/20 text-brand-primary h-12" asChild>
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                Portal Alumnos
+              </Link>
+            </Button>
+            
+            <Button className="w-full rounded-full bg-brand-primary text-white h-12 shadow-md shadow-brand-primary/20" asChild>
+              <Link href="/#contacto" onClick={() => setMobileMenuOpen(false)}>
+                Proceso de Admisión
+              </Link>
+            </Button>
           </div>
         </nav>
       </div>

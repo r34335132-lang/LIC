@@ -21,7 +21,9 @@ import {
   FileCheck,
   LogOut,
   ChevronLeft,
-  Menu
+  Menu,
+  ShieldCheck,
+  LayoutDashboard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -35,39 +37,55 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useState } from 'react'
 
-// Menús por rol
+// Menús agrupados por rol para mejor jerarquía visual
 const menuAlumno = [
-  { href: '/dashboard', label: 'Inicio', icon: Home },
-  { href: '/dashboard/cursos', label: 'Mis cursos', icon: BookOpen },
-  { href: '/dashboard/clases', label: 'Clases virtuales', icon: Video },
-  { href: '/dashboard/tareas', label: 'Tareas', icon: FileText },
-  { href: '/dashboard/calificaciones', label: 'Calificaciones', icon: BarChart3 },
+  { section: 'Principal' },
+  { href: '/dashboard', label: 'Tablero', icon: LayoutDashboard },
+  { href: '/dashboard/avisos', label: 'Avisos', icon: Bell, badge: '2' },
+  
+  { section: 'Académico' },
+  { href: '/dashboard/cursos', label: 'Mis Materias', icon: BookOpen },
+  { href: '/dashboard/clases', label: 'Clases en Vivo', icon: Video },
+  { href: '/dashboard/tareas', label: 'Entregables', icon: FileText },
+  
+  { section: 'Control Escolar' },
+  { href: '/dashboard/calificaciones', label: 'Kardex', icon: BarChart3 },
   { href: '/dashboard/asistencia', label: 'Asistencia', icon: ClipboardCheck },
-  { href: '/dashboard/avisos', label: 'Avisos', icon: Bell },
-  { href: '/dashboard/perfil', label: 'Perfil', icon: User },
 ]
 
 const menuMaestro = [
-  { href: '/dashboard', label: 'Inicio', icon: Home },
-  { href: '/dashboard/cursos', label: 'Mis cursos', icon: BookOpen },
-  { href: '/dashboard/contenido', label: 'Crear contenido', icon: FolderOpen },
-  { href: '/dashboard/tareas', label: 'Tareas', icon: FileText },
-  { href: '/dashboard/entregas', label: 'Entregas', icon: FileCheck },
-  { href: '/dashboard/calificaciones', label: 'Calificaciones', icon: BarChart3 },
-  { href: '/dashboard/asistencia', label: 'Asistencia', icon: ClipboardCheck },
-  { href: '/dashboard/clases', label: 'Clases virtuales', icon: Video },
+  { section: 'Principal' },
+  { href: '/dashboard', label: 'Tablero', icon: LayoutDashboard },
   { href: '/dashboard/avisos', label: 'Avisos', icon: Bell },
+  
+  { section: 'Gestión Académica' },
+  { href: '/dashboard/cursos', label: 'Mis Grupos', icon: Users },
+  { href: '/dashboard/contenido', label: 'Material Didáctico', icon: FolderOpen },
+  { href: '/dashboard/clases', label: 'Aulas Virtuales', icon: Video },
+  
+  { section: 'Evaluación' },
+  { href: '/dashboard/tareas', label: 'Asignar Tareas', icon: FileText },
+  { href: '/dashboard/entregas', label: 'Revisión', icon: FileCheck, badge: '5' },
+  { href: '/dashboard/calificaciones', label: 'Calificaciones', icon: BarChart3 },
+  { href: '/dashboard/asistencia', label: 'Pase de Lista', icon: ClipboardCheck },
 ]
 
 const menuAdmin = [
-  { href: '/dashboard', label: 'Inicio', icon: Home },
-  { href: '/dashboard/alumnos', label: 'Alumnos', icon: Users },
-  { href: '/dashboard/maestros', label: 'Maestros', icon: GraduationCap },
-  { href: '/dashboard/cursos', label: 'Cursos', icon: BookOpen },
-  { href: '/dashboard/programas', label: 'Programas académicos', icon: BookMarked },
+  { section: 'Principal' },
+  { href: '/dashboard', label: 'Resumen Global', icon: LayoutDashboard },
+  
+  { section: 'Comunidad Escolar' },
+  { href: '/dashboard/alumnos', label: 'Directorio Alumnos', icon: Users },
+  { href: '/dashboard/maestros', label: 'Plantilla Docente', icon: GraduationCap },
+  { href: '/dashboard/usuarios', label: 'Usuarios y Accesos', icon: ShieldCheck },
+  
+  { section: 'Oferta y Control' },
+  { href: '/dashboard/programas', label: 'Programas (RVOE)', icon: BookMarked },
+  { href: '/dashboard/cursos', label: 'Gestión de Cursos', icon: BookOpen },
   { href: '/dashboard/matriculas', label: 'Matrículas', icon: FileText },
-  { href: '/dashboard/usuarios', label: 'Usuarios', icon: User },
-  { href: '/dashboard/reportes', label: 'Reportes', icon: BarChart3 },
+  
+  { section: 'Sistema' },
+  { href: '/dashboard/reportes', label: 'Reportes y Métricas', icon: BarChart3 },
   { href: '/dashboard/configuracion', label: 'Configuración', icon: Settings },
 ]
 
@@ -79,12 +97,9 @@ export function DashboardSidebar() {
 
   const getMenu = () => {
     switch (user?.rol) {
-      case 'admin':
-        return menuAdmin
-      case 'maestro':
-        return menuMaestro
-      default:
-        return menuAlumno
+      case 'admin': return menuAdmin
+      case 'maestro': return menuMaestro
+      default: return menuAlumno
     }
   }
 
@@ -92,12 +107,9 @@ export function DashboardSidebar() {
 
   const getRolLabel = () => {
     switch (user?.rol) {
-      case 'admin':
-        return 'Administrador'
-      case 'maestro':
-        return 'Maestro'
-      default:
-        return 'Alumno'
+      case 'admin': return 'Coordinador Académico'
+      case 'maestro': return 'Catedrático'
+      default: return 'Estudiante'
     }
   }
 
@@ -112,99 +124,125 @@ export function DashboardSidebar() {
 
   const SidebarContent = () => (
     <>
-      {/* Logo */}
+      {/* Logo Superior Institucional */}
       <div className={cn(
-        "flex items-center gap-2 border-b border-sidebar-border p-4",
-        collapsed && "justify-center"
+        "flex items-center gap-3 border-b border-border/50 p-5 min-h-[80px]",
+        collapsed && "justify-center px-2"
       )}>
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
-            <GraduationCap className="h-5 w-5 text-sidebar-primary-foreground" />
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary text-white shadow-md shadow-brand-primary/20">
+            <GraduationCap className="h-6 w-6" />
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-xs font-bold leading-none text-sidebar-foreground">Instituto Universitario</span>
-              <span className="text-[10px] text-sidebar-foreground/70">de Durango</span>
+              <span className="text-sm font-black leading-tight text-foreground uppercase tracking-tight">IUD</span>
+              <span className="text-[10px] font-bold text-brand-primary uppercase tracking-widest">Campus Virtual</span>
             </div>
           )}
         </Link>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {menu.map((item) => {
+      {/* Navegación con Secciones */}
+      <nav className="flex-1 space-y-1.5 overflow-y-auto p-4 custom-scrollbar">
+        {menu.map((item, index) => {
+          // Renderizar Título de Sección
+          if (item.section) {
+            if (collapsed) return <div key={`divider-${index}`} className="h-4" />
+            return (
+              <div key={`section-${index}`} className="pt-4 pb-1 pl-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                  {item.section}
+                </span>
+              </div>
+            )
+          }
+
+          // Renderizar Enlace
           const isActive = pathname === item.href
+          const Icon = item.icon!
+
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                "group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                  ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20"
+                  : "text-muted-foreground hover:bg-brand-primary/10 hover:text-brand-primary",
                 collapsed && "justify-center px-2"
               )}
             >
-              <item.icon className="h-5 w-5 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              <div className="flex items-center gap-3">
+                <Icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-muted-foreground group-hover:text-brand-primary")} />
+                {!collapsed && <span>{item.label}</span>}
+              </div>
+              
+              {/* Badge de Notificaciones */}
+              {!collapsed && item.badge && (
+                <span className={cn(
+                  "flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                  isActive ? "bg-white text-brand-primary" : "bg-brand-highlight text-black"
+                )}>
+                  {item.badge}
+                </span>
+              )}
             </Link>
           )
         })}
       </nav>
 
-      {/* User Section */}
-      <div className="border-t border-sidebar-border p-3">
+      {/* Perfil del Usuario Inferior */}
+      <div className="border-t border-border/50 p-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className={cn(
-              "flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-sidebar-accent/50",
+              "flex w-full items-center gap-3 rounded-xl p-2 text-left transition-all hover:bg-gray-100 dark:hover:bg-gray-800",
               collapsed && "justify-center"
             )}>
-              <Avatar className="h-9 w-9 border-2 border-sidebar-accent">
-                <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">
+              <Avatar className="h-10 w-10 border-2 border-brand-primary/20">
+                <AvatarFallback className="bg-gradient-to-br from-brand-primary to-brand-highlight text-white text-xs font-bold">
                   {user ? getInitials(user.nombre) : 'U'}
                 </AvatarFallback>
               </Avatar>
               {!collapsed && (
                 <div className="flex-1 overflow-hidden">
-                  <p className="truncate text-sm font-medium text-sidebar-foreground">
+                  <p className="truncate text-sm font-bold text-foreground">
                     {user?.nombre}
                   </p>
-                  <p className="truncate text-xs text-sidebar-foreground/70">
+                  <p className="truncate text-xs font-medium text-brand-primary">
                     {getRolLabel()}
                   </p>
                 </div>
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-64 rounded-xl p-2">
+            <DropdownMenuLabel className="font-bold">Mi Cuenta Institucional</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem asChild className="cursor-pointer font-medium py-2">
               <Link href="/dashboard/perfil">
-                <User className="mr-2 h-4 w-4" />
-                Ver perfil
+                <User className="mr-2 h-4 w-4 text-brand-primary" /> Ver Mi Perfil
               </Link>
             </DropdownMenuItem>
+            
+            {/* Solo para desarrollo */}
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Cambiar rol (demo)
-            </DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => switchRole('alumno')}>
-              Alumno
+            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Entorno de Pruebas</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => switchRole('alumno')} className="cursor-pointer py-2">
+              Cambiar a Estudiante
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => switchRole('maestro')}>
-              Maestro
+            <DropdownMenuItem onClick={() => switchRole('maestro')} className="cursor-pointer py-2">
+              Cambiar a Catedrático
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => switchRole('admin')}>
-              Administrador
+            <DropdownMenuItem onClick={() => switchRole('admin')} className="cursor-pointer py-2">
+              Cambiar a Coordinador
             </DropdownMenuItem>
+            
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout} className="text-destructive">
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar sesión
+            <DropdownMenuItem onClick={logout} className="text-red-500 focus:text-red-600 focus:bg-red-50 cursor-pointer font-bold py-2">
+              <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -214,43 +252,43 @@ export function DashboardSidebar() {
 
   return (
     <>
-      {/* Mobile Menu Button */}
+      {/* Botón Flotante para Móviles */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar text-sidebar-foreground shadow-lg md:hidden"
+        className="fixed left-4 top-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary text-white shadow-lg md:hidden hover:scale-105 transition-transform"
       >
-        <Menu className="h-5 w-5" />
+        <Menu className="h-6 w-6" />
       </button>
 
-      {/* Mobile Overlay */}
+      {/* Fondo oscuro al abrir menú móvil */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* Mobile Sidebar */}
+      {/* Sidebar para Móviles */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-sidebar transition-transform md:hidden",
+        "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-white dark:bg-[#09090b] shadow-2xl transition-transform duration-300 ease-in-out md:hidden",
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <SidebarContent />
       </aside>
 
-      {/* Desktop Sidebar */}
+      {/* Sidebar para Computadora (Desktop) */}
       <aside className={cn(
-        "sticky top-0 hidden h-screen flex-col bg-sidebar transition-all md:flex",
-        collapsed ? "w-[70px]" : "w-64"
+        "sticky top-0 hidden h-screen flex-col bg-white dark:bg-[#09090b] border-r border-border/50 shadow-sm transition-all duration-300 md:flex",
+        collapsed ? "w-[80px]" : "w-[280px]"
       )}>
         <SidebarContent />
         
-        {/* Collapse Button */}
+        {/* Botón para colapsar/expandir el sidebar */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-20 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm hover:bg-sidebar-accent"
+          className="absolute -right-4 top-10 flex h-8 w-8 items-center justify-center rounded-full border border-border/50 bg-white dark:bg-gray-900 text-foreground shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-all z-10"
         >
-          <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
+          <ChevronLeft className={cn("h-5 w-5 transition-transform duration-300", collapsed && "rotate-180")} />
         </button>
       </aside>
     </>
