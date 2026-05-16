@@ -28,19 +28,19 @@ export default function LoginPage() {
     try {
       const success = await login(email, password)
       if (success) {
-        router.refresh() // Forzar refresco del estado
+        // Redirección directa sin interrupciones
         router.push('/dashboard')
       } else {
         setError('Correo o contraseña incorrectos. Verifica tus datos.')
+        setLoading(false)
       }
     } catch {
       setError('Error de conexión al iniciar sesión. Intenta de nuevo.')
-    } finally {
       setLoading(false)
     }
   }
 
-  // Demo: Login rápido por rol con manejo de errores mejorado
+  // Demo: Login rápido corregido
   const quickLogin = async (targetEmail: string) => {
     setError('')
     setEmail(targetEmail)
@@ -50,14 +50,14 @@ export default function LoginPage() {
     try {
       const success = await login(targetEmail, 'demo123')
       if (success) {
-        router.refresh() // Ayuda a que Next.js detecte el cambio de sesión
+        // Al eliminar router.refresh(), Next.js ya no cancela el viaje a la nueva ruta
         router.push('/dashboard')
       } else {
-        setError(`El usuario ${targetEmail} no existe o la contraseña demo123 es incorrecta.`)
+        setError(`El usuario ${targetEmail} no existe en la base de datos.`)
+        setLoading(false)
       }
     } catch {
       setError('Error al procesar el acceso rápido.')
-    } finally {
       setLoading(false)
     }
   }
