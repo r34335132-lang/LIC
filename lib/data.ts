@@ -92,7 +92,8 @@ export const programas: Programa[] = [
     tipo: 'preparatoria',
     descripcion: 'Programa flexible para terminar tus estudios de nivel medio superior en menor tiempo, con clases virtuales y acompañamiento.',
     duracion: '2 años',
-    imagen: 'https://incareersjobs.com/wp-content/uploads/2020/09/Consejos-para-tener-%C3%A9xito-en-la-preparatoria-UNAM.jpg', // Jóvenes dinámicos y felices
+    rvoe: '20230145', // RVOE
+    imagen: 'https://incareersjobs.com/wp-content/uploads/2020/09/Consejos-para-tener-%C3%A9xito-en-la-preparatoria-UNAM.jpg',
     porQueEstudiar: 'El tiempo es tu recurso más valioso. Nuestro modelo intensivo de 2 años está diseñado para jóvenes y adultos que buscan avanzar rápidamente sin sacrificar la calidad educativa. Obtendrás un certificado con validez oficial SEP que te abrirá las puertas a cualquier universidad pública o privada del país, o bien, a mejores oportunidades laborales inmediatas.',
     campoLaboral: [
       'Ingreso directo a cualquier institución de Educación Superior (Universidades).',
@@ -123,7 +124,8 @@ export const programas: Programa[] = [
     tipo: 'licenciatura',
     descripcion: 'Formación integral en ciencias jurídicas con enfoque práctico y ético para el ejercicio profesional.',
     duracion: '4 años',
-    imagen: 'https://images.unsplash.com/photo-1589391886645-d51941baf7fb?q=80&w=2070&auto=format&fit=crop', // Mazo de Juez espectacular
+    rvoe: '20230288', // RVOE
+    imagen: 'https://images.unsplash.com/photo-1589391886645-d51941baf7fb?q=80&w=2070&auto=format&fit=crop',
     porQueEstudiar: 'El sistema jurídico requiere profesionales capaces de adaptarse a las nuevas reformas (penales, laborales, digitales). Estudiar Derecho con nosotros significa aprender a argumentar, negociar y litigar mediante el estudio de casos prácticos reales, alejándonos de la memorización tradicional para enfocarnos en la estrategia legal.',
     campoLaboral: [
       'Despachos jurídicos y consultoría corporativa.',
@@ -159,7 +161,8 @@ export const programas: Programa[] = [
     tipo: 'licenciatura',
     descripcion: 'Desarrollo de competencias para comprender y mejorar el bienestar psicológico individual y colectivo.',
     duracion: '4 años',
-    imagen: 'https://ufhec.edu.do/wp-content/uploads/2021/08/Maestria-en-Gestion-y-Liderazgo-Pedagogico.jpg', // Psicóloga profesional
+    rvoe: '20230289', // RVOE
+    imagen: 'https://ufhec.edu.do/wp-content/uploads/2021/08/Maestria-en-Gestion-y-Liderazgo-Pedagogico.jpg',
     porQueEstudiar: 'El cuidado de la salud mental vive un momento histórico de demanda global. Como psicólogo, tendrás el poder de transformar vidas, familias y organizaciones. Nuestro programa te da una visión integral que abarca desde la clínica y la neurociencia hasta el comportamiento organizacional, dándote un abanico inmenso de opciones laborales.',
     campoLaboral: [
       'Práctica clínica privada (Consultorio).',
@@ -195,7 +198,8 @@ export const programas: Programa[] = [
     tipo: 'licenciatura',
     descripcion: 'Formación de profesionales en educación con herramientas innovadoras para la enseñanza.',
     duracion: '4 años',
-    imagen: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=2069&auto=format&fit=crop', // Educación y escuela vibrante
+    rvoe: '20230290', // RVOE
+    imagen: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=2069&auto=format&fit=crop',
     porQueEstudiar: 'La educación está evolucionando más rápido que nunca con la llegada de las plataformas virtuales y la IA. Un pedagogo moderno no solo da clases; diseña sistemas de aprendizaje. Estudiando con nosotros te convertirás en un experto en metodologías activas, diseño curricular y tecnologías educativas, siendo indispensable en colegios y corporativos.',
     campoLaboral: [
       'Dirección y coordinación académica en escuelas y universidades.',
@@ -231,7 +235,8 @@ export const programas: Programa[] = [
     tipo: 'licenciatura',
     descripcion: 'Estudio científico del delito, el delincuente y la víctima con enfoque en prevención y seguridad.',
     duracion: '4 años',
-    imagen: 'https://utel.edu.mx/_next/image?url=https:%2F%2Fcmsutel.s3.amazonaws.com%2FLic_En_Criminologia_y_Cirminalistica_fea0de6be9.jpg&w=3840&q=75', // Cinta de Policía y acción (Polis)
+    rvoe: '20230291', // RVOE
+    imagen: 'https://utel.edu.mx/_next/image?url=https:%2F%2Fcmsutel.s3.amazonaws.com%2FLic_En_Criminologia_y_Cirminalistica_fea0de6be9.jpg&w=3840&q=75',
     porQueEstudiar: 'México y el mundo enfrentan retos de seguridad sin precedentes. Estudiar Criminología te convierte en una pieza clave para entender la mente criminal, prevenir delitos y diseñar políticas públicas. Nuestra metodología te preparará no solo para entender el crimen, sino para resolverlo y prevenirlo.',
     campoLaboral: [
       'Fiscalías, Procuradurías y Ministerios Públicos.',
@@ -267,7 +272,8 @@ export const programas: Programa[] = [
     tipo: 'maestria',
     descripcion: 'Posgrado orientado a la innovación educativa y el liderazgo en instituciones de enseñanza.',
     duracion: '2 años',
-    imagen: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop', // Biblioteca premium
+    rvoe: '20230350', // RVOE
+    imagen: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop',
     porQueEstudiar: 'Lleva tu carrera docente al siguiente nivel. Esta maestría está diseñada para profesores, directivos y profesionistas que desean asumir puestos de liderazgo (coordinaciones, direcciones) o aspiran a escalar en el escalafón magisterial incrementando sus ingresos económicos.',
     campoLaboral: [
       'Dirección general y coordinación académica de colegios.',
@@ -296,7 +302,8 @@ export const programas: Programa[] = [
     tipo: 'maestria',
     descripcion: 'Especialización en la intervención psicopedagógica para mejorar procesos de aprendizaje.',
     duracion: '2 años',
-    imagen: 'https://www.anahuac.mx/sites/default/files/gbb-uploads/Licenciatura_Psicopedagogia_Introduccion-zgbvmw.jpg', // Desarrollo de talento
+    rvoe: '20230351', // RVOE
+    imagen: 'https://www.anahuac.mx/sites/default/files/gbb-uploads/Licenciatura_Psicopedagogia_Introduccion-zgbvmw.jpg',
     porQueEstudiar: 'En las aulas actuales, las barreras de aprendizaje y la necesidad de inclusión son el desafío principal. Esta maestría te convierte en el especialista más buscado por colegios y padres de familia para diagnosticar, intervenir y potenciar el aprendizaje de niños y jóvenes con necesidades especiales o talentos sobresalientes.',
     campoLaboral: [
       'Gabinetes psicopedagógicos en colegios públicos y privados.',
@@ -323,9 +330,10 @@ export const programas: Programa[] = [
     id: 'curso-ingles',
     nombre: 'Inglés',
     tipo: 'curso',
+    // Los cursos no llevan RVOE usualmente.
     descripcion: 'Curso de inglés desde nivel básico hasta avanzado con enfoque comunicativo.',
     duracion: '6 meses',
-    imagen: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2071&auto=format&fit=crop', // Alumnos globales comunicándose
+    imagen: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2071&auto=format&fit=crop',
     porQueEstudiar: 'El inglés ya no es un "plus" en el currículum, es un requisito indispensable. Nuestro curso está diseñado para adultos que necesitan resultados rápidos: enfocándonos en la fluidez conversacional y el vocabulario de negocios, garantizando que pierdas el miedo a hablar desde la primera semana.',
     campoLaboral: [
       'Empresas transnacionales y puestos bilingües (aumento salarial del 30%).',
@@ -352,7 +360,7 @@ export const programas: Programa[] = [
     tipo: 'curso',
     descripcion: 'Desarrollo de habilidades socioemocionales para el éxito personal y profesional.',
     duracion: '3 meses',
-    imagen: 'https://images.unsplash.com/photo-1499209974431-9dddcece7f88?q=80&w=2070&auto=format&fit=crop', // Mujer con brazos abiertos, alegre, brillante (Nada deprimiente)
+    imagen: 'https://images.unsplash.com/photo-1499209974431-9dddcece7f88?q=80&w=2070&auto=format&fit=crop',
     porQueEstudiar: 'Las empresas top contratan por habilidades técnicas, pero despiden por falta de habilidades emocionales. Aprende a gestionar el estrés, liderar equipos con empatía y tomar decisiones bajo presión. Este curso transformará tu forma de interactuar en tu trabajo y en tu vida personal.',
     campoLaboral: [
       'Habilidad transversal aplicable a CUALQUIER puesto laboral.',
@@ -379,7 +387,7 @@ export const programas: Programa[] = [
     tipo: 'curso',
     descripcion: 'Introducción práctica a la IA para aumentar tu productividad diaria.',
     duracion: '4 meses',
-    imagen: 'https://tse1.mm.bing.net/th/id/OIP.tQwVQ73m7E2IOriUATWPAwHaE8?rs=1&pid=ImgDetMain&o=7&rm=3', // Tecnología e Inteligencia Artificial
+    imagen: 'https://tse1.mm.bing.net/th/id/OIP.tQwVQ73m7E2IOriUATWPAwHaE8?rs=1&pid=ImgDetMain&o=7&rm=3',
     porQueEstudiar: 'La Inteligencia Artificial no te va a quitar el trabajo; alguien que sepa usar Inteligencia Artificial sí. Este curso intensivo te enseñará desde cero cómo usar ChatGPT, automatizaciones y generación de imágenes para hacer en minutos lo que antes te tomaba horas, multiplicando tu valor en el mercado.',
     campoLaboral: [
       'Agencias de marketing y creación de contenido.',

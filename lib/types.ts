@@ -22,6 +22,7 @@ export interface Programa {
   descripcion: string
   duracion: string
   imagen?: string
+  rvoe?: string // <--- ESTE ES EL CAMPO NUEVO PARA LOS BADGES OFICIALES
   planEstudios?: { semestre: string; materias: string[] }[]
   // ----- NUEVOS CAMPOS DE MARKETING PARA LANDING PAGES -----
   porQueEstudiar?: string
