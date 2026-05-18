@@ -129,7 +129,7 @@ export function Footer() {
           <p>&copy; {new Date().getFullYear()} Instituto Universitario de Durango. Todos los derechos reservados.</p>
           
           <div className="flex gap-6 mt-4 md:mt-0">
-            <Link href="#" className="hover:text-brand-primary transition-colors">Aviso de Privacidad</Link>
+            <Link href="aviso-de-privacidad" className="hover:text-brand-primary transition-colors">Aviso de Privacidad</Link>
             <Link href="#" className="hover:text-brand-primary transition-colors">Términos y Condiciones</Link>
             <Link href="#" className="hover:text-brand-primary transition-colors">Soporte Técnico</Link>
           </div>

@@ -226,7 +226,7 @@ export function Contacto() {
             {/* Mensaje inferior */}
             <div className="relative z-10 mt-12 pt-6 border-t border-white/20">
               <p className="text-sm text-white/80 font-medium">
-                Tus datos están protegidos bajo nuestro <a href="#" className="text-white font-bold underline underline-offset-2">Aviso de Privacidad</a>.
+                Tus datos están protegidos bajo nuestro <a href="aviso-de-privacidad" className="text-white font-bold underline underline-offset-2">Aviso de Privacidad</a>.
               </p>
             </div>
           </div>
