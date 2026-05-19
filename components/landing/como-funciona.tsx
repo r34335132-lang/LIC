@@ -1,187 +1,146 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { LogIn, BookOpen, Video, ClipboardCheck, CheckCircle, FileText, Sparkles, Info, ArrowDown } from 'lucide-react'
+import { LogIn, BookOpen, Video, ClipboardCheck, CheckCircle, FileText, Sparkles, Info } from 'lucide-react'
 import { CardContent } from '@/components/ui/card'
 
 const pasos = [
   {
     icon: LogIn,
     numero: '01',
-    titulo: 'Acceso al Portal',
-    descripcion: 'Ingresa de forma segura a nuestra plataforma utilizando tus credenciales institucionales únicas asignadas desde tu inscripción.'
+    titulo: 'ACCESO AL PORTAL CAMPUS DIGITAL',
+    descripcion: 'Ingresa de forma segura a nuestra plataforma de vanguardia utilizando tus credenciales institucionales únicas asignadas desde tu inscripción.'
   },
   {
     icon: BookOpen,
     numero: '02',
-    titulo: 'Control Académico',
-    descripcion: 'Visualiza de forma clara tu carga de materias, horarios programados y el avance exacto de tu plan de estudios.'
+    titulo: 'CONSULTA Y CONTROL DE ASIGNATURAS',
+    descripcion: 'Visualiza de forma clara tu carga académica vigente, tus horarios de clase programados y el plan de estudios correspondiente a tu ciclo.'
   },
   {
     icon: Video,
     numero: '03',
-    titulo: 'Aula Inteligente',
-    descripcion: 'El sistema enlaza y genera automáticamente el acceso encriptado a tu clase en tiempo real. Cero links externos.'
+    titulo: 'VINCULACIÓN AUTOMÁTICA DE SESIONES',
+    descripcion: 'Olvídate de buscar enlaces en correos externos. El sistema enlaza y genera de forma automática el acceso seguro a tu aula virtual en tiempo real.'
   },
   {
     icon: CheckCircle,
     numero: '04',
-    titulo: 'Cátedra Inmersiva',
-    descripcion: 'Con un solo clic te unes a la sesión en vivo, en un entorno de alta definición con pizarras y herramientas colaborativas.'
+    titulo: 'INMERSIÓN EN EL AULA INTERACTIVA',
+    descripcion: 'Con un solo clic te unes a la cátedra en vivo, participando en un entorno de alta definición con herramientas colaborativas avanzadas.'
   },
   {
     icon: ClipboardCheck,
     numero: '05',
-    titulo: 'Asistencia Biométrica',
-    descripcion: 'Nuestra tecnología registra y valida tu participación en la clase de manera automática, sin pasar lista manualmente.'
+    titulo: 'VALIDACIÓN ASISTENCIAL BIOMÉTRICA',
+    descripcion: 'Nuestra infraestructura tecnológica registra y valida tu participación y permanencia en la sesión de manera transparente y automática.'
   },
   {
     icon: FileText,
     numero: '06',
-    titulo: 'Evaluación en Línea',
-    descripcion: 'Sube tus tareas, consulta las rúbricas de los profesores y monitorea tus calificaciones al instante en tu dashboard.'
+    titulo: 'EVALUACIÓN Y SEGUIMIENTO DE NOTAS',
+    descripcion: 'Sube tus entregables académicos, consulta las rúbricas institucionales y monitorea tu progreso y calificaciones finales al instante.'
   }
 ]
 
 export function ComoFunciona() {
   return (
-    <section id="como-funciona" className="py-24 bg-slate-900 dark:bg-black overflow-hidden relative">
-      
-      {/* ================= FONDOS Y LUCES DE MARKETING ================= */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-brand-primary/20 via-transparent to-transparent opacity-50" />
-      <div className="absolute -left-[20%] top-[30%] w-[50%] h-[50%] bg-brand-primary/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute -right-[20%] bottom-[10%] w-[50%] h-[50%] bg-brand-highlight/10 rounded-full blur-[120px] pointer-events-none" />
-
-      <div className="container px-4 md:px-6 mx-auto relative z-10">
+    // Reducimos el padding en móvil (py-16) y lo mantenemos en desktop (md:py-24)
+    <section id="como-funciona" className="py-16 md:py-24 bg-gray-50 dark:bg-black/95 overflow-hidden border-t border-gray-100 dark:border-gray-900">
+      <div className="container px-4 md:px-6 mx-auto">
         
-        {/* ================= ENCABEZADO "HOOK" (Enganche) ================= */}
-        <div className="mx-auto mb-20 max-w-3xl text-center">
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-5 py-2 bg-brand-primary/10 text-brand-primary font-bold text-xs uppercase tracking-widest mb-6 rounded-full border border-brand-primary/20 shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.2)]"
-          >
-            <Sparkles className="h-4 w-4" /> La Experiencia del Alumno
-          </motion.div>
-          <motion.h2 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white mb-6 leading-[1.1]"
-          >
-            TU CAMINO AL ÉXITO EN <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-brand-highlight">6 SIMPLES PASOS</span>
-          </motion.h2>
-          <motion.p 
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="text-lg text-slate-300 font-light leading-relaxed"
-          >
-            Diseñamos un ecosistema digital sin fricciones. Desde que inicias sesión hasta que recibes tus calificaciones, todo fluye de manera natural.
-          </motion.p>
+        {/* ================= ENCABEZADO MASIVO INSTITUCIONAL ================= */}
+        <div className="mx-auto mb-16 md:mb-24 max-w-4xl text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-black text-white dark:bg-white dark:text-black font-bold text-[10px] md:text-xs uppercase tracking-widest mb-6 shadow-sm">
+            Metodología Académica
+          </div>
+          {/* Ajuste tipográfico progresivo para que no rompa en celular */}
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-foreground mb-4 md:mb-6 uppercase leading-[1.1]">
+            NUESTRO MODELO DE <span className="text-brand-primary block mt-1">APRENDIZAJE VIRTUAL</span>
+          </h2>
+          <p className="text-base md:text-lg text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed">
+            Una experiencia educativa totalmente centralizada y optimizada para que enfoques tu energía en el desarrollo de tu perfil profesional.
+          </p>
         </div>
 
-        {/* ================= ESPIRAL VERTICAL (El "Tobogán" de Ventas) ================= */}
-        <div className="relative mx-auto max-w-4xl py-10">
-          
-          {/* LÍNEA DE ENERGÍA CENTRAL (Guía visual) */}
-          <div className="absolute left-[38px] md:left-1/2 top-0 bottom-0 w-1.5 md:-translate-x-1/2 bg-slate-800 rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ height: "0%" }}
-              whileInView={{ height: "100%" }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 2.5, ease: "easeInOut" }}
-              className="w-full bg-gradient-to-b from-brand-primary via-brand-highlight to-brand-primary"
-            />
-          </div>
+        {/* ================= TIMELINE ALTERNADO (ESTILO ORIGINAL) ================= */}
+        <div className="relative mx-auto max-w-5xl">
+          {/* Línea troncal central visible SOLO en pantallas grandes (Desktop) */}
+          <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-gradient-to-b from-brand-primary via-gray-200 dark:via-gray-800 to-transparent transform -translate-x-1/2 hidden lg:block" />
 
-          <div className="space-y-12 md:space-y-6 relative">
+          {/* Reducimos el espacio vertical entre elementos en celular (space-y-8) */}
+          <div className="space-y-6 lg:space-y-24">
             {pasos.map((paso, index) => {
               const isEven = index % 2 === 0
               return (
-                <motion.div 
-                  key={paso.numero}
-                  initial={{ opacity: 0, x: isEven ? -50 : 50, y: 20 }}
-                  whileInView={{ opacity: 1, x: 0, y: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ duration: 0.6, delay: index * 0.15 }}
-                  className={`flex flex-col md:flex-row items-center w-full ${isEven ? 'md:justify-start' : 'md:justify-end'} relative`}
-                >
+                <div key={paso.numero} className="relative flex flex-col lg:flex-row items-center">
                   
-                  {/* Contenedor de la Tarjeta (Acercado al centro para reducir scroll) */}
-                  <div className={`w-full md:w-[48%] pl-24 md:pl-0 ${isEven ? 'md:pr-12 lg:pr-16 text-left md:text-right' : 'md:pl-12 lg:pl-16 text-left'}`}>
-                    <div className="group relative bg-slate-900/50 backdrop-blur-md p-6 rounded-3xl border border-slate-700 hover:border-brand-primary/50 hover:bg-slate-800/80 transition-all duration-300 shadow-xl overflow-hidden">
+                  {/* Lado Izquierdo o Contenedor con Texto */}
+                  <div className={`w-full lg:w-1/2 ${isEven ? 'lg:pr-16 lg:text-right' : 'lg:pl-16 lg:order-2 lg:text-left'}`}>
+                    
+                    {/* En celular lo envolvemos en una tarjeta para que se vea ordenado, en desktop se queda transparente como lo tenías */}
+                    <div className="flex flex-col gap-2 md:gap-3 group relative bg-white dark:bg-gray-900/50 lg:bg-transparent lg:dark:bg-transparent p-6 rounded-2xl lg:p-0 lg:rounded-none shadow-sm lg:shadow-none border border-gray-100 dark:border-gray-800 lg:border-transparent">
                       
-                      {/* Número de fondo tipo "Marca de Agua" */}
-                      <div className={`absolute -top-4 ${isEven ? '-left-2 md:-right-2 md:left-auto' : '-left-2'} text-7xl font-black text-white/[0.03] group-hover:text-brand-primary/10 transition-colors pointer-events-none select-none z-0`}>
-                        {paso.numero}
+                      {/* SOLUCIÓN MÓVIL: Mostramos el icono aquí porque la línea central desaparece en celulares */}
+                      <div className="flex lg:hidden items-center justify-center h-12 w-12 rounded-xl bg-brand-primary/10 text-brand-primary mb-2">
+                        <paso.icon className="h-6 w-6" />
                       </div>
 
-                      <div className="relative z-10">
-                        <div className={`flex items-center gap-4 mb-3 ${isEven ? 'md:flex-row-reverse' : ''}`}>
-                          <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight group-hover:text-brand-highlight transition-colors">
-                            {paso.titulo}
-                          </h3>
-                        </div>
-                        <p className="text-slate-400 text-sm md:text-base leading-relaxed font-medium">
+                      {/* Número grande en background */}
+                      <span className="absolute right-4 top-4 lg:relative lg:right-auto lg:top-auto text-5xl md:text-6xl font-black text-gray-100 dark:text-gray-800/50 lg:text-brand-primary/10 lg:group-hover:text-brand-primary/20 transition-colors tracking-tighter pointer-events-none select-none">
+                        PASO {paso.numero}
+                      </span>
+                      
+                      <div className="relative z-10 mt-2 lg:mt-0">
+                        <h3 className="text-lg md:text-2xl font-black text-foreground tracking-tight uppercase lg:group-hover:text-brand-primary transition-colors">
+                          {paso.titulo}
+                        </h3>
+                        
+                        <p className="text-muted-foreground text-sm md:text-base leading-relaxed max-w-xl mx-auto lg:mx-0 font-medium mt-2">
                           {paso.descripcion}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* NODO CENTRAL (El punto brillante en la línea) */}
-                  <div className="absolute left-[20px] md:left-1/2 transform md:-translate-x-1/2 flex items-center justify-center h-10 w-10 md:h-14 md:w-14 rounded-full bg-slate-950 border-4 border-brand-primary shadow-[0_0_20px_rgba(var(--brand-primary-rgb),0.5)] z-20 group-hover:scale-125 transition-transform duration-300">
-                    <paso.icon className="h-4 w-4 md:h-6 md:w-6 text-white" />
+                  {/* Nodo Central (El círculo de la línea de tiempo, solo Desktop) */}
+                  <div className="absolute left-1/2 transform -translate-x-1/2 hidden lg:flex h-14 w-14 items-center justify-center rounded-none bg-black text-white dark:bg-white dark:text-black border-4 border-gray-50 dark:border-black/95 shadow-xl z-20 transition-transform duration-300 group-hover:scale-110">
+                    <paso.icon className="h-5 w-5" />
                   </div>
 
-                </motion.div>
+                  {/* Lado Vacío de relleno para equilibrar el layout en desktop */}
+                  <div className="w-full lg:w-1/2 hidden lg:block" />
+
+                </div>
               )
             })}
           </div>
-          
-          {/* Flecha final del tobogán */}
-          <div className="absolute left-[38px] md:left-1/2 -bottom-10 transform -translate-x-1/2 animate-bounce text-brand-primary z-20 hidden md:block">
-            <ArrowDown className="h-8 w-8" />
-          </div>
         </div>
 
-        {/* ================= BANNER AUTORIDAD (El cierre del embudo) ================= */}
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.4, duration: 0.6 }}
-          className="mx-auto max-w-5xl mt-32"
-        >
-          <div className="relative overflow-hidden rounded-[2rem] bg-brand-primary text-white shadow-2xl">
-            {/* Efecto de cristal interno */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent pointer-events-none" />
-            <div className="absolute -top-24 -right-24 opacity-20 pointer-events-none">
-              <Sparkles className="h-64 w-64 text-white" />
+        {/* ================= BANNER DE INTEGRACIÓN ROBUSTO ================= */}
+        <div className="mx-auto max-w-5xl mt-16 md:mt-24">
+          {/* En celular le damos un borde redondeado sutil, en desktop se queda cuadrado (rounded-none) como pediste */}
+          <div className="relative overflow-hidden rounded-2xl lg:rounded-none bg-white dark:bg-gray-900 border-l-8 border-brand-primary shadow-xl">
+            {/* Sutil textura decorativa institucional */}
+            <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+              <Sparkles className="h-32 w-32 text-brand-primary" />
             </div>
 
-            <CardContent className="relative flex flex-col md:flex-row items-center gap-8 p-8 md:p-12 z-10">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center bg-white text-brand-primary shadow-2xl rounded-[1.5rem] rotate-3 hover:rotate-0 transition-transform duration-300">
-                <Video className="h-10 w-10" />
+            <CardContent className="relative flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 p-6 md:p-10 z-10">
+              <div className="flex h-14 w-14 md:h-16 md:w-16 shrink-0 items-center justify-center bg-brand-primary text-white shadow-xl rounded-xl">
+                <Video className="h-6 w-6 md:h-8 w-8" />
               </div>
-              <div className="flex-1 text-center md:text-left">
-                <div className="flex flex-col md:flex-row items-center gap-3 mb-3 justify-center md:justify-start">
-                  <Badge className="bg-black/30 text-white border-0 hover:bg-black/30 font-bold uppercase tracking-widest px-3 py-1 text-xs">
-                    Certificación Tecnológica
-                  </Badge>
-                  <h4 className="text-2xl font-black uppercase tracking-tight text-white drop-shadow-md">ECOSISTEMA INTEGRADO</h4>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2 md:mb-3">
+                  <Info className="h-4 w-4 md:h-5 md:w-5 text-brand-highlight" />
+                  <h4 className="text-base md:text-lg font-black text-foreground uppercase tracking-tight">ECOSISTEMA DIGITAL INTEGRADO</h4>
                 </div>
-                <p className="text-base text-white/90 font-medium leading-relaxed max-w-3xl">
-                  Nuestra arquitectura está homologada de forma nativa con los estándares globales de <strong className="font-black text-white underline decoration-brand-highlight decoration-2 underline-offset-4">Google Meet, Zoom y Microsoft Teams</strong>. El ecosistema gestiona los accesos encriptados sin requerir enlaces externos vulnerables.
+                <p className="text-sm md:text-base text-muted-foreground font-medium leading-relaxed">
+                  Nuestra arquitectura está homologada de forma nativa con los estándares corporativos globales de <strong className="text-foreground font-bold">Google Meet, Zoom y Microsoft Teams</strong>. El ecosistema gestiona de forma autónoma los accesos encriptados sin requerir interacción manual o enlaces externos vulnerables.
                 </p>
               </div>
             </CardContent>
           </div>
-        </motion.div>
+        </div>
 
       </div>
     </section>
