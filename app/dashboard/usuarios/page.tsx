@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { mockUsers } from "@/lib/data"
+import { usuarios } from "@/lib/data" // <--- CAMBIO AQUÍ: Ahora importamos 'usuarios'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { 
   Table, 
   TableBody, 
@@ -54,18 +54,20 @@ export default function UsuariosPage() {
     redirect("/dashboard")
   }
 
-  const filteredUsers = mockUsers.filter(u => {
-    const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  // CAMBIO AQUÍ: Filtramos usando u.nombre y u.rol
+  const filteredUsers = usuarios.filter(u => {
+    const matchesSearch = u.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          u.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesRole = filterRole === "all" || u.role === filterRole
+    const matchesRole = filterRole === "all" || u.rol === filterRole
     return matchesSearch && matchesRole
   })
 
+  // CAMBIO AQUÍ: Calculamos estadísticas con u.rol
   const stats = {
-    total: mockUsers.length,
-    admins: mockUsers.filter(u => u.role === "admin").length,
-    maestros: mockUsers.filter(u => u.role === "maestro").length,
-    alumnos: mockUsers.filter(u => u.role === "alumno").length,
+    total: usuarios.length,
+    admins: usuarios.filter(u => u.rol === "admin").length,
+    maestros: usuarios.filter(u => u.rol === "maestro").length,
+    alumnos: usuarios.filter(u => u.rol === "alumno").length,
   }
 
   return (
@@ -77,7 +79,7 @@ export default function UsuariosPage() {
             Administra todos los usuarios de la plataforma
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
+        <Button className="bg-brand-primary hover:bg-brand-primary/90 text-white">
           <UserPlus className="mr-2 h-4 w-4" />
           Nuevo Usuario
         </Button>
@@ -87,8 +89,8 @@ export default function UsuariosPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-primary/10 p-3">
-              <Users className="h-6 w-6 text-primary" />
+            <div className="rounded-lg bg-brand-primary/10 p-3">
+              <Users className="h-6 w-6 text-brand-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.total}</p>
@@ -189,20 +191,19 @@ export default function UsuariosPage() {
             </TableHeader>
             <TableBody>
               {filteredUsers.map((u) => {
-                const config = roleConfig[u.role as keyof typeof roleConfig]
+                const config = roleConfig[u.rol as keyof typeof roleConfig] || roleConfig.alumno
                 const Icon = config.icon
                 return (
                   <TableRow key={u.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
-                          <AvatarImage src={u.avatar} alt={u.name} />
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {u.name.split(" ").map(n => n[0]).join("")}
+                          <AvatarFallback className="bg-brand-primary/10 text-brand-primary font-bold">
+                            {u.nombre.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium">{u.name}</p>
+                          <p className="font-medium">{u.nombre}</p>
                           <p className="text-sm text-muted-foreground">ID: {u.id}</p>
                         </div>
                       </div>
@@ -215,12 +216,12 @@ export default function UsuariosPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        Activo
+                      <Badge variant="outline" className={u.estado === 'activo' ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}>
+                        {u.estado.charAt(0).toUpperCase() + u.estado.slice(1)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      Ene 2025
+                      {u.fechaIngreso}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
