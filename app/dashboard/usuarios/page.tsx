@@ -50,7 +50,7 @@ export default function UsuariosPage() {
   const [filterRole, setFilterRole] = useState<string>("all")
 
   // Solo admin puede acceder
-  if (user?.role !== "admin") {
+  if (user?.rol !== "admin") {
     redirect("/dashboard")
   }
 

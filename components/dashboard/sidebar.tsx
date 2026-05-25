@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import {
   GraduationCap,
-  Home,
   BookOpen,
   Video,
   FileText,
@@ -25,6 +24,7 @@ import {
   ShieldCheck,
   LayoutDashboard
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -37,8 +37,30 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useState } from 'react'
 
+type MenuSection = {
+  section: string
+  href?: never
+  label?: never
+  icon?: never
+  badge?: never
+}
+
+type MenuLink = {
+  href: string
+  label: string
+  icon: LucideIcon
+  badge?: string
+  section?: never
+}
+
+type MenuItem = MenuSection | MenuLink
+
+function isMenuSection(item: MenuItem): item is MenuSection {
+  return 'section' in item
+}
+
 // Menús agrupados por rol para mejor jerarquía visual
-const menuAlumno = [
+const menuAlumno: MenuItem[] = [
   { section: 'Principal' },
   { href: '/dashboard', label: 'Tablero', icon: LayoutDashboard },
   { href: '/dashboard/avisos', label: 'Avisos', icon: Bell, badge: '2' },
@@ -53,7 +75,7 @@ const menuAlumno = [
   { href: '/dashboard/asistencia', label: 'Asistencia', icon: ClipboardCheck },
 ]
 
-const menuMaestro = [
+const menuMaestro: MenuItem[] = [
   { section: 'Principal' },
   { href: '/dashboard', label: 'Tablero', icon: LayoutDashboard },
   { href: '/dashboard/avisos', label: 'Avisos', icon: Bell },
@@ -70,7 +92,7 @@ const menuMaestro = [
   { href: '/dashboard/asistencia', label: 'Pase de Lista', icon: ClipboardCheck },
 ]
 
-const menuAdmin = [
+const menuAdmin: MenuItem[] = [
   { section: 'Principal' },
   { href: '/dashboard', label: 'Resumen Global', icon: LayoutDashboard },
   
@@ -146,7 +168,7 @@ export function DashboardSidebar() {
       <nav className="flex-1 space-y-1.5 overflow-y-auto p-4 custom-scrollbar">
         {menu.map((item, index) => {
           // Renderizar Título de Sección
-          if (item.section) {
+          if (isMenuSection(item)) {
             if (collapsed) return <div key={`divider-${index}`} className="h-4" />
             return (
               <div key={`section-${index}`} className="pt-4 pb-1 pl-3">

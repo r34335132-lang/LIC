@@ -1,292 +1,459 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { programas } from '@/lib/data'
-import { getProgramaIcono } from '@/lib/icons'
-import { Button } from '@/components/ui/button'
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  FileText,
+  GraduationCap,
+  LockKeyhole,
+  MonitorPlay,
+  Sparkles,
+  ShieldCheck,
+  Target,
+} from 'lucide-react'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { ArrowRight, CheckCircle2, Clock, ShieldCheck, Briefcase, HelpCircle, GraduationCap, Target, Zap } from 'lucide-react'
-
-// IMPORTAMOS EL HEADER Y EL FOOTER
+import { Button } from '@/components/ui/button'
+import { AdmissionLeadForm } from '@/components/forms/admission-lead-form'
 import { Header } from '@/components/landing/header'
 import { Footer } from '@/components/landing/footer'
+import { ClipPaymentLink } from '@/components/marketing/clip-payment-link'
+import { ProgramViewTracker } from '@/components/marketing/program-view-tracker'
+import { TrackLink } from '@/components/marketing/track-link'
+import { WhatsAppIcon } from '@/components/marketing/whatsapp-icon'
+import { WhatsAppLink } from '@/components/marketing/whatsapp-link'
+import { programas } from '@/lib/data'
+import { getProgramaIcono } from '@/lib/icons'
+import { getProgramWhatsAppMessage, RESERVATION_AMOUNT_MXN, SITE_URL } from '@/lib/marketing'
+import { generalFaqs, programBenefits, programSpecificFaqs } from '@/lib/program-content'
 
-// 1. GENERACIÓN DE RUTAS ESTÁTICAS
 export function generateStaticParams() {
   return programas.map((programa) => ({
     id: programa.id,
   }))
 }
 
-// 2. MAGIA SEO: Generación de Metadatos
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const programa = programas.find((p) => p.id === id)
+function getLevelLabel(tipo: string) {
+  if (tipo === 'preparatoria') return 'Preparatoria'
+  if (tipo === 'licenciatura') return 'Licenciatura'
+  if (tipo === 'maestria') return 'Maestría'
+  return 'Curso'
+}
 
-  if (!programa) return { title: 'Programa no encontrado' }
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const programa = programas.find((item) => item.id === id)
+
+  if (!programa) {
+    return {
+      title: 'Programa no encontrado',
+    }
+  }
+
+  const rvoeText = programa.rvoe ? ` con RVOE ${programa.rvoe}` : ' con modalidad virtual'
+  const title = `${programa.nombre}${rvoeText} en Durango`
 
   return {
-    title: `Estudia ${programa.nombre} en Línea | Validez Oficial SEP`,
-    description: programa.descripcion,
+    title,
+    description: `${programa.descripcion} Estudia en modalidad virtual con horarios flexibles, acompañamiento académico y ${programa.rvoe ? 'validez oficial SEP Durango.' : 'acompañamiento institucional.'}`,
+    keywords: [
+      `${programa.nombre} Durango`,
+      `${programa.nombre} virtual`,
+      `${programa.nombre} con RVOE`,
+      `Aparta tu lugar ${programa.nombre}`,
+      `Aparta inscripcion ${programa.nombre} $600`,
+      programa.rvoe ? `RVOE ${programa.rvoe}` : 'programa virtual Durango',
+      'Instituto Universitario de Durango',
+      'RVOE SEP Durango',
+      'horarios flexibles',
+    ],
+    alternates: {
+      canonical: `/programas/${programa.id}`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
     openGraph: {
-      title: `${programa.nombre} | 100% Online`,
+      title,
       description: programa.descripcion,
-      images: [programa.imagen || '/placeholder.jpg'],
-    }
+      url: `${SITE_URL}/programas/${programa.id}`,
+      type: 'article',
+      images: [
+        {
+          url: programa.imagen || '/hero-img.png',
+          width: 1200,
+          height: 630,
+          alt: programa.nombre,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: programa.descripcion,
+      images: [programa.imagen || '/hero-img.png'],
+    },
   }
 }
 
 export default async function ProgramaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const programa = programas.find((p) => p.id === id)
+  const programa = programas.find((item) => item.id === id)
 
-  if (!programa) {
-    notFound()
-  }
+  if (!programa) notFound()
 
   const Icon = getProgramaIcono(programa.id)
+  const benefit = programBenefits[programa.id] || programa.descripcion
   const planEstudios = programa.planEstudios || []
   const campoLaboral = programa.campoLaboral || []
   const perfilEgreso = programa.perfilEgreso || []
-  const faqs = programa.preguntasFrecuentes || []
+  const programFaqs = [
+    ...(programa.preguntasFrecuentes || []).map((faq) => ({
+      question: faq.pregunta,
+      answer: faq.respuesta,
+    })),
+    ...(programSpecificFaqs[programa.id] || []),
+  ]
+  const faqs = [...programFaqs, ...generalFaqs]
+  const relatedPrograms = programas
+    .filter((item) => item.id !== programa.id && item.rvoe && item.tipo === programa.tipo)
+    .slice(0, 3)
+  const whatsappMessage = getProgramWhatsAppMessage(programa.nombre, programa.rvoe)
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Course',
+        '@id': `${SITE_URL}/programas/${programa.id}#course`,
+        name: programa.nombre,
+        description: programa.descripcion,
+        url: `${SITE_URL}/programas/${programa.id}`,
+        image: programa.imagen || `${SITE_URL}/hero-img.png`,
+        provider: {
+          '@type': 'EducationalOrganization',
+          name: 'Instituto Universitario de Durango',
+          sameAs: SITE_URL,
+        },
+        educationalCredentialAwarded: getLevelLabel(programa.tipo),
+        courseMode: 'Virtual',
+        timeRequired: programa.duracion,
+        identifier: programa.rvoe,
+        offers: {
+          '@type': 'Offer',
+          price: RESERVATION_AMOUNT_MXN,
+          priceCurrency: 'MXN',
+          availability: 'https://schema.org/InStock',
+          category: 'Apartado de lugar',
+          url: `${SITE_URL}/programas/${programa.id}`,
+        },
+        hasCourseInstance: {
+          '@type': 'CourseInstance',
+          courseMode: 'online',
+          courseWorkload: programa.duracion,
+          location: {
+            '@type': 'VirtualLocation',
+            url: `${SITE_URL}/programas/${programa.id}`,
+          },
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        '@id': `${SITE_URL}/programas/${programa.id}#breadcrumb`,
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Inicio',
+            item: SITE_URL,
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Programas',
+            item: `${SITE_URL}/#oferta`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: programa.nombre,
+            item: `${SITE_URL}/programas/${programa.id}`,
+          },
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${SITE_URL}/programas/${programa.id}#faq`,
+        mainEntity: faqs.slice(0, 8).map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: faq.answer,
+          },
+        })),
+      },
+    ],
+  }
 
   return (
     <>
       <Header />
+      <ProgramViewTracker programId={programa.id} programName={programa.nombre} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
 
-      <main className="min-h-screen bg-slate-50 dark:bg-zinc-950 selection:bg-brand-primary selection:text-white">
-        
-        {/* ================= 1. HERO SECTION (ADAPTATIVA Y OPTIMIZADA) ================= */}
-        {/* Ajustamos el padding móvil pt-32 pb-20 y desktop pt-48 pb-32 */}
-        <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 lg:pt-48 lg:pb-32 overflow-hidden bg-black animate-in fade-in duration-1000">
-          
-          <div className="absolute inset-0 z-0">
-            <img 
-              src={programa.imagen || "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=2070&auto=format&fit=crop"} 
-              alt={programa.nombre} 
-              className="object-cover w-full h-full opacity-40"
+      <main className="bg-slate-50">
+        <section className="relative isolate overflow-hidden bg-slate-950 pt-32 text-white sm:pt-36 lg:pt-44">
+          <div className="absolute inset-0 -z-10">
+            <img
+              src={programa.imagen || '/hero-img.png'}
+              alt={programa.nombre}
+              className="h-full w-full object-cover"
             />
-            {/* Overlay reforzado en móvil para asegurar legibilidad */}
-            <div className="absolute inset-0 bg-black/60 md:bg-black/40" />
-            <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/80 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-50 dark:from-zinc-950 to-transparent" />
+            <div className="absolute inset-0 bg-slate-950/78" />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,31,78,0.96),rgba(15,23,42,0.78)_48%,rgba(15,23,42,0.36))]" />
           </div>
 
-          <div className="container relative z-10 px-4 md:px-6 mx-auto">
-            <div className="max-w-4xl animate-in slide-in-from-bottom-8 duration-1000 delay-150 fill-mode-both">
-              
-              {/* Badges Flexibles */}
+          <div className="container mx-auto grid min-h-[680px] items-center gap-10 px-4 pb-16 md:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:pb-20">
+            <div>
               <div className="mb-6 flex flex-wrap items-center gap-3">
-                <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-brand-primary border border-white/20 text-white shadow-2xl">
-                  <Icon className="h-6 w-6 sm:h-8 sm:w-8" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary text-white shadow-xl">
+                  <Icon className="h-7 w-7" />
                 </div>
-                <Badge className="bg-brand-primary text-white border-0 font-bold px-3 py-1.5 text-[10px] sm:text-xs uppercase tracking-widest shadow-md">
-                  {programa.tipo} 100% Online
+                <Badge className="bg-brand-primary px-3 py-1.5 text-white hover:bg-brand-primary">
+                  {getLevelLabel(programa.tipo)}
                 </Badge>
-                <Badge variant="outline" className="bg-black/50 backdrop-blur-md text-white border-white/30 font-bold px-3 py-1.5 text-[10px] sm:text-xs uppercase tracking-widest gap-1.5 truncate max-w-[160px] sm:max-w-none">
-                  <ShieldCheck className="h-3.5 w-3.5 text-brand-primary shrink-0" />
-                  {programa.rvoe ? `RVOE: ${programa.rvoe}` : 'Validez Oficial SEP'}
-                </Badge>
+                {programa.rvoe && (
+                  <Badge variant="outline" className="border-white/25 bg-white/10 px-3 py-1.5 text-white">
+                    <ShieldCheck className="mr-1.5 h-4 w-4 text-brand-highlight" />
+                    RVOE {programa.rvoe}
+                  </Badge>
+                )}
               </div>
 
-              {/* Título adaptivo: text-3xl en móvil, text-6xl en desktop */}
-              <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.15] mb-4 sm:mb-6 drop-shadow-2xl uppercase">
-                {programa.nombre}
+              <h1 className="max-w-4xl text-4xl font-black leading-[1.06] tracking-tight sm:text-5xl lg:text-7xl">
+                {programa.nombre} en modalidad virtual
               </h1>
-              
-              <p className="text-base sm:text-xl md:text-2xl text-slate-200 font-medium leading-relaxed max-w-3xl mb-8 sm:mb-12 drop-shadow-md">
+              <p className="mt-6 max-w-2xl text-lg font-medium leading-relaxed text-white/80">
                 {programa.descripcion}
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 px-1 sm:px-0">
-                <Button size="lg" className="w-full sm:w-auto rounded-full px-8 bg-brand-primary hover:bg-brand-highlight text-white transition-all duration-300 text-base sm:text-lg h-14 sm:h-16 font-bold uppercase tracking-wider shadow-2xl hover:scale-105" asChild>
-                  <Link href="/inscripcion">
-                    Iniciar mi Inscripción <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                  <Clock3 className="mb-3 h-5 w-5 text-brand-highlight" />
+                  <p className="text-xs font-black uppercase tracking-widest text-white/50">Duración</p>
+                  <p className="mt-1 font-black">{programa.duracion}</p>
+                </div>
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                  <MonitorPlay className="mb-3 h-5 w-5 text-brand-highlight" />
+                  <p className="text-xs font-black uppercase tracking-widest text-white/50">Modalidad</p>
+                  <p className="mt-1 font-black">Virtual</p>
+                </div>
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                  <ShieldCheck className="mb-3 h-5 w-5 text-brand-highlight" />
+                  <p className="text-xs font-black uppercase tracking-widest text-white/50">Validez</p>
+                  <p className="mt-1 font-black">{programa.rvoe ? 'RVOE SEP' : 'Institucional'}</p>
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Button asChild size="lg" className="h-14 rounded-full bg-brand-highlight px-7 font-black text-slate-950 shadow-xl shadow-brand-highlight/20 hover:bg-white">
+                  <ClipPaymentLink programId={programa.id} programName={programa.nombre}>
+                    <CreditCard className="mr-2 h-5 w-5" />
+                    Aparta tu lugar con ${RESERVATION_AMOUNT_MXN} MXN
+                  </ClipPaymentLink>
+                </Button>
+                <Button asChild size="lg" className="h-14 rounded-full bg-brand-primary px-7 font-black text-white hover:bg-brand-primary/90">
+                  <WhatsAppLink message={whatsappMessage} programId={programa.id}>
+                    <WhatsAppIcon className="mr-2 h-5 w-5" />
+                    Pedir informes por WhatsApp
+                  </WhatsAppLink>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="h-14 rounded-full border-white/25 bg-white/10 px-7 font-black text-white hover:bg-white hover:text-slate-950">
+                  <TrackLink
+                    href="#plan-estudios"
+                    event="download_plan"
+                    payload={{ programId: programa.id, programName: programa.nombre }}
+                  >
+                    Ver plan de estudios
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </TrackLink>
                 </Button>
               </div>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-white/10 bg-white p-5 text-slate-950 shadow-2xl sm:p-7">
+              <div className="mb-5 rounded-2xl border border-brand-primary/15 bg-brand-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-primary shadow-sm">
+                    <LockKeyhole className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-brand-primary">Aparta tu lugar</p>
+                    <h2 className="mt-1 text-xl font-black text-slate-950">
+                      ${RESERVATION_AMOUNT_MXN} MXN
+                    </h2>
+                    <p className="mt-1 text-sm font-medium leading-relaxed text-slate-600">
+                      Inicia tu proceso de admisión con pago seguro por Clip y recibe seguimiento de un asesor.
+                    </p>
+                  </div>
+                </div>
+                <Button asChild className="mt-4 h-11 w-full rounded-xl bg-brand-primary font-black text-white hover:bg-brand-primary/90">
+                  <ClipPaymentLink programId={programa.id} programName={programa.nombre}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Apartar lugar
+                  </ClipPaymentLink>
+                </Button>
+              </div>
+              <AdmissionLeadForm
+                defaultProgramId={programa.id}
+                source={`programa_${programa.id}`}
+                title="Solicita información de este programa"
+                description="Déjanos tus datos y un asesor te explicará requisitos, costos, fechas de inicio y validez oficial."
+                submitLabel="Quiero que me contacten"
+              />
             </div>
           </div>
         </section>
 
-        {/* ================= CONTENIDO PRINCIPAL Y SIDEBAR DE VENTAS ================= */}
-        {/* Cambiamos py-24 por py-12 en celular para evitar excesivos espacios en blanco */}
-        <div className="container px-4 md:px-6 mx-auto py-12 md:py-24 relative z-20">
-          {/* Layout: Flex-col en móvil, Grid de 3 columnas en Desktop */}
-          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-12 lg:gap-16 relative">
-            
-            {/* COLUMNA IZQUIERDA: ARGUMENTOS DE VENTA */}
-            <div className="w-full lg:col-span-2 space-y-16 md:space-y-24 order-1">
-              
-              {/* Sección: ¿Por qué estudiar con nosotros? */}
-              <section className="animate-in slide-in-from-bottom-12 duration-1000 delay-300 fill-mode-both">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-900 text-white dark:bg-white dark:text-black font-bold text-[10px] md:text-xs uppercase tracking-widest mb-4 rounded-full shadow-sm">
-                  <Target className="h-3.5 w-3.5 text-brand-primary" /> Visión del Programa
-                </div>
-                <h2 className="text-2xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white mb-4 md:mb-6 leading-[1.2] uppercase">
-                  ¿Por qué elegir <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-brand-highlight block sm:inline">este programa?</span>
-                </h2>
-                <p className="text-base md:text-xl text-slate-600 dark:text-zinc-400 leading-relaxed font-medium">
-                  {programa.porQueEstudiar || "Formamos profesionales altamente capacitados para enfrentar los retos del mundo actual mediante un programa innovador y práctico."}
-                </p>
-              </section>
-
-              {/* Sección: Campo Laboral y Perfil de Egreso (Grid adaptativo) */}
-              <section className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8">
-                {campoLaboral.length > 0 && (
-                  <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2rem] border border-slate-200 dark:border-zinc-800 shadow-xl shadow-slate-200/50 dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary">
-                        <Briefcase className="h-5 w-5" />
-                      </div>
-                      <h3 className="text-lg md:text-xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">Campo Laboral</h3>
-                    </div>
-                    <ul className="space-y-3.5">
-                      {campoLaboral.map((item, i) => (
-                        <li key={i} className="flex items-start gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-brand-primary shrink-0 mt-1" />
-                          <span className="text-slate-600 dark:text-zinc-400 font-semibold leading-snug text-sm md:text-base">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {perfilEgreso.length > 0 && (
-                  <div className="bg-slate-900 dark:bg-zinc-950 p-6 md:p-8 rounded-[2rem] border border-slate-800 shadow-xl hover:-translate-y-1 transition-transform duration-300">
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="p-2.5 bg-white/10 rounded-xl text-brand-highlight">
-                        <GraduationCap className="h-5 w-5" />
-                      </div>
-                      <h3 className="text-lg md:text-xl font-bold uppercase tracking-tight text-white">Perfil de Egreso</h3>
-                    </div>
-                    <ul className="space-y-3.5">
-                      {perfilEgreso.map((item, i) => (
-                        <li key={i} className="flex items-start gap-3">
-                          <Zap className="h-4 w-4 text-brand-highlight shrink-0 mt-1" />
-                          <span className="text-slate-300 font-semibold leading-snug text-sm md:text-base">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </section>
-
-              {/* Sección: Plan de Estudios */}
-              {planEstudios.length > 0 && (
-                <section>
-                  <div className="mb-8 md:mb-10">
-                    <h2 className="text-2xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight mb-3 uppercase">
-                      Tu Mapa <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-brand-highlight">Curricular</span>
-                    </h2>
-                    <p className="text-sm md:text-lg text-slate-600 dark:text-zinc-400 font-medium">
-                      Materias diseñadas estratégicamente para que adquieras competencias reales y de alta demanda.
-                    </p>
-                  </div>
-
-                  <Accordion type="single" collapsible className="w-full space-y-3">
-                    {planEstudios.map((plan: any, index: number) => (
-                      <AccordionItem key={index} value={`item-${index}`} className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl px-4 sm:px-6 shadow-sm overflow-hidden data-[state=open]:border-brand-primary/50 transition-colors">
-                        <AccordionTrigger className="text-base sm:text-xl font-bold hover:text-brand-primary hover:no-underline py-5 uppercase tracking-tight text-left">
-                          <div className="flex items-center gap-3 sm:gap-4">
-                            <span className="flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-slate-100 dark:bg-zinc-800 text-brand-primary text-xs sm:text-sm font-black shrink-0">
-                              {index + 1}
-                            </span>
-                            {plan.semestre}
-                          </div>
-                        </AccordionTrigger>
-                        {/* Corrección Móvil: quitamos el ml-14 excesivo y pusimos ml-4 para dar espacio al texto */}
-                        <AccordionContent className="pb-5">
-                          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 ml-4 md:ml-14">
-                            {plan.materias.map((materia: string, idx: number) => (
-                              <li key={idx} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-950 rounded-xl border border-slate-100 dark:border-zinc-800">
-                                <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-primary" />
-                                <span className="text-slate-700 dark:text-zinc-300 font-semibold text-xs sm:text-sm">{materia}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                </section>
-              )}
-
+        <section className="bg-white py-16 sm:py-20">
+          <div className="container mx-auto grid gap-8 px-4 md:px-6 lg:grid-cols-3">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-6">
+              <Target className="mb-4 h-7 w-7 text-brand-primary" />
+              <h2 className="text-xl font-black text-slate-950">Beneficio principal</h2>
+              <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">{benefit}</p>
             </div>
-
-            {/* ================= COLUMNA DERECHA: SIDEBAR DE CONVERSIÓN ================= */}
-            {/* En móvil se posiciona de manera orgánica en el flujo gracias al flex-col, en desktop es sticky */}
-            <div className="w-full lg:col-span-1 order-2">
-              <div className="lg:sticky lg:top-32 bg-white dark:bg-zinc-900 rounded-[2rem] border border-slate-200 dark:border-zinc-800 shadow-2xl p-6 sm:p-8 overflow-hidden animate-in fade-in slide-in-from-right-8 duration-1000 delay-500">
-                
-                {/* Deco blur */}
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none" />
-
-                <div className="mb-6 text-center relative z-10">
-                  <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-0 font-bold px-3.5 py-1 text-[10px] uppercase tracking-widest mb-3.5 rounded-full">
-                    Inscripciones Abiertas
-                  </Badge>
-                  <h3 className="text-xl sm:text-2xl font-black uppercase text-slate-900 dark:text-white tracking-tight">Resumen de Inversión</h3>
-                </div>
-                
-                <div className="space-y-5 mb-6 relative z-10">
-                  <div className="flex justify-between items-end border-b border-slate-100 dark:border-zinc-800 pb-3.5">
-                    <span className="text-slate-500 dark:text-zinc-400 font-semibold text-sm">Inscripción</span>
-                    <div className="text-right">
-                      <span className="line-through text-[10px] text-slate-400 block">$1,500 MXN</span>
-                      <span className="font-black text-green-500 text-xs uppercase tracking-wider">Gratis Hoy</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-zinc-800 pb-3.5">
-                    <span className="text-slate-500 dark:text-zinc-400 font-semibold text-sm">Colegiatura Mensual</span>
-                    <span className="font-black text-xl text-slate-900 dark:text-white">$600 <span className="text-xs text-slate-500 font-normal">MXN</span></span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-zinc-800 pb-3.5">
-                    <span className="text-slate-500 dark:text-zinc-400 font-semibold text-sm">Duración Total</span>
-                    <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900 dark:text-white">
-                      <Clock className="h-4 w-4 text-brand-primary" /> {programa.duracion}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3.5 relative z-10">
-                  <Button className="w-full rounded-xl bg-brand-primary hover:bg-brand-highlight text-white h-14 font-black uppercase tracking-widest text-xs sm:text-sm shadow-xl hover:scale-[1.02] transition-all duration-300" asChild>
-                    <Link href="/inscripcion">
-                      Asegurar mi Lugar
-                    </Link>
-                  </Button>
-                  <p className="text-center text-[11px] text-slate-500 dark:text-zinc-500 font-medium">
-                    Proceso 100% en línea. Sin trámites complejos.
-                  </p>
-                </div>
-              </div>
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-6">
+              <ShieldCheck className="mb-4 h-7 w-7 text-brand-primary" />
+              <h2 className="text-xl font-black text-slate-950">Respaldo oficial</h2>
+              <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
+                {programa.rvoe
+                  ? `Programa con RVOE ${programa.rvoe}, visible para consulta y verificación.`
+                  : 'Programa complementario de formación continua.'}
+              </p>
             </div>
-
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-6">
+              <GraduationCap className="mb-4 h-7 w-7 text-brand-primary" />
+              <h2 className="text-xl font-black text-slate-950">Acompañamiento</h2>
+              <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
+                Recibe orientación de admisiones y seguimiento académico durante tu avance.
+              </p>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* ================= PREGUNTAS FRECUENTES ================= */}
-        {faqs.length > 0 && (
-          <section className="py-16 md:py-24 bg-slate-900 dark:bg-black text-white border-t border-slate-800">
-            <div className="container px-4 md:px-6 mx-auto max-w-4xl">
-              <div className="text-center mb-12 md:mb-16">
-                <div className="inline-flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 mb-4">
-                  <HelpCircle className="h-6 w-6 sm:h-8 sm:w-8 text-brand-primary" />
+        {programa.porQueEstudiar && (
+          <section className="bg-slate-50 py-16 sm:py-20">
+            <div className="container mx-auto px-4 md:px-6">
+              <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
+                <div className="grid gap-0 lg:grid-cols-[0.82fr_1.18fr]">
+                  <div className="bg-slate-950 p-7 text-white sm:p-9">
+                    <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-brand-highlight">
+                      <Sparkles className="h-7 w-7" />
+                    </div>
+                    <p className="text-xs font-black uppercase tracking-widest text-brand-highlight">Enfoque del programa</p>
+                    <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+                      ¿Por qué estudiar {programa.nombre}?
+                    </h2>
+                  </div>
+                  <div className="p-7 sm:p-9">
+                    <p className="text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
+                      {programa.porQueEstudiar}
+                    </p>
+                    <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                      {['Horarios flexibles', 'Modalidad virtual', programa.rvoe ? `RVOE ${programa.rvoe}` : 'Acompañamiento'].map((item) => (
+                        <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-800">
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight">Preguntas Frecuentes</h2>
-                <p className="text-slate-400 font-medium text-sm sm:text-lg mt-3 max-w-2xl mx-auto px-2">Resolvemos tus dudas para que tomes la decisión con total seguridad.</p>
               </div>
-              
-              <Accordion type="single" collapsible className="w-full space-y-3 px-1">
-                {faqs.map((faq: any, idx: number) => (
-                  <AccordionItem key={idx} value={`faq-${idx}`} className="border border-slate-800 bg-slate-950/50 rounded-2xl px-4 sm:px-6 data-[state=open]:bg-slate-800 transition-colors">
-                    <AccordionTrigger className="text-base sm:text-lg font-bold text-left py-5 hover:text-brand-primary hover:no-underline leading-snug">
-                      {faq.pregunta}
+            </div>
+          </section>
+        )}
+
+        <section className="py-16 sm:py-20">
+          <div className="container mx-auto grid gap-10 px-4 md:px-6 lg:grid-cols-2">
+            {campoLaboral.length > 0 && (
+              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <BriefcaseBusiness className="mb-5 h-8 w-8 text-brand-primary" />
+                <h2 className="text-2xl font-black tracking-tight text-slate-950">Campo laboral</h2>
+                <ul className="mt-6 space-y-3">
+                  {campoLaboral.map((item) => (
+                    <li key={item} className="flex gap-3 text-sm font-semibold leading-relaxed text-slate-700">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-primary" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {perfilEgreso.length > 0 && (
+              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm sm:p-8">
+                <GraduationCap className="mb-5 h-8 w-8 text-brand-highlight" />
+                <h2 className="text-2xl font-black tracking-tight">Perfil de egreso</h2>
+                <ul className="mt-6 space-y-3">
+                  {perfilEgreso.map((item) => (
+                    <li key={item} className="flex gap-3 text-sm font-semibold leading-relaxed text-white/80">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-highlight" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {planEstudios.length > 0 && (
+          <section id="plan-estudios" className="bg-white py-16 sm:py-20">
+            <div className="container mx-auto max-w-5xl px-4 md:px-6">
+              <div className="mb-10">
+                <div className="mb-4 inline-flex rounded-full bg-brand-primary/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-brand-primary">
+                  Plan de estudios
+                </div>
+                <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                  Materias por periodo
+                </h2>
+                <p className="mt-3 text-base font-medium text-slate-600">
+                  Revisa la estructura académica antes de solicitar tu inscripción.
+                </p>
+              </div>
+
+              <Accordion type="single" collapsible className="space-y-3">
+                {planEstudios.map((plan, index) => (
+                  <AccordionItem
+                    key={plan.semestre}
+                    value={`plan-${index}`}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 px-5 data-[state=open]:bg-white"
+                  >
+                    <AccordionTrigger className="text-left text-lg font-black text-slate-950 hover:text-brand-primary hover:no-underline">
+                      {plan.semestre}
                     </AccordionTrigger>
-                    <AccordionContent className="text-slate-400 text-sm sm:text-base leading-relaxed pb-5">
-                      {faq.respuesta}
+                    <AccordionContent>
+                      <ul className="grid gap-2 pt-2 sm:grid-cols-2">
+                        {plan.materias.map((materia) => (
+                          <li key={materia} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
+                            {materia}
+                          </li>
+                        ))}
+                      </ul>
                     </AccordionContent>
                   </AccordionItem>
                 ))}
@@ -295,24 +462,138 @@ export default async function ProgramaPage({ params }: { params: Promise<{ id: s
           </section>
         )}
 
-        {/* ================= CTA FINAL BOTTOM ================= */}
-        <section className="py-20 md:py-32 relative overflow-hidden bg-brand-primary text-white text-center px-4">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0,transparent_100%)] pointer-events-none" />
-          <div className="container relative z-10 px-4 mx-auto max-w-3xl">
-            <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight mb-4 drop-shadow-md uppercase leading-tight">
-              ¿Listo para transformar tu futuro?
-            </h2>
-            <p className="text-base sm:text-xl font-medium mb-8 sm:mb-12 opacity-90 max-w-2xl mx-auto leading-relaxed">
-              No dejes pasar más tiempo. Únete a miles de alumnos que ya están construyendo su éxito profesional con nosotros.
-            </p>
-            <Button size="lg" className="w-full sm:w-auto rounded-full px-10 bg-white text-brand-primary hover:bg-slate-100 hover:scale-105 transition-all duration-300 h-14 sm:h-16 font-black uppercase tracking-widest shadow-2xl text-base" asChild>
-              <Link href="/inscripcion">
-                Comenzar Ahora Mismo
-              </Link>
-            </Button>
+        <section className="py-16 sm:py-20">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+              <div className="lg:sticky lg:top-28">
+                <div className="mb-4 inline-flex rounded-full bg-brand-primary/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-brand-primary">
+                  Preguntas frecuentes
+                </div>
+                <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                  Dudas sobre {programa.nombre}
+                </h2>
+                <p className="mt-4 text-base font-medium leading-relaxed text-slate-600">
+                  Cada programa tiene requisitos, campo laboral y tiempos propios. Aquí concentramos las dudas más importantes antes de pedir informes.
+                </p>
+              </div>
+
+              <div className="space-y-8">
+                {programFaqs.length > 0 && (
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                    <h3 className="mb-5 text-xl font-black text-slate-950">Preguntas de este programa</h3>
+                    <Accordion type="single" collapsible className="space-y-3">
+                      {programFaqs.map((faq, index) => (
+                        <AccordionItem
+                          key={`${faq.question}-${index}`}
+                          value={`program-faq-${index}`}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 px-5 data-[state=open]:bg-white"
+                        >
+                          <AccordionTrigger className="text-left text-base font-black text-slate-950 hover:text-brand-primary hover:no-underline">
+                            {faq.question}
+                          </AccordionTrigger>
+                          <AccordionContent className="text-sm font-medium leading-relaxed text-slate-600">
+                            {faq.answer}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
+                )}
+
+                <div className="rounded-[1.5rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm sm:p-6">
+                  <h3 className="mb-5 text-xl font-black">Dudas generales de admisión</h3>
+                  <Accordion type="single" collapsible className="space-y-3">
+                    {generalFaqs.slice(0, 6).map((faq, index) => (
+                      <AccordionItem
+                        key={`${faq.question}-${index}`}
+                        value={`general-faq-${index}`}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-5"
+                      >
+                        <AccordionTrigger className="text-left text-base font-black text-white hover:text-brand-highlight hover:no-underline">
+                          {faq.question}
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm font-medium leading-relaxed text-white/70">
+                          {faq.answer}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
+        {relatedPrograms.length > 0 && (
+          <section className="bg-white py-16 sm:py-20">
+            <div className="container mx-auto px-4 md:px-6">
+              <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-brand-primary">También puedes revisar</p>
+                  <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                    Más programas con RVOE
+                  </h2>
+                </div>
+                <Button asChild variant="outline" className="rounded-full border-slate-300 font-black">
+                  <Link href="/#oferta">Ver oferta académica</Link>
+                </Button>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {relatedPrograms.map((item) => {
+                  const RelatedIcon = getProgramaIcono(item.id)
+
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/programas/${item.id}`}
+                      className="group rounded-[1.4rem] border border-slate-200 bg-slate-50 p-5 transition hover:-translate-y-0.5 hover:border-brand-primary/30 hover:bg-white hover:shadow-xl hover:shadow-slate-200/70"
+                    >
+                      <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary text-white">
+                        <RelatedIcon className="h-6 w-6" />
+                      </div>
+                      <h3 className="text-lg font-black text-slate-950 group-hover:text-brand-primary">{item.nombre}</h3>
+                      <p className="mt-2 line-clamp-2 text-sm font-medium leading-relaxed text-slate-600">{item.descripcion}</p>
+                      <div className="mt-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-brand-primary">
+                        RVOE {item.rvoe}
+                        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="bg-brand-primary py-16 text-white sm:py-20">
+          <div className="container mx-auto max-w-3xl px-4 text-center md:px-6">
+            <FileText className="mx-auto mb-5 h-10 w-10 text-brand-highlight" />
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+              Da el siguiente paso con información clara
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-relaxed text-white/85">
+              Pregunta por requisitos, costo vigente, RVOE y fecha del próximo grupo antes de decidir.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Button asChild className="h-12 rounded-full bg-brand-highlight px-6 font-black text-slate-950 hover:bg-white">
+                <ClipPaymentLink programId={programa.id} programName={programa.nombre}>
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  Apartar con ${RESERVATION_AMOUNT_MXN} MXN
+                </ClipPaymentLink>
+              </Button>
+              <Button asChild className="h-12 rounded-full bg-white px-6 font-black text-brand-primary hover:bg-brand-highlight hover:text-slate-950">
+                <WhatsAppLink message={whatsappMessage} programId={programa.id}>
+                  <WhatsAppIcon className="mr-2 h-5 w-5" />
+                  Pedir informes
+                </WhatsAppLink>
+              </Button>
+              <Button asChild variant="outline" className="h-12 rounded-full border-white/30 bg-transparent px-6 font-black text-white hover:bg-white hover:text-slate-950">
+                <Link href="/inscripcion">Formulario de solicitud</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
       </main>
 
       <Footer />
