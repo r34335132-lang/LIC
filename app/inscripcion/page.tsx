@@ -25,7 +25,7 @@ const trustItems = [
   {
     icon: UserCheck,
     title: 'Seguimiento humano',
-    text: 'Un asesor te acompaña para resolver dudas antes de pagar.',
+    text: 'Un asesor te acompaña por WhatsApp para resolver dudas antes de pagar.',
   },
 ]
 
@@ -74,7 +74,7 @@ export default async function InscripcionPage({ searchParams }: InscripcionPageP
               Solicita informes para iniciar tu inscripción
             </h1>
             <p className="mt-5 text-lg font-medium leading-relaxed text-slate-600">
-              Déjanos tus datos y te contactaremos para explicarte costos, RVOE, requisitos, modalidad y fecha de inicio del programa que te interesa.
+              Déjanos tus datos y nos conectaremos contigo por WhatsApp para explicarte costos, RVOE, requisitos, modalidad y cómo funciona nuestro programa para <strong className="text-slate-900">revalidar materias</strong>.
             </p>
 
             <div className="mt-8 grid gap-4">
@@ -117,8 +117,8 @@ export default async function InscripcionPage({ searchParams }: InscripcionPageP
               defaultProgramId={selectedProgramId}
               source={hasReservationIntent ? 'apartado_clip' : 'inscripcion'}
               title="Formulario de admisión"
-              description="Capturamos tus datos para que admisiones pueda darte seguimiento real. También se guardan fuente y UTM de forma oculta para medición."
-              submitLabel="Solicitar seguimiento"
+              description="Llena el formulario y te conectaremos directamente a WhatsApp con un asesor para resolver todas tus dudas sobre costos y revalidación."
+              submitLabel="Enviar por WhatsApp"
             />
           </div>
         </div>
