@@ -107,7 +107,13 @@ export default function RootLayout({
     <html lang="es" className="bg-background">
       <body className="min-h-screen font-sans antialiased">
         <AuthProvider>
+          {/* Banner Superior Global de Revalidación */}
+          <div className="w-full bg-yellow-500 text-black text-center py-2 px-4 font-bold text-sm md:text-base z-50 relative shadow-sm">
+            ¡Aprovecha nuestro programa de equivalencias! Revalidamos materias. 🎓
+          </div>
+
           {children}
+          
           <FloatingWhatsApp />
         </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}

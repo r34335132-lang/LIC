@@ -18,21 +18,22 @@ export default function GraciasPage() {
           <CheckCircle2 className="h-11 w-11 text-brand-primary" />
         </div>
         <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-          Recibimos tu solicitud
+          ¡Te estamos conectando!
         </h1>
         <p className="mx-auto mt-4 max-w-lg text-base font-medium leading-relaxed text-slate-600">
-          Gracias por tu interés. Un asesor de admisiones revisará tu programa y te contactará para explicarte requisitos, RVOE, costos y fecha de inicio.
+          Gracias por tu interés. Tu WhatsApp debería abrirse automáticamente en unos segundos. 
+          Si no es así, un asesor de admisiones revisará tu programa y te contactará para explicarte requisitos, costos y cómo funciona la <strong>revalidación de materias</strong>.
         </p>
 
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Button asChild className="h-12 rounded-full bg-brand-primary px-6 font-black text-white hover:bg-brand-primary/90">
-            <WhatsAppLink>
+            <WhatsAppLink message="¡Hola! Acabo de enviar mi formulario en la página web y quiero darle seguimiento a mi inscripción y ver lo de la revalidación de materias.">
               <WhatsAppIcon className="mr-2 h-5 w-5" />
-              Hablar por WhatsApp
+              Ir a WhatsApp ahora
             </WhatsAppLink>
           </Button>
           <Button asChild variant="outline" className="h-12 rounded-full border-slate-300 px-6 font-bold">
-            <Link href="/#oferta">Ver programas</Link>
+            <Link href="/#oferta">Ver más programas</Link>
           </Button>
         </div>
       </div>

@@ -67,7 +67,7 @@ export function AdmissionLeadForm({
   source = 'landing',
   title = 'Solicitud de información',
   description = 'Completa tus datos y un asesor de admisiones te contactará para resolver dudas, costos y requisitos.',
-  submitLabel = 'Enviar solicitud',
+  submitLabel = 'Enviar por WhatsApp',
 }: AdmissionLeadFormProps) {
   const router = useRouter()
   const [values, setValues] = useState<FormState>({ ...initialState, programa: defaultProgramId || '' })
@@ -113,28 +113,38 @@ export function AdmissionLeadForm({
     setIsSubmitting(true)
 
     try {
+      // 1. Guardamos en BD (opcional, pero recomendado para mantener tu analítica)
       const response = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(parsed.data),
       })
 
-      if (!response.ok) {
-        throw new Error('No se pudo enviar la solicitud')
+      if (response.ok) {
+        trackEvent('submit_form', {
+          source,
+          programId: parsed.data.programa,
+          programName: selectedProgram?.nombre,
+        })
       }
 
-      trackEvent('submit_form', {
-        source,
-        programId: parsed.data.programa,
-        programName: selectedProgram?.nombre,
-      })
+      // 2. Armamos el mensaje de WhatsApp
+      const programName = selectedProgram?.nombre || values.programa;
+      const mensajeBase = `¡Hola! He llenado el formulario de admisión y me gustaría recibir más información.\n\nMis datos son:\n- Nombre: ${values.nombre}\n- Teléfono: ${values.telefono}\n- Correo: ${values.correo}\n- Programa de interés: ${programName}\n- Mensaje adicional: ${values.mensaje || 'Sin mensaje'}`;
+      
+      const numeroWhatsApp = "526182614228";
+      const urlWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensajeBase)}`;
 
+      // 3. Abrimos WhatsApp en una pestaña nueva
+      window.open(urlWhatsApp, '_blank');
+
+      // 4. Mostramos el estado de éxito y redirigimos
       setIsSuccess(true)
       setTimeout(() => {
         router.push(`/gracias?programa=${encodeURIComponent(parsed.data.programa)}`)
-      }, 900)
+      }, 1500)
     } catch {
-      setFormError('No pudimos enviar tu solicitud. Inténtalo de nuevo o escríbenos por WhatsApp.')
+      setFormError('No pudimos procesar tu solicitud. Inténtalo de nuevo o escríbenos directamente por WhatsApp.')
     } finally {
       setIsSubmitting(false)
     }
@@ -144,9 +154,9 @@ export function AdmissionLeadForm({
     return (
       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-brand-primary/20 bg-brand-primary/5 px-6 py-12 text-center">
         <CheckCircle2 className="mb-5 h-16 w-16 text-brand-primary" />
-        <h3 className="text-2xl font-black text-slate-950">Solicitud recibida</h3>
+        <h3 className="text-2xl font-black text-slate-950">¡Te estamos conectando!</h3>
         <p className="mt-3 max-w-md text-sm font-medium leading-relaxed text-slate-600">
-          Gracias. Estamos preparando tu seguimiento y en un momento verás la confirmación de admisiones.
+          Si no se abrió WhatsApp automáticamente, revisa las ventanas emergentes de tu navegador. Redirigiendo...
         </p>
       </div>
     )
@@ -253,7 +263,7 @@ export function AdmissionLeadForm({
         {isSubmitting ? (
           <span className="flex items-center gap-2">
             <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-            Enviando...
+            Conectando...
           </span>
         ) : (
           <span className="flex items-center gap-2">

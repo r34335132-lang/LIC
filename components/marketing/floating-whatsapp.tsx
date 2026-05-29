@@ -36,6 +36,7 @@ export function FloatingWhatsApp() {
       <WhatsAppLink
         className="flex h-11 w-11 items-center justify-center rounded-full border border-[#25D366]/30 bg-white text-[#25D366] shadow-xl shadow-slate-900/15 ring-4 ring-[#25D366]/10 transition hover:-translate-y-0.5 hover:ring-[#25D366]/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366]/25 sm:h-12 sm:w-12"
         ariaLabel="Habla con un asesor por WhatsApp"
+        message="¡Hola! Estoy visitando la página web y me interesa solicitar informes sobre la oferta educativa y la revalidación de materias."
       >
         <WhatsAppIcon className="h-7 w-7 sm:h-8 sm:w-8" />
       </WhatsAppLink>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { forwardRef, type ReactNode } from 'react'
-import { buildWhatsAppUrl, DEFAULT_WHATSAPP_MESSAGE, trackEvent } from '@/lib/marketing'
+import { DEFAULT_WHATSAPP_MESSAGE, trackEvent } from '@/lib/marketing'
 
 type WhatsAppLinkProps = {
   children: ReactNode
@@ -16,10 +16,14 @@ export const WhatsAppLink = forwardRef<HTMLAnchorElement, WhatsAppLinkProps>(fun
   { children, className, message = DEFAULT_WHATSAPP_MESSAGE, programId, ariaLabel },
   ref
 ) {
+  // Conectamos directamente el número configurado con lada de México (52)
+  const phoneNumber = '526182614228'
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+
   return (
     <Link
       ref={ref}
-      href={buildWhatsAppUrl(message)}
+      href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={ariaLabel}
