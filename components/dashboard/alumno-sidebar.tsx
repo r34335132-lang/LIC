@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   ChevronLeft,
+  Shield,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -20,6 +21,7 @@ import { useState } from 'react'
 const menuItems = [
   { href: '/dashboard', label: 'Tablero', icon: LayoutDashboard },
   { href: '/dashboard/materias', label: 'Mis materias', icon: BookOpen },
+  { href: '/cuenta/seguridad', label: 'Seguridad', icon: Shield },
 ]
 
 export function AlumnoSidebar() {

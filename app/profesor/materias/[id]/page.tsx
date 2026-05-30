@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Pencil, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, ExternalLink, Copy, Users, Clock, Video } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -145,6 +145,30 @@ export default function ProfesorMateriaDetailPage({
       act.activo ? 'Actividad desactivada' : 'Actividad activada'
     )
 
+  const copyClassroomToGroup = async () => {
+    try {
+      const res = await fetch('/api/profesor/profesor-materias/copy-classroom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.updated ? `Link copiado a ${data.updated} clase(s)` : (data.message ?? 'Listo'))
+        await load()
+      } else {
+        toast.error(data.error ?? 'No se pudo copiar el link')
+      }
+    } catch {
+      toast.error('Error de conexión')
+    }
+  }
+
+  const scrollTo = (targetId: string) => {
+    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   if (!pm) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -168,6 +192,29 @@ export default function ProfesorMateriaDetailPage({
         {pm.periodo_escolar && <Badge variant="secondary">{pm.periodo_escolar}</Badge>}
       </div>
 
+      {isOwner && (
+        <Card className="mt-6">
+          <CardHeader><CardTitle className="text-base">Acciones rápidas</CardTitle></CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => scrollTo('clase-info')}>
+              <Video className="mr-1 h-4 w-4" /> Editar link de clase
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => scrollTo('clase-info')}>
+              <Clock className="mr-1 h-4 w-4" /> Editar horario/aula
+            </Button>
+            <Button size="sm" variant="outline" onClick={copyClassroomToGroup} disabled={!pm.link_classroom || !pm.grupo}>
+              <Copy className="mr-1 h-4 w-4" /> Copiar Classroom al grupo
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => scrollTo('alumnos')}>
+              <Users className="mr-1 h-4 w-4" /> Ver alumnos
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => scrollTo('alumnos')}>
+              <Pencil className="mr-1 h-4 w-4" /> Calificar
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {(pm.link_clase || pm.link_classroom || pm.link_drive) && (
         <div className="mt-4 flex flex-wrap gap-2">
           {pm.link_clase && (
@@ -189,7 +236,7 @@ export default function ProfesorMateriaDetailPage({
       )}
 
       {isOwner && (
-        <Card className="mt-6">
+        <Card className="mt-6" id="clase-info">
           <CardHeader><CardTitle className="text-base">Información de clase</CardTitle></CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
             {(['horario', 'aula', 'link_clase', 'link_classroom', 'link_drive'] as const).map((field) => (
@@ -218,7 +265,7 @@ export default function ProfesorMateriaDetailPage({
         </Card>
       )}
 
-      <Card className="mt-6">
+      <Card className="mt-6" id="alumnos">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Alumnos ({alumnos.length})</CardTitle>
         </CardHeader>

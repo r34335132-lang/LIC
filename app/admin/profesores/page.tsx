@@ -23,20 +23,25 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getNombrePerfil } from '@/lib/perfil-utils'
-import { Plus, Pencil, CheckCircle2 } from 'lucide-react'
+import { Plus, Pencil, CheckCircle2, KeyRound, Layers } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Materia, Perfil, ProfesorMateria } from '@/types/database'
+import { ResetPasswordDialog } from '@/components/admin/reset-password-dialog'
+import { BulkSemesterForm } from '@/components/admin/bulk-semester-form'
+import type { Materia, Perfil, ProfesorMateria, Programa } from '@/types/database'
 
 type ProfesorMateriaRow = ProfesorMateria & { materia: Materia }
 
 export default function AdminProfesoresPage() {
   const [profesores, setProfesores] = useState<Perfil[]>([])
   const [materias, setMaterias] = useState<Materia[]>([])
+  const [programas, setProgramas] = useState<Programa[]>([])
   const [asignaciones, setAsignaciones] = useState<Record<string, ProfesorMateriaRow[]>>({})
   const [selectedProfesor, setSelectedProfesor] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
   const [editPm, setEditPm] = useState<ProfesorMateriaRow | null>(null)
+  const [resetUser, setResetUser] = useState<{ id: string; name: string } | null>(null)
 
   const [newProf, setNewProf] = useState({ nombre: '', email: '', telefono: '', password: '' })
   const [createdCreds, setCreatedCreds] = useState<{ email: string; tempPassword: string; emailSent: boolean } | null>(null)
@@ -63,6 +68,7 @@ export default function AdminProfesoresPage() {
 
     setProfesores((data.profesores ?? []) as Perfil[])
     setMaterias((data.materias ?? []) as Materia[])
+    setProgramas((data.programas ?? []) as Programa[])
 
     const grouped: Record<string, ProfesorMateriaRow[]> = {}
     for (const pm of (data.profesorMaterias ?? []) as ProfesorMateriaRow[]) {
@@ -218,13 +224,29 @@ export default function AdminProfesoresPage() {
                 <CardTitle>{getNombrePerfil(prof)}</CardTitle>
                 <p className="text-sm text-muted-foreground">{prof.email}</p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setSelectedProfesor(prof.id); setAssignOpen(true) }}
-              >
-                <Plus className="mr-1 h-4 w-4" /> Asignar materia
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setResetUser({ id: prof.id, name: getNombrePerfil(prof) })}
+                >
+                  <KeyRound className="mr-1 h-4 w-4" /> Cambiar contraseña
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setSelectedProfesor(prof.id); setBulkOpen(true) }}
+                >
+                  <Layers className="mr-1 h-4 w-4" /> Asignar por semestre
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setSelectedProfesor(prof.id); setAssignOpen(true) }}
+                >
+                  <Plus className="mr-1 h-4 w-4" /> Asignar materia
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {(asignaciones[prof.id] ?? []).length === 0 ? (
@@ -278,6 +300,27 @@ export default function AdminProfesoresPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Asignar por semestre</DialogTitle></DialogHeader>
+          <BulkSemesterForm
+            programas={programas}
+            profesores={profesores}
+            defaultProfesorId={selectedProfesor ?? undefined}
+            onSuccess={() => { setBulkOpen(false); loadData() }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {resetUser && (
+        <ResetPasswordDialog
+          userId={resetUser.id}
+          userName={resetUser.name}
+          open={!!resetUser}
+          onOpenChange={(o) => !o && setResetUser(null)}
+        />
+      )}
 
       <Dialog open={!!editPm} onOpenChange={(o) => !o && setEditPm(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">

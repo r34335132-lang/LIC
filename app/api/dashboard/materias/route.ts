@@ -75,26 +75,33 @@ export async function GET() {
       actividadesPorMateria.set(act.materia_id, list)
     }
 
-    const materias = alumnoMaterias.map((am) => {
-      const materiaId = am.materia?.id ?? ''
-      const pm = profesorPorMateria.get(materiaId) ?? null
-      return {
-        id: am.id,
-        estado: am.estado,
-        calificacion: am.calificacion,
-        materia: am.materia,
-        profesor: pm?.profesor ?? null,
-        grupo: pm?.grupo ?? null,
-        horario: pm?.horario ?? null,
-        aula: pm?.aula ?? null,
-        periodo_escolar: pm?.periodo_escolar ?? null,
-        link_clase: pm?.link_clase ?? null,
-        link_classroom: pm?.link_classroom ?? null,
-        link_drive: pm?.link_drive ?? null,
-        descripcion: pm?.descripcion ?? null,
-        actividades: actividadesPorMateria.get(materiaId) ?? [],
-      }
-    })
+    const materias = alumnoMaterias
+      .map((am) => {
+        const materiaId = am.materia?.id ?? ''
+        const pm = profesorPorMateria.get(materiaId) ?? null
+        return {
+          id: am.id,
+          estado: am.estado,
+          calificacion: am.calificacion,
+          materia: am.materia,
+          profesor: pm?.profesor ?? null,
+          grupo: pm?.grupo ?? null,
+          horario: pm?.horario ?? null,
+          aula: pm?.aula ?? null,
+          periodo_escolar: pm?.periodo_escolar ?? null,
+          link_clase: pm?.link_clase ?? null,
+          link_classroom: pm?.link_classroom ?? null,
+          link_drive: pm?.link_drive ?? null,
+          descripcion: pm?.descripcion ?? null,
+          actividades: actividadesPorMateria.get(materiaId) ?? [],
+        }
+      })
+      .sort((a, b) => {
+        const pa = a.materia?.periodo ?? 0
+        const pb = b.materia?.periodo ?? 0
+        if (pa !== pb) return pa - pb
+        return (a.materia?.nombre ?? '').localeCompare(b.materia?.nombre ?? '', 'es')
+      })
 
     return NextResponse.json({ materias })
   } catch (error) {

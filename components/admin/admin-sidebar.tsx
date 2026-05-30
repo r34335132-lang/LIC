@@ -15,6 +15,8 @@ import {
   Menu,
   ChevronLeft,
   LayoutDashboard,
+  School,
+  Shield,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -23,9 +25,11 @@ import { useState } from 'react'
 const menuItems = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
   { href: '/admin/planes', label: 'Planes de estudio', icon: BookOpen },
+  { href: '/admin/clases', label: 'Clases', icon: School },
   { href: '/admin/alumnos', label: 'Alumnos', icon: Users },
   { href: '/admin/profesores', label: 'Profesores', icon: UserCheck },
   { href: '/admin/inscripciones', label: 'Inscripciones', icon: ClipboardList },
+  { href: '/cuenta/seguridad', label: 'Seguridad', icon: Shield },
 ]
 
 export function AdminSidebar() {

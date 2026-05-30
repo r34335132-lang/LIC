@@ -15,6 +15,7 @@ export async function GET() {
       { data: profesores, error: profError },
       { data: materias, error: matError },
       { data: profesorMaterias, error: pmError },
+      { data: programas, error: progError },
     ] = await Promise.all([
       admin
         .from('perfiles')
@@ -23,6 +24,7 @@ export async function GET() {
         .order('nombre_completo'),
       admin.from('materias').select('*').order('periodo'),
       admin.from('profesor_materias').select('*, materia:materias(*)'),
+      admin.from('programas').select('*').eq('activo', true).order('nombre'),
     ])
 
     if (profError) {
@@ -34,11 +36,15 @@ export async function GET() {
     if (pmError) {
       return NextResponse.json({ error: pmError.message }, { status: 400 })
     }
+    if (progError) {
+      return NextResponse.json({ error: progError.message }, { status: 400 })
+    }
 
     return NextResponse.json({
       profesores: profesores ?? [],
       materias: materias ?? [],
       profesorMaterias: profesorMaterias ?? [],
+      programas: programas ?? [],
     })
   } catch (error) {
     console.error('Admin profesores-data GET error:', error)

@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, KeyRound } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { ResetPasswordDialog } from '@/components/admin/reset-password-dialog'
 import {
   Select,
   SelectContent,
@@ -29,6 +31,7 @@ export default function AdminAlumnoDetailPage({
   const [alumno, setAlumno] = useState<Perfil | null>(null)
   const [materias, setMaterias] = useState<AlumnoMateriaRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [resetOpen, setResetOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -91,11 +94,21 @@ export default function AdminAlumnoDetailPage({
       </Link>
 
       <h1 className="text-3xl font-black">{getNombrePerfil(alumno)}</h1>
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <Badge variant="outline">{alumno.email}</Badge>
         {alumno.matricula && <Badge>{alumno.matricula}</Badge>}
         {alumno.programa_id && <Badge variant="secondary">{alumno.programa_id}</Badge>}
+        <Button variant="outline" size="sm" onClick={() => setResetOpen(true)}>
+          <KeyRound className="mr-1 h-4 w-4" /> Cambiar contraseña
+        </Button>
       </div>
+
+      <ResetPasswordDialog
+        userId={alumno.id}
+        userName={getNombrePerfil(alumno)}
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+      />
 
       <div className="mt-8 space-y-6">
         {Object.entries(grouped)

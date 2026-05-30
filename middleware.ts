@@ -4,7 +4,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import type { Rol } from '@/types/database'
 
-const protectedPrefixes = ['/admin', '/dashboard', '/profesor']
+const protectedPrefixes = ['/admin', '/dashboard', '/profesor', '/cuenta']
 
 function isProtectedPath(pathname: string) {
   return protectedPrefixes.some(
@@ -97,6 +97,11 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/dashboard') && rol !== 'alumno' && rol !== 'admin') {
     return NextResponse.redirect(new URL(getDashboardPath(rol), request.url))
+  }
+
+  // /cuenta accesible para cualquier usuario autenticado con perfil
+  if (pathname.startsWith('/cuenta')) {
+    return response
   }
 
   return response
