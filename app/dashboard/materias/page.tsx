@@ -1,13 +1,13 @@
 'use client'
 
-import { useAuth } from '@/lib/auth-context'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Video, BookMarked, FolderOpen } from 'lucide-react'
+import { Video, BookMarked, FolderOpen, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Actividad, Materia, Perfil } from '@/types/database'
+import { cuatrimestreLabel } from '@/lib/academico-utils'
 
 interface MateriaDashboard {
   id: string
@@ -26,7 +26,7 @@ interface MateriaDashboard {
   actividades: Actividad[]
 }
 
-function semestreResumen(items: MateriaDashboard[]) {
+function cuatrimestreResumen(items: MateriaDashboard[]) {
   return {
     total: items.length,
     cursando: items.filter((m) => m.estado === 'cursando').length,
@@ -36,30 +36,33 @@ function semestreResumen(items: MateriaDashboard[]) {
 }
 
 export default function DashboardMateriasPage() {
-  const { perfil } = useAuth()
   const [materias, setMaterias] = useState<MateriaDashboard[]>([])
   const [loading, setLoading] = useState(true)
 
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/materias', { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al cargar materias')
+      setMaterias((data.materias ?? []) as MateriaDashboard[])
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al cargar materias')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
-    if (!perfil) return
-    let active = true
-    async function load() {
-      try {
-        const res = await fetch('/api/dashboard/materias', { credentials: 'include' })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? 'Error al cargar materias')
-        if (active) setMaterias((data.materias ?? []) as MateriaDashboard[])
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Error al cargar materias')
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
     load()
-    return () => {
-      active = false
-    }
-  }, [perfil])
+  }, [load])
+
+  const accesosRapidos = useMemo(
+    () =>
+      materias.filter(
+        (m) => m.link_clase || m.link_classroom || m.link_drive
+      ),
+    [materias]
+  )
 
   const grouped = useMemo(() => {
     const map = materias.reduce<Record<number, MateriaDashboard[]>>((acc, m) => {
@@ -88,8 +91,10 @@ export default function DashboardMateriasPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-black text-slate-950">Mis materias</h1>
-      <p className="mt-2 text-muted-foreground">Plan de estudios y avance académico por semestre.</p>
+      <h1 className="text-3xl font-black text-slate-950">Materias</h1>
+      <p className="mt-2 text-muted-foreground">
+        Plan de estudios y aula virtual por cuatrimestre.
+      </p>
 
       {loading ? (
         <div className="mt-10 flex justify-center">
@@ -99,14 +104,53 @@ export default function DashboardMateriasPage() {
         <p className="mt-8 text-muted-foreground">Aún no tienes materias asignadas.</p>
       ) : (
         <div className="mt-8 space-y-6">
+          {accesosRapidos.length > 0 && (
+            <Card className="border-brand-primary/20 bg-brand-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Zap className="h-5 w-5 text-brand-primary" />
+                  Accesos rápidos a clases virtuales
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                {accesosRapidos.map((am) => (
+                  <div key={am.id} className="flex flex-wrap items-center gap-2 rounded-lg border bg-white px-3 py-2">
+                    <span className="text-sm font-semibold">{am.materia?.nombre}</span>
+                    {am.link_clase && (
+                      <Button asChild size="sm" variant="default" className="bg-brand-primary h-8">
+                        <a href={am.link_clase} target="_blank" rel="noopener noreferrer">
+                          <Video className="mr-1 h-3 w-3" /> Clase virtual
+                        </a>
+                      </Button>
+                    )}
+                    {am.link_classroom && (
+                      <Button asChild size="sm" variant="outline" className="h-8">
+                        <a href={am.link_classroom} target="_blank" rel="noopener noreferrer">
+                          <BookMarked className="mr-1 h-3 w-3" /> Classroom
+                        </a>
+                      </Button>
+                    )}
+                    {am.link_drive && (
+                      <Button asChild size="sm" variant="outline" className="h-8">
+                        <a href={am.link_drive} target="_blank" rel="noopener noreferrer">
+                          <FolderOpen className="mr-1 h-3 w-3" /> Drive
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           {Object.entries(grouped)
             .sort(([a], [b]) => Number(a) - Number(b))
-            .map(([semestre, items]) => {
-              const res = semestreResumen(items)
+            .map(([cuatrimestre, items]) => {
+              const res = cuatrimestreResumen(items)
               return (
-                <Card key={semestre}>
+                <Card key={cuatrimestre}>
                   <CardHeader>
-                    <CardTitle>{semestre}° Semestre</CardTitle>
+                    <CardTitle>{cuatrimestreLabel(Number(cuatrimestre))}</CardTitle>
                     <div className="mt-2 flex flex-wrap gap-2 text-sm text-muted-foreground">
                       <Badge variant="outline">{res.total} materias</Badge>
                       <Badge className="bg-blue-100 text-blue-800">{res.cursando} cursando</Badge>
@@ -127,56 +171,68 @@ export default function DashboardMateriasPage() {
                                 : 'Profesor por asignar'}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {am.horario ? `Horario: ${am.horario}` : 'Horario por confirmar'}
+                              {am.grupo ? `Grupo ${am.grupo}` : 'Grupo por confirmar'}
+                              {am.horario ? ` · Horario: ${am.horario}` : ' · Horario por confirmar'}
                               {am.aula ? ` · Aula: ${am.aula}` : ''}
                             </p>
+                            {am.periodo_escolar && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Periodo escolar: {am.periodo_escolar}
+                              </p>
+                            )}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Badge className={estadoBadge(am.estado)}>{am.estado}</Badge>
                             {am.calificacion != null && (
                               <Badge variant="outline">Calif. {am.calificacion}</Badge>
                             )}
-                            {am.grupo && <Badge variant="secondary">Grupo {am.grupo}</Badge>}
                           </div>
                         </div>
 
-                        <div className="mt-4 flex flex-wrap gap-2">
+                        <div className="mt-4 flex flex-wrap gap-2 items-center">
                           {am.link_clase ? (
                             <Button asChild size="sm" variant="default" className="bg-brand-primary">
                               <a href={am.link_clase} target="_blank" rel="noopener noreferrer">
-                                <Video className="mr-1 h-4 w-4" /> Clase en vivo
+                                <Video className="mr-1 h-4 w-4" /> Entrar a clase virtual
                               </a>
                             </Button>
-                          ) : null}
-                          {am.link_classroom ? (
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">
+                              Clase virtual por confirmar
+                            </span>
+                          )}
+                          {am.link_classroom && (
                             <Button asChild size="sm" variant="outline">
                               <a href={am.link_classroom} target="_blank" rel="noopener noreferrer">
                                 <BookMarked className="mr-1 h-4 w-4" /> Classroom
                               </a>
                             </Button>
-                          ) : null}
-                          {am.link_drive ? (
+                          )}
+                          {am.link_drive && (
                             <Button asChild size="sm" variant="outline">
                               <a href={am.link_drive} target="_blank" rel="noopener noreferrer">
                                 <FolderOpen className="mr-1 h-4 w-4" /> Drive
                               </a>
                             </Button>
-                          ) : null}
-                          {!am.link_clase && !am.link_classroom && !am.link_drive && (
-                            <span className="text-xs text-muted-foreground">Links por confirmar</span>
                           )}
                         </div>
 
                         {am.actividades.length > 0 && (
                           <div className="mt-4 border-t pt-3">
-                            <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Actividades</p>
+                            <p className="text-xs font-bold uppercase text-muted-foreground mb-2">
+                              Actividades
+                            </p>
                             <div className="space-y-2">
                               {am.actividades.map((act) => (
-                                <div key={act.id} className="flex items-center justify-between text-sm rounded bg-slate-50 px-3 py-2">
+                                <div
+                                  key={act.id}
+                                  className="flex items-center justify-between text-sm rounded bg-slate-50 px-3 py-2"
+                                >
                                   <span>{act.titulo}</span>
                                   {act.fecha_entrega && (
                                     <span className="text-xs text-muted-foreground">
-                                      Entrega: {new Date(act.fecha_entrega).toLocaleDateString('es-MX')}
+                                      Entrega:{' '}
+                                      {new Date(act.fecha_entrega).toLocaleDateString('es-MX')}
                                     </span>
                                   )}
                                 </div>

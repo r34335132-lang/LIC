@@ -13,6 +13,7 @@ import {
   Menu,
   ChevronLeft,
   Shield,
+  ClipboardList,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -20,7 +21,8 @@ import { useState } from 'react'
 
 const menuItems = [
   { href: '/profesor', label: 'Tablero', icon: LayoutDashboard },
-  { href: '/profesor/materias', label: 'Mis materias', icon: BookOpen },
+  { href: '/profesor/materias', label: 'Materias', icon: BookOpen },
+  { href: '/profesor/entregas', label: 'Entregas / Tareas', icon: ClipboardList },
   { href: '/cuenta/seguridad', label: 'Seguridad', icon: Shield },
 ]
 

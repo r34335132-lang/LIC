@@ -106,3 +106,45 @@ export interface AlumnoMateriaDetalle extends AlumnoMateria {
   }
   actividades?: Actividad[]
 }
+
+export type EstadoMensualidad =
+  | 'pendiente'
+  | 'iniciado'
+  | 'pagado'
+  | 'vencido'
+  | 'cancelado'
+  | 'fallido'
+
+export interface Mensualidad {
+  id: string
+  alumno_id: string
+  concepto: string
+  periodo: string
+  mes: number
+  anio: number
+  monto: number
+  moneda: string
+  estado: EstadoMensualidad
+  fecha_vencimiento: string | null
+  clip_checkout_url: string | null
+  clip_reference: string | null
+  clip_payment_id: string | null
+  paid_at: string | null
+  created_at: string
+}
+
+export type EstadoActividadEntrega = 'entregada' | 'revisada'
+
+export interface ActividadEntrega {
+  id: string
+  actividad_id: string
+  alumno_id: string
+  texto_respuesta: string | null
+  link_entrega: string | null
+  archivo_url: string | null
+  estado: EstadoActividadEntrega
+  calificacion: number | null
+  retroalimentacion: string | null
+  created_at: string
+  updated_at: string
+}

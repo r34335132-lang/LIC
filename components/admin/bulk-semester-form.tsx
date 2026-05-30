@@ -49,7 +49,7 @@ export function BulkSemesterForm({
 
   const submit = async () => {
     if (!form.programa_id || !form.periodo || !form.grupo || !form.periodo_escolar) {
-      toast.error('Programa, semestre, grupo y periodo escolar son requeridos')
+      toast.error('Programa, cuatrimestre, grupo y periodo escolar son requeridos')
       return
     }
     if (!form.profesor_id) {
@@ -117,7 +117,7 @@ export function BulkSemesterForm({
           </Select>
         </div>
         <div>
-          <Label>Semestre</Label>
+          <Label>Cuatrimestre</Label>
           <Input
             type="number"
             min={1}
@@ -153,7 +153,7 @@ export function BulkSemesterForm({
         </div>
       ))}
       <Button onClick={submit} disabled={loading} className="w-full bg-brand-primary">
-        {loading ? 'Creando...' : 'Crear clases del semestre'}
+        {loading ? 'Creando...' : 'Crear clases del cuatrimestre'}
       </Button>
     </div>
   )

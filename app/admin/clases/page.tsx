@@ -190,7 +190,7 @@ export default function AdminClasesPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Crear clases por semestre</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Crear clases por cuatrimestre</CardTitle></CardHeader>
           <CardContent>
             <BulkSemesterForm programas={programas} profesores={profesores} onSuccess={load} />
           </CardContent>

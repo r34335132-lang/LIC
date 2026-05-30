@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   School,
   Shield,
+  CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -29,6 +30,7 @@ const menuItems = [
   { href: '/admin/alumnos', label: 'Alumnos', icon: Users },
   { href: '/admin/profesores', label: 'Profesores', icon: UserCheck },
   { href: '/admin/inscripciones', label: 'Inscripciones', icon: ClipboardList },
+  { href: '/admin/pagos', label: 'Pagos', icon: CreditCard },
   { href: '/cuenta/seguridad', label: 'Seguridad', icon: Shield },
 ]
 

@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            'programa_id, periodo (semestre), grupo y periodo_escolar son requeridos',
+            'programa_id, periodo (cuatrimestre), grupo y periodo_escolar son requeridos',
         },
         { status: 400 }
       )
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     }
     if (!materias?.length) {
       return NextResponse.json(
-        { error: 'No hay materias para ese programa y semestre' },
+        { error: 'No hay materias para ese programa y cuatrimestre' },
         { status: 404 }
       )
     }

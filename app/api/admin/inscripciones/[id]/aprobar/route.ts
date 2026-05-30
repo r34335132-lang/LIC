@@ -6,6 +6,11 @@ import {
   generateTempPassword,
   sendWelcomeEmail,
 } from '@/lib/utils-auth'
+import {
+  fechaVencimientoDesdeHoy,
+  formatPeriodoMensualidad,
+  mensualidadMontoDefault,
+} from '@/lib/academico-utils'
 
 export async function POST(
   _request: Request,
@@ -111,6 +116,29 @@ export async function POST(
           { status: 400 }
         )
       }
+    }
+
+    const now = new Date()
+    const mes = now.getMonth() + 1
+    const anio = now.getFullYear()
+
+    const { error: mensualidadError } = await admin.from('mensualidades').upsert(
+      {
+        alumno_id: userId,
+        concepto: 'Mensualidad inicial',
+        periodo: formatPeriodoMensualidad(mes, anio),
+        mes,
+        anio,
+        monto: mensualidadMontoDefault(),
+        moneda: 'MXN',
+        estado: 'pendiente',
+        fecha_vencimiento: fechaVencimientoDesdeHoy(),
+      },
+      { onConflict: 'alumno_id,mes,anio', ignoreDuplicates: false }
+    )
+
+    if (mensualidadError) {
+      console.error('Error creando mensualidad inicial:', mensualidadError)
     }
 
     const { error: updateError } = await admin

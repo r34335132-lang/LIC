@@ -13,6 +13,9 @@ import {
   Menu,
   ChevronLeft,
   Shield,
+  ClipboardList,
+  BarChart3,
+  CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -20,7 +23,10 @@ import { useState } from 'react'
 
 const menuItems = [
   { href: '/dashboard', label: 'Tablero', icon: LayoutDashboard },
-  { href: '/dashboard/materias', label: 'Mis materias', icon: BookOpen },
+  { href: '/dashboard/materias', label: 'Materias', icon: BookOpen },
+  { href: '/dashboard/tareas', label: 'Tareas', icon: ClipboardList },
+  { href: '/dashboard/calificaciones', label: 'Calificaciones', icon: BarChart3 },
+  { href: '/dashboard/pagos', label: 'Pagos', icon: CreditCard },
   { href: '/cuenta/seguridad', label: 'Seguridad', icon: Shield },
 ]
 
@@ -57,7 +63,9 @@ export function AlumnoSidebar() {
 
       <nav className="flex-1 space-y-1 p-4">
         {menuItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive =
+            pathname === item.href ||
+            (item.href !== '/dashboard' && pathname.startsWith(item.href))
           const Icon = item.icon
           return (
             <Link
