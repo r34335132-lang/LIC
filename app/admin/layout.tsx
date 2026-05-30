@@ -3,27 +3,21 @@
 import { useAuth } from '@/lib/auth-context'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { AlumnoSidebar } from '@/components/dashboard/alumno-sidebar'
+import { AdminSidebar } from '@/components/admin/admin-sidebar'
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { perfil, loading, isAuthenticated } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/login')
-    } else if (!loading && perfil && perfil.rol === 'profesor') {
-      router.push('/profesor')
-    } else if (!loading && perfil && perfil.rol === 'admin') {
-      // Admin puede ver dashboard de alumno si lo desea
+    } else if (!loading && perfil && perfil.rol !== 'admin') {
+      router.push('/dashboard')
     }
   }, [loading, isAuthenticated, perfil, router])
 
-  if (loading || !isAuthenticated || !perfil) {
+  if (loading || !perfil || perfil.rol !== 'admin') {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-primary border-t-transparent" />
@@ -31,13 +25,9 @@ export default function DashboardLayout({
     )
   }
 
-  if (perfil.rol !== 'alumno' && perfil.rol !== 'admin') {
-    return null
-  }
-
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <AlumnoSidebar />
+      <AdminSidebar />
       <main className="flex-1 overflow-auto">
         <div className="container max-w-7xl p-4 pt-16 md:p-6 md:pt-6">{children}</div>
       </main>

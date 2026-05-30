@@ -3,23 +3,19 @@
 import { useAuth } from '@/lib/auth-context'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { AlumnoSidebar } from '@/components/dashboard/alumno-sidebar'
+import { ProfesorSidebar } from '@/components/profesor/profesor-sidebar'
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function ProfesorLayout({ children }: { children: React.ReactNode }) {
   const { perfil, loading, isAuthenticated } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/login')
-    } else if (!loading && perfil && perfil.rol === 'profesor') {
-      router.push('/profesor')
+    } else if (!loading && perfil && perfil.rol === 'alumno') {
+      router.push('/dashboard')
     } else if (!loading && perfil && perfil.rol === 'admin') {
-      // Admin puede ver dashboard de alumno si lo desea
+      // Admin puede acceder
     }
   }, [loading, isAuthenticated, perfil, router])
 
@@ -31,13 +27,13 @@ export default function DashboardLayout({
     )
   }
 
-  if (perfil.rol !== 'alumno' && perfil.rol !== 'admin') {
+  if (perfil.rol !== 'profesor' && perfil.rol !== 'admin') {
     return null
   }
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <AlumnoSidebar />
+      <ProfesorSidebar />
       <main className="flex-1 overflow-auto">
         <div className="container max-w-7xl p-4 pt-16 md:p-6 md:pt-6">{children}</div>
       </main>
