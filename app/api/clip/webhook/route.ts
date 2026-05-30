@@ -2,57 +2,54 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   clipStatusToMensualidadEstado,
+  extractClipWebhookPaymentId,
+  extractClipWebhookReference,
   getClipCheckoutStatus,
 } from '@/lib/clip'
 
-type ClipWebhookPayload = {
-  payment_request_id?: string
-  me_reference_id?: string
-  resource_status?: string
-  resource?: string
-}
-
-async function actualizarMensualidadPorReferencia(
-  reference: string,
-  paymentRequestId: string | null
-) {
-  if (!reference.startsWith('MENSUALIDAD-')) return
+async function findMensualidadId(reference: string): Promise<string | null> {
+  if (!reference.startsWith('MENSUALIDAD-')) return null
 
   const admin = createAdminClient()
-  const { data: mensualidad } = await admin
+
+  const { data: byRef } = await admin
     .from('mensualidades')
-    .select('id, clip_payment_id, estado')
+    .select('id')
     .eq('clip_reference', reference)
     .maybeSingle()
 
-  if (!mensualidad) {
-    const parts = reference.split('-')
-    const mensualidadId = parts[1]
-    if (!mensualidadId) return
+  if (byRef?.id) return byRef.id
 
-    const { data: byId } = await admin
-      .from('mensualidades')
-      .select('id, clip_payment_id, estado')
-      .eq('id', mensualidadId)
-      .maybeSingle()
+  const parts = reference.split('-')
+  const mensualidadId = parts[1]
+  if (!mensualidadId) return null
 
-    if (!byId) return
-    await procesarEstadoClip(byId.id, paymentRequestId ?? byId.clip_payment_id)
-    return
-  }
+  const { data: byId } = await admin
+    .from('mensualidades')
+    .select('id')
+    .eq('id', mensualidadId)
+    .maybeSingle()
 
-  await procesarEstadoClip(
-    mensualidad.id,
-    paymentRequestId ?? mensualidad.clip_payment_id
-  )
+  return byId?.id ?? null
 }
 
-async function procesarEstadoClip(
-  mensualidadId: string,
-  paymentRequestId: string | null
-) {
-  if (!paymentRequestId) return
+async function findMensualidadByPaymentId(
+  paymentRequestId: string
+): Promise<string | null> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('mensualidades')
+    .select('id')
+    .eq('clip_payment_id', paymentRequestId)
+    .maybeSingle()
 
+  return data?.id ?? null
+}
+
+async function procesarMensualidadPagada(
+  mensualidadId: string,
+  paymentRequestId: string
+) {
   const clipStatus = await getClipCheckoutStatus(paymentRequestId)
   const nuevoEstado = clipStatusToMensualidadEstado(clipStatus.status)
 
@@ -76,6 +73,8 @@ async function procesarEstadoClip(
 }
 
 export async function POST(request: Request) {
+  let body: unknown
+
   try {
     const webhookSecret = process.env.CLIP_WEBHOOK_SECRET?.trim()
     if (webhookSecret) {
@@ -85,28 +84,60 @@ export async function POST(request: Request) {
       }
     }
 
-    const body = (await request.json()) as ClipWebhookPayload
-    const paymentRequestId = body.payment_request_id ?? null
-    const reference = body.me_reference_id ?? null
+    body = await request.json()
 
-    if (reference) {
-      await actualizarMensualidadPorReferencia(reference, paymentRequestId)
-    } else if (paymentRequestId) {
-      const admin = createAdminClient()
-      const { data: mensualidad } = await admin
-        .from('mensualidades')
-        .select('id, clip_reference, clip_payment_id')
-        .eq('clip_payment_id', paymentRequestId)
-        .maybeSingle()
+    const reference = extractClipWebhookReference(body)
+    const paymentRequestId = extractClipWebhookPaymentId(body)
 
-      if (mensualidad?.clip_reference) {
-        await procesarEstadoClip(mensualidad.id, paymentRequestId)
-      }
+    if (!reference && !paymentRequestId) {
+      console.warn(
+        '[Clip webhook] No se encontró reference ni payment_request_id. Body:',
+        JSON.stringify(body)
+      )
+      return NextResponse.json({ received: true })
     }
+
+    if (!reference) {
+      console.warn(
+        '[Clip webhook] Sin reference; usando payment_request_id para lookup. Body:',
+        JSON.stringify(body)
+      )
+    }
+
+    let mensualidadId: string | null = null
+
+    if (reference?.startsWith('MENSUALIDAD-')) {
+      mensualidadId = await findMensualidadId(reference)
+    }
+
+    if (!mensualidadId && paymentRequestId) {
+      mensualidadId = await findMensualidadByPaymentId(paymentRequestId)
+    }
+
+    if (!mensualidadId) {
+      console.warn('[Clip webhook] Mensualidad no encontrada.', {
+        reference,
+        paymentRequestId,
+      })
+      return NextResponse.json({ received: true })
+    }
+
+    if (!paymentRequestId) {
+      console.warn('[Clip webhook] payment_request_id ausente; no se puede verificar con Clip.', {
+        reference,
+        mensualidadId,
+      })
+      return NextResponse.json({ received: true })
+    }
+
+    await procesarMensualidadPagada(mensualidadId, paymentRequestId)
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Clip webhook error:', error)
+    console.error('[Clip webhook] error:', error)
+    if (body !== undefined) {
+      console.warn('[Clip webhook] Body recibido:', JSON.stringify(body))
+    }
     return NextResponse.json({ received: true })
   }
 }

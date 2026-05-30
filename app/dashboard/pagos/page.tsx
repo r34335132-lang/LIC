@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Table,
   TableBody,
@@ -13,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { CreditCard, CheckCircle, Clock, AlertCircle, ExternalLink } from 'lucide-react'
+import { CreditCard, CheckCircle, Clock, AlertCircle, ExternalLink, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Mensualidad } from '@/types/database'
 import type { EstadoMensualidadEfectivo } from '@/lib/academico-utils'
@@ -26,16 +27,20 @@ export default function PagosPage() {
   const [actual, setActual] = useState<MensualidadRow | null>(null)
   const [loading, setLoading] = useState(true)
   const [pagando, setPagando] = useState<string | null>(null)
+  const [esperandoConfirmacion, setEsperandoConfirmacion] = useState(false)
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/dashboard/pagos', { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Error al cargar pagos')
-      setMensualidades(data.mensualidades ?? [])
+      const rows = (data.mensualidades ?? []) as MensualidadRow[]
+      setMensualidades(rows)
       setActual(data.actual ?? null)
+      return rows
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al cargar pagos')
+      return []
     } finally {
       setLoading(false)
     }
@@ -47,12 +52,36 @@ export default function PagosPage() {
 
   useEffect(() => {
     const pago = searchParams.get('pago')
-    if (pago === 'ok') toast.success('Pago procesado. Verificaremos el estado en unos momentos.')
-    if (pago === 'error') toast.error('El pago no se completó. Intenta de nuevo.')
-  }, [searchParams])
+    if (!pago) return
+
+    void (async () => {
+      const rows = await load()
+
+      if (pago === 'error') {
+        setEsperandoConfirmacion(false)
+        toast.error('El pago no se completó. Intenta de nuevo.')
+        return
+      }
+
+      if (pago === 'ok') {
+        const algunaIniciada = rows.some((m) => m.estado === 'iniciado')
+        const algunaPagada = rows.some((m) => m.estado === 'pagado')
+
+        if (algunaIniciada && !algunaPagada) {
+          setEsperandoConfirmacion(true)
+        } else if (algunaPagada) {
+          setEsperandoConfirmacion(false)
+          toast.success('¡Pago confirmado!')
+        } else {
+          setEsperandoConfirmacion(true)
+        }
+      }
+    })()
+  }, [searchParams, load])
 
   const pagar = async (id: string) => {
     setPagando(id)
+    setEsperandoConfirmacion(false)
     try {
       const res = await fetch(`/api/dashboard/pagos/${id}/pagar`, {
         method: 'POST',
@@ -147,6 +176,10 @@ export default function PagosPage() {
     )
   }
 
+  const mostrarEspera =
+    esperandoConfirmacion ||
+    (searchParams.get('pago') === 'ok' && actual?.estado === 'iniciado')
+
   return (
     <div className="space-y-6">
       <div>
@@ -155,6 +188,16 @@ export default function PagosPage() {
           Consulta y paga tus mensualidades. La inscripción es gratuita; el primer pago es tu mensualidad.
         </p>
       </div>
+
+      {mostrarEspera && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-900">
+            Pago enviado, esperando confirmación de Clip. El estado se actualizará en unos momentos;
+            no es necesario volver a pagar.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {actual && (
         <Card className="border-brand-primary/30 bg-gradient-to-br from-white to-brand-primary/5">
@@ -167,7 +210,9 @@ export default function PagosPage() {
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <p className="text-3xl font-black">${Number(actual.monto).toLocaleString('es-MX')} {actual.moneda}</p>
+              <p className="text-3xl font-black">
+                ${Number(actual.monto).toLocaleString('es-MX')} {actual.moneda}
+              </p>
               {actual.fecha_vencimiento && (
                 <p className="text-sm text-muted-foreground">
                   Vence: {new Date(actual.fecha_vencimiento).toLocaleDateString('es-MX')}

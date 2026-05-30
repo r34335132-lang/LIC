@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
-import { ClipApiError, createClipCheckout } from '@/lib/clip'
+import {
+  ClipApiError,
+  buildMensualidadClipReference,
+  createClipCheckout,
+} from '@/lib/clip'
 import type { Mensualidad } from '@/types/database'
 
 export async function POST(
@@ -40,7 +44,7 @@ export async function POST(
       })
     }
 
-    const reference = `MENSUALIDAD-${m.id}-${Date.now()}`
+    const reference = buildMensualidadClipReference(m.id)
     const checkout = await createClipCheckout({
       amount: Number(m.monto),
       description: `${m.concepto} — ${m.periodo}`,

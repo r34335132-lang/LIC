@@ -1,8 +1,13 @@
 import { SITE_URL } from '@/lib/marketing'
 
-export const CLIP_API_BASE = 'https://api-gw.payclip.com'
+const DEFAULT_CLIP_BASE_URL = 'https://api.payclip.com/v2'
+const DEFAULT_CLIP_CHECKOUT_PATH = '/checkout'
 
-export type ClipAuthMode = 'bearer' | 'basic' | 'headers'
+export type ClipAuthMode =
+  | 'authorization_raw'
+  | 'bearer'
+  | 'basic'
+  | 'headers'
 
 export type ClipCheckoutResponse = {
   payment_request_id: string
@@ -13,7 +18,7 @@ export type ClipCheckoutResponse = {
 export type ClipCheckoutStatus = {
   payment_request_id: string
   status: string
-  me_reference_id?: string
+  external_reference?: string
 }
 
 export type ClipApiFailure = {
@@ -37,13 +42,87 @@ export class ClipApiError extends Error {
   }
 }
 
+export function getClipBaseUrl(): string {
+  return (
+    process.env.CLIP_BASE_URL?.trim().replace(/\/$/, '') || DEFAULT_CLIP_BASE_URL
+  )
+}
+
+export function getClipCheckoutPath(): string {
+  const path = process.env.CLIP_CHECKOUT_PATH?.trim() || DEFAULT_CLIP_CHECKOUT_PATH
+  return path.startsWith('/') ? path : `/${path}`
+}
+
 function resolveAuthMode(): ClipAuthMode {
   const mode = process.env.CLIP_AUTH_MODE?.trim().toLowerCase()
-  if (mode === 'bearer' || mode === 'basic' || mode === 'headers') {
+  if (
+    mode === 'authorization_raw' ||
+    mode === 'bearer' ||
+    mode === 'basic' ||
+    mode === 'headers'
+  ) {
     return mode
   }
-  // Checkout (api-gw.payclip.com) documenta x-api-key; bearer es fallback común en otras APIs Clip.
-  return 'bearer'
+  return 'basic'
+}
+
+export function buildMensualidadClipReference(mensualidadId: string): string {
+  return `MENSUALIDAD-${mensualidadId}-${Date.now()}`
+}
+
+function readString(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+/** Extrae external_reference del payload de webhook Clip (varios formatos). */
+export function extractClipWebhookReference(body: unknown): string | null {
+  if (!body || typeof body !== 'object') return null
+  const root = body as Record<string, unknown>
+
+  const metadata = root.metadata
+  if (metadata && typeof metadata === 'object') {
+    const ref = readString((metadata as Record<string, unknown>).external_reference)
+    if (ref) return ref
+  }
+
+  const direct =
+    readString(root.external_reference) ??
+    readString(root.reference) ??
+    readString(root.me_reference_id)
+  if (direct) return direct
+
+  const paymentRequest = root.payment_request
+  if (paymentRequest && typeof paymentRequest === 'object') {
+    const pr = paymentRequest as Record<string, unknown>
+    const prMetadata = pr.metadata
+    if (prMetadata && typeof prMetadata === 'object') {
+      const ref = readString((prMetadata as Record<string, unknown>).external_reference)
+      if (ref) return ref
+    }
+  }
+
+  return null
+}
+
+export function extractClipWebhookPaymentId(body: unknown): string | null {
+  if (!body || typeof body !== 'object') return null
+  const root = body as Record<string, unknown>
+
+  const direct = readString(root.payment_request_id)
+  if (direct) return direct
+
+  const paymentRequest = root.payment_request
+  if (paymentRequest && typeof paymentRequest === 'object') {
+    const pr = paymentRequest as Record<string, unknown>
+    const nested =
+      readString(pr.payment_request_id) ??
+      readString(pr.id)
+    if (nested) return nested
+  }
+
+  return null
 }
 
 function getClipCredentials() {
@@ -78,6 +157,9 @@ export function buildClipAuthHeaders(): Record<string, string> {
   }
 
   switch (mode) {
+    case 'authorization_raw':
+      headers.Authorization = apiKey
+      break
     case 'basic':
       headers.Authorization = `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString('base64')}`
       break
@@ -86,7 +168,6 @@ export function buildClipAuthHeaders(): Record<string, string> {
       if (apiSecret) headers['x-api-secret'] = apiSecret
       break
     case 'bearer':
-    default:
       headers.Authorization = `Bearer ${apiKey}`
       break
   }
@@ -118,13 +199,10 @@ function logClipErrorDev(status: number, raw: unknown) {
 }
 
 function unauthorizedMessage(): string {
-  return 'Clip rechazó las credenciales. Revisa CLIP_API_KEY, CLIP_API_SECRET y si estás usando ambiente correcto.'
+  return 'Clip rechazó el token en Authorization. Revisa CLIP_API_KEY.'
 }
 
-function parseClipFailure(
-  status: number,
-  raw: unknown
-): ClipApiFailure {
+function parseClipFailure(status: number, raw: unknown): ClipApiFailure {
   const body =
     raw && typeof raw === 'object'
       ? (raw as { message?: string; detail?: string })
@@ -133,8 +211,7 @@ function parseClipFailure(
   const detail = body.detail ?? (typeof raw === 'string' ? raw : undefined)
   const apiMessage = body.message ?? detail ?? `Error HTTP ${status}`
 
-  const message =
-    status === 401 ? unauthorizedMessage() : apiMessage
+  const message = status === 401 ? unauthorizedMessage() : apiMessage
 
   return {
     status,
@@ -144,14 +221,19 @@ function parseClipFailure(
   }
 }
 
+function checkoutEndpoint(suffix = ''): string {
+  const base = getClipBaseUrl()
+  const path = getClipCheckoutPath()
+  return `${base}${path}${suffix}`
+}
+
 async function clipFetch(
-  path: string,
+  url: string,
   init: RequestInit
 ): Promise<{ ok: true; data: unknown } | { ok: false; failure: ClipApiFailure }> {
-  const endpoint = `${CLIP_API_BASE}${path}`
-  logClipCredentialsDev(endpoint, init.method ?? 'GET')
+  logClipCredentialsDev(url, init.method ?? 'GET')
 
-  const res = await fetch(endpoint, init)
+  const res = await fetch(url, init)
   let raw: unknown
 
   try {
@@ -188,20 +270,16 @@ export async function createClipCheckout(params: {
       default: `${siteUrl}/dashboard/pagos`,
     },
     metadata: {
-      me_reference_id: params.reference,
-      ...(params.customerEmail
-        ? {
-            customer_info: {
-              name: params.customerName ?? undefined,
-              email: params.customerEmail,
-            },
-          }
-        : {}),
+      external_reference: params.reference,
+      customer_info: {
+        name: params.customerName ?? '',
+        email: params.customerEmail ?? '',
+      },
     },
     webhook_url: webhookUrl,
   }
 
-  const result = await clipFetch('/checkout', {
+  const result = await clipFetch(checkoutEndpoint(), {
     method: 'POST',
     headers: {
       ...buildClipAuthHeaders(),
@@ -234,7 +312,7 @@ export async function createClipCheckout(params: {
 export async function getClipCheckoutStatus(
   paymentRequestId: string
 ): Promise<ClipCheckoutStatus> {
-  const result = await clipFetch(`/checkout/${paymentRequestId}`, {
+  const result = await clipFetch(checkoutEndpoint(`/${paymentRequestId}`), {
     method: 'GET',
     headers: buildClipAuthHeaders(),
   })
@@ -246,13 +324,16 @@ export async function getClipCheckoutStatus(
   const data = result.data as ClipCheckoutStatus & {
     message?: string
     detail?: string
-    metadata?: { me_reference_id?: string }
+    metadata?: { external_reference?: string; me_reference_id?: string }
   }
 
   return {
     payment_request_id: data.payment_request_id ?? paymentRequestId,
     status: data.status,
-    me_reference_id: data.me_reference_id ?? data.metadata?.me_reference_id,
+    external_reference:
+      data.external_reference ??
+      data.metadata?.external_reference ??
+      data.metadata?.me_reference_id,
   }
 }
 
