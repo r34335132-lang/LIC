@@ -10,11 +10,13 @@ import {
   GraduationCap,
   CalendarClock,
   ClipboardCheck,
+  Layers,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 
 const links = [
+  { href: '/admin/programas', label: 'Carreras', icon: Layers, desc: 'Programas académicos, RVOE e inscripción' },
   { href: '/admin/planes', label: 'Planes de estudio', icon: BookOpen, desc: 'Gestionar planes y cargar materias' },
   { href: '/admin/inscripciones', label: 'Inscripciones', icon: ClipboardList, desc: 'Revisar y aprobar solicitudes' },
   { href: '/admin/alumnos', label: 'Alumnos', icon: Users, desc: 'Directorio de estudiantes' },

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,24 +14,55 @@ import {
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
-
-const programas = [
-  { id: 'psicologia', nombre: 'Licenciatura en Psicología' },
-]
+import type { Programa } from '@/types/database'
 
 export function InscripcionForm() {
   const searchParams = useSearchParams()
-  const defaultPrograma = searchParams.get('programa') ?? 'psicologia'
+  const programaQuery = searchParams.get('programa')
+
+  const [programas, setProgramas] = useState<Pick<Programa, 'id' | 'nombre'>[]>([])
+  const [programasLoading, setProgramasLoading] = useState(true)
   const [nombreCompleto, setNombreCompleto] = useState('')
   const [email, setEmail] = useState('')
   const [telefono, setTelefono] = useState('')
-  const [programaId, setProgramaId] = useState(defaultPrograma)
+  const [programaId, setProgramaId] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    let active = true
+    async function loadProgramas() {
+      try {
+        const res = await fetch('/api/programas')
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Error al cargar programas')
+        const list = (data.programas ?? []) as Programa[]
+        if (!active) return
+        setProgramas(list.map((p) => ({ id: p.id, nombre: p.nombre })))
+        if (list.length > 0) {
+          const match = programaQuery && list.some((p) => p.id === programaQuery)
+          setProgramaId(match ? programaQuery! : list[0]!.id)
+        }
+      } catch {
+        if (active) setError('No se pudieron cargar los programas. Intenta más tarde.')
+      } finally {
+        if (active) setProgramasLoading(false)
+      }
+    }
+    loadProgramas()
+    return () => {
+      active = false
+    }
+  }, [programaQuery])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!programaId) {
+      setError('Selecciona un programa')
+      return
+    }
+
     setLoading(true)
     setError('')
     setSuccess(false)
@@ -114,19 +145,33 @@ export function InscripcionForm() {
 
       <div className="space-y-2">
         <Label htmlFor="programa">Programa</Label>
-        <Select value={programaId} onValueChange={setProgramaId}>
-          <SelectTrigger id="programa">
-            <SelectValue placeholder="Selecciona un programa" />
-          </SelectTrigger>
-          <SelectContent>
-            {programas.map((p) => (
-              <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {programasLoading ? (
+          <p className="text-sm text-muted-foreground">Cargando programas...</p>
+        ) : programas.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No hay programas disponibles en este momento.
+          </p>
+        ) : (
+          <Select value={programaId} onValueChange={setProgramaId}>
+            <SelectTrigger id="programa">
+              <SelectValue placeholder="Selecciona un programa" />
+            </SelectTrigger>
+            <SelectContent>
+              {programas.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      <Button type="submit" className="w-full bg-brand-primary font-bold" disabled={loading}>
+      <Button
+        type="submit"
+        className="w-full bg-brand-primary font-bold"
+        disabled={loading || programasLoading || programas.length === 0}
+      >
         {loading ? 'Enviando...' : 'Enviar solicitud'}
       </Button>
     </form>

@@ -18,6 +18,7 @@ import {
   School,
   Shield,
   CreditCard,
+  Layers,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -25,6 +26,7 @@ import { useState } from 'react'
 
 const menuItems = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
+  { href: '/admin/programas', label: 'Carreras', icon: Layers },
   { href: '/admin/planes', label: 'Planes de estudio', icon: BookOpen },
   { href: '/admin/clases', label: 'Clases', icon: School },
   { href: '/admin/alumnos', label: 'Alumnos', icon: Users },

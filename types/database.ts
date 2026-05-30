@@ -19,11 +19,17 @@ export interface Perfil {
   created_at: string
 }
 
+export type TipoPrograma = 'preparatoria' | 'licenciatura' | 'maestria' | 'curso'
+
 export interface Programa {
   id: string
   nombre: string
+  tipo: TipoPrograma
   modalidad: string
   duracion: string
+  rvoe: string | null
+  descripcion: string | null
+  imagen_url: string | null
   activo: boolean
   created_at: string
 }

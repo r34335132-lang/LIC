@@ -22,6 +22,20 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient()
 
+    const { data: programa } = await supabase
+      .from('programas')
+      .select('id')
+      .eq('id', programaId)
+      .eq('activo', true)
+      .maybeSingle()
+
+    if (!programa) {
+      return NextResponse.json(
+        { error: 'Programa no válido o no disponible' },
+        { status: 400 }
+      )
+    }
+
     const { data: existing } = await supabase
       .from('inscripciones')
       .select('id')

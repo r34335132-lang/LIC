@@ -11,6 +11,22 @@ export async function POST() {
     }
 
     const admin = createAdminClient()
+
+    await admin.from('programas').upsert(
+      {
+        id: 'psicologia',
+        nombre: 'Licenciatura en Psicología',
+        tipo: 'licenciatura',
+        modalidad: 'Virtual',
+        duracion: '9 cuatrimestres',
+        rvoe: null,
+        descripcion: null,
+        imagen_url: null,
+        activo: true,
+      },
+      { onConflict: 'id' }
+    )
+
     let inserted = 0
     let skipped = 0
 
