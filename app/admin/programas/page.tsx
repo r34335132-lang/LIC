@@ -255,7 +255,7 @@ export default function AdminProgramasPage() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button asChild size="sm" variant="outline">
-                          <Link href={`/admin/planes/${p.id}`}>
+                          <Link href={`/admin/planes/${encodeURIComponent(p.id)}`}>
                             <BookOpen className="mr-1 h-3 w-3" />
                             Plan
                           </Link>

@@ -54,7 +54,7 @@ export default function AdminPlanesPage() {
       ) : (
         <div className="mt-8 grid gap-4">
           {programas.map((plan) => (
-            <Link key={plan.id} href={`/admin/planes/${plan.id}`}>
+            <Link key={plan.id} href={`/admin/planes/${encodeURIComponent(plan.id)}`}>
               <Card className="transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>{plan.nombre}</CardTitle>
