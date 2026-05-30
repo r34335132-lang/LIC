@@ -56,7 +56,7 @@ function LoginForm() {
     try {
       const result = await login(email, password)
       if (result.success && result.rol) {
-        router.push(redirect ?? getRedirectPath(result.rol))
+        router.push(redirect ?? result.redirectTo ?? getRedirectPath(result.rol))
       } else {
         setError(result.error ?? 'Credenciales incorrectas.')
         setLoading(false)
