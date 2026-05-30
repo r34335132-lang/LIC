@@ -2,32 +2,47 @@
 
 import { useAuth } from '@/lib/auth-context'
 import { getNombrePerfil } from '@/lib/perfil-utils'
-import { useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { BookOpen, ArrowRight } from 'lucide-react'
-import type { AlumnoMateria, Materia } from '@/types/database'
+import { toast } from 'sonner'
 
-type AlumnoMateriaRow = AlumnoMateria & { materia: Materia }
+interface MateriaResumen {
+  id: string
+  estado: string
+}
 
 export default function DashboardPage() {
   const { perfil } = useAuth()
-  const [materias, setMaterias] = useState<AlumnoMateriaRow[]>([])
-  const supabase = useMemo(() => createClient(), [])
+  const [materias, setMaterias] = useState<MateriaResumen[]>([])
 
   useEffect(() => {
     if (!perfil) return
+    let active = true
     async function load() {
-      const { data } = await supabase
-        .from('alumno_materias')
-        .select('*, materia:materias(*)')
-        .eq('alumno_id', perfil!.id)
-      setMaterias((data ?? []) as AlumnoMateriaRow[])
+      try {
+        const res = await fetch('/api/dashboard/materias', { credentials: 'include' })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Error al cargar materias')
+        if (active) {
+          setMaterias(
+            (data.materias ?? []).map((m: MateriaResumen) => ({
+              id: m.id,
+              estado: m.estado,
+            }))
+          )
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Error al cargar materias')
+      }
     }
     load()
-  }, [perfil, supabase])
+    return () => {
+      active = false
+    }
+  }, [perfil])
 
   const cursando = materias.filter((m) => m.estado === 'cursando').length
   const aprobadas = materias.filter((m) => m.estado === 'aprobada').length

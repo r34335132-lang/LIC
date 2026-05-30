@@ -35,7 +35,7 @@ export default function DashboardMateriasPage() {
     let active = true
     async function load() {
       try {
-        const res = await fetch('/api/dashboard/materias')
+        const res = await fetch('/api/dashboard/materias', { credentials: 'include' })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error ?? 'Error al cargar materias')
         if (active) setMaterias((data.materias ?? []) as MateriaDashboard[])

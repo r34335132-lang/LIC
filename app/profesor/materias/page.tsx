@@ -1,11 +1,11 @@
 'use client'
 
 import { useAuth } from '@/lib/auth-context'
-import { useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import type { Materia, ProfesorMateria } from '@/types/database'
 
 type ProfesorMateriaRow = ProfesorMateria & { materia: Materia }
@@ -13,20 +13,25 @@ type ProfesorMateriaRow = ProfesorMateria & { materia: Materia }
 export default function ProfesorMateriasPage() {
   const { perfil } = useAuth()
   const [materias, setMaterias] = useState<ProfesorMateriaRow[]>([])
-  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     if (!perfil) return
+    let active = true
     async function load() {
-      const { data } = await supabase
-        .from('profesor_materias')
-        .select('*, materia:materias(*)')
-        .eq('profesor_id', perfil!.id)
-        .order('created_at', { ascending: false })
-      setMaterias((data ?? []) as ProfesorMateriaRow[])
+      try {
+        const res = await fetch('/api/profesor/materias', { credentials: 'include' })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Error al cargar materias')
+        if (active) setMaterias((data.materias ?? []) as ProfesorMateriaRow[])
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Error al cargar materias')
+      }
     }
     load()
-  }, [perfil, supabase])
+    return () => {
+      active = false
+    }
+  }, [perfil])
 
   return (
     <div>

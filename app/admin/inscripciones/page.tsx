@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,18 +30,15 @@ export default function AdminInscripcionesPage() {
   const [credentials, setCredentials] = useState<Credentials | null>(null)
   const [detalle, setDetalle] = useState<Inscripcion | null>(null)
 
-  const supabase = useMemo(() => createClient(), [])
-
-  const load = useMemo(
-    () => async () => {
-      const { data } = await supabase
-        .from('inscripciones')
-        .select('*')
-        .order('created_at', { ascending: false })
-      setInscripciones((data ?? []) as Inscripcion[])
-    },
-    [supabase]
-  )
+  const load = useCallback(async () => {
+    const res = await fetch('/api/admin/inscripciones', { credentials: 'include' })
+    const data = await res.json()
+    if (res.ok) {
+      setInscripciones((data.inscripciones ?? []) as Inscripcion[])
+    } else {
+      toast.error(data.error ?? 'Error al cargar inscripciones')
+    }
+  }, [])
 
   useEffect(() => {
     load()

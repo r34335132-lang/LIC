@@ -1,9 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, use } from 'react'
+import { useCallback, useEffect, useState, use } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Plus, Pencil, ExternalLink } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -54,31 +53,22 @@ export default function ProfesorMateriaDetailPage({
   const [actOpen, setActOpen] = useState(false)
   const [newAct, setNewAct] = useState(emptyAct)
   const [editAct, setEditAct] = useState<Actividad | null>(null)
-  const supabase = useMemo(() => createClient(), [])
 
   const load = useCallback(async () => {
-    const { data: pmData } = await supabase
-      .from('profesor_materias')
-      .select('*, materia:materias(*)')
-      .eq('id', id)
-      .single()
-    setPm(pmData as ProfesorMateria & { materia: Materia })
-
-    if (pmData?.materia_id) {
-      const { data: am } = await supabase
-        .from('alumno_materias')
-        .select('*, alumno:perfiles!alumno_materias_alumno_id_fkey(id, nombre_completo, matricula, email)')
-        .eq('materia_id', pmData.materia_id)
-      setAlumnos((am ?? []) as AlumnoRow[])
-
-      const { data: acts } = await supabase
-        .from('actividades')
-        .select('*')
-        .eq('materia_id', pmData.materia_id)
-        .order('created_at', { ascending: false })
-      setActividades((acts ?? []) as Actividad[])
+    try {
+      const res = await fetch(`/api/profesor/materias/${id}`, { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Error al cargar materia')
+        return
+      }
+      setPm(data.profesorMateria as ProfesorMateria & { materia: Materia })
+      setAlumnos((data.alumnos ?? []) as AlumnoRow[])
+      setActividades((data.actividades ?? []) as Actividad[])
+    } catch {
+      toast.error('Error de conexión')
     }
-  }, [id, supabase])
+  }, [id])
 
   useEffect(() => {
     load()

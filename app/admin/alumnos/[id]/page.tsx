@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { useCallback, useEffect, useState, use } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
 import {
   Select,
   SelectContent,
@@ -29,23 +29,28 @@ export default function AdminAlumnoDetailPage({
   const [alumno, setAlumno] = useState<Perfil | null>(null)
   const [materias, setMaterias] = useState<AlumnoMateriaRow[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
-  useEffect(() => {
-    async function load() {
-      const { data: perfil } = await supabase.from('perfiles').select('*').eq('id', id).single()
-      setAlumno(perfil as Perfil)
-
-      const { data: am } = await supabase
-        .from('alumno_materias')
-        .select('*, materia:materias(*)')
-        .eq('alumno_id', id)
-
-      setMaterias((am ?? []) as AlumnoMateriaRow[])
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/alumnos/${id}`, { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Error al cargar alumno')
+        return
+      }
+      setAlumno(data.alumno as Perfil)
+      setMaterias((data.materias ?? []) as AlumnoMateriaRow[])
+    } catch {
+      toast.error('Error de conexión')
+    } finally {
       setLoading(false)
     }
+  }, [id])
+
+  useEffect(() => {
     load()
-  }, [id, supabase])
+  }, [load])
 
   const updateMateria = async (amId: string, updates: { estado?: string; calificacion?: number | null }) => {
     const res = await fetch(`/api/admin/alumno-materias/${amId}`, {

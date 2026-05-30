@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -54,30 +53,24 @@ export default function AdminProfesoresPage() {
     descripcion: '',
   })
 
-  const supabase = useMemo(() => createClient(), [])
-
   const loadData = useCallback(async () => {
-    const { data: profs } = await supabase
-      .from('perfiles')
-      .select('*')
-      .eq('rol', 'profesor')
-      .order('nombre_completo')
-    setProfesores((profs ?? []) as Perfil[])
+    const res = await fetch('/api/admin/profesores-data', { credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) {
+      toast.error(data.error ?? 'Error al cargar profesores')
+      return
+    }
 
-    const { data: mats } = await supabase.from('materias').select('*').order('periodo')
-    setMaterias((mats ?? []) as Materia[])
-
-    const { data: pms } = await supabase
-      .from('profesor_materias')
-      .select('*, materia:materias(*)')
+    setProfesores((data.profesores ?? []) as Perfil[])
+    setMaterias((data.materias ?? []) as Materia[])
 
     const grouped: Record<string, ProfesorMateriaRow[]> = {}
-    for (const pm of (pms ?? []) as ProfesorMateriaRow[]) {
+    for (const pm of (data.profesorMaterias ?? []) as ProfesorMateriaRow[]) {
       if (!grouped[pm.profesor_id]) grouped[pm.profesor_id] = []
       grouped[pm.profesor_id]!.push(pm)
     }
     setAsignaciones(grouped)
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     loadData()

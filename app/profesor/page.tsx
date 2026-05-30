@@ -2,12 +2,12 @@
 
 import { useAuth } from '@/lib/auth-context'
 import { getNombrePerfil } from '@/lib/perfil-utils'
-import { useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { BookOpen, Users, CalendarClock, ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Actividad, Materia, ProfesorMateria } from '@/types/database'
 
 type ProfesorMateriaRow = ProfesorMateria & { materia: Materia }
@@ -17,44 +17,29 @@ export default function ProfesorPage() {
   const [materias, setMaterias] = useState<ProfesorMateriaRow[]>([])
   const [totalAlumnos, setTotalAlumnos] = useState(0)
   const [actividades, setActividades] = useState<Actividad[]>([])
-  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     if (!perfil) return
     let active = true
     async function load() {
-      const { data: pms } = await supabase
-        .from('profesor_materias')
-        .select('*, materia:materias(*)')
-        .eq('profesor_id', perfil!.id)
-        .eq('activo', true)
-
-      const rows = (pms ?? []) as ProfesorMateriaRow[]
-      if (active) setMaterias(rows)
-
-      const materiaIds = rows.map((r) => r.materia_id).filter(Boolean)
-
-      if (materiaIds.length > 0) {
-        const { count } = await supabase
-          .from('alumno_materias')
-          .select('id', { count: 'exact', head: true })
-          .in('materia_id', materiaIds)
-        if (active) setTotalAlumnos(count ?? 0)
-
-        const { data: acts } = await supabase
-          .from('actividades')
-          .select('*')
-          .eq('profesor_id', perfil!.id)
-          .eq('activo', true)
-          .order('fecha_entrega', { ascending: true })
-        if (active) setActividades((acts ?? []) as Actividad[])
+      try {
+        const res = await fetch('/api/profesor/dashboard', { credentials: 'include' })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Error al cargar panel')
+        if (active) {
+          setMaterias((data.materias ?? []) as ProfesorMateriaRow[])
+          setTotalAlumnos(data.totalAlumnos ?? 0)
+          setActividades((data.actividades ?? []) as Actividad[])
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Error al cargar panel')
       }
     }
     load()
     return () => {
       active = false
     }
-  }, [perfil, supabase])
+  }, [perfil])
 
   const proximas = actividades
     .filter((a) => a.fecha_entrega && new Date(a.fecha_entrega) >= new Date())
