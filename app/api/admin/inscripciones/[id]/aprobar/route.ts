@@ -52,12 +52,21 @@ export async function POST(
       })
 
     if (authError) {
-      return NextResponse.json({ error: authError.message }, { status: 400 })
+      const dup = /already|registered|exists/i.test(authError.message)
+      return NextResponse.json(
+        {
+          error: dup
+            ? `Ya existe un usuario registrado con el correo ${inscripcion.email}. Revisa si el alumno ya fue dado de alta.`
+            : authError.message,
+        },
+        { status: dup ? 409 : 400 }
+      )
     }
 
     const userId = authData.user!.id
 
-    await admin.from('perfiles').upsert(
+    // Si falla crear el perfil, borramos el usuario Auth recién creado (rollback)
+    const { error: perfilError } = await admin.from('perfiles').upsert(
       {
         id: userId,
         email: inscripcion.email,
@@ -69,6 +78,14 @@ export async function POST(
       },
       { onConflict: 'id' }
     )
+
+    if (perfilError) {
+      await admin.auth.admin.deleteUser(userId)
+      return NextResponse.json(
+        { error: `No se pudo crear el perfil: ${perfilError.message}` },
+        { status: 400 }
+      )
+    }
 
     const { data: materias } = await admin
       .from('materias')
@@ -84,21 +101,37 @@ export async function POST(
           calificacion: null,
         }))
       )
+      // Si falla asignar materias, hacemos rollback del perfil y del usuario Auth
       if (amError) {
-        console.error('Error asignando materias:', amError)
+        console.error('Error asignando materias, ejecutando rollback:', amError)
+        await admin.from('perfiles').delete().eq('id', userId)
+        await admin.auth.admin.deleteUser(userId)
+        return NextResponse.json(
+          { error: `No se pudieron asignar las materias: ${amError.message}` },
+          { status: 400 }
+        )
       }
     }
 
-    await admin
+    const { error: updateError } = await admin
       .from('inscripciones')
-      .update({ estado: 'aprobada', matricula_generada: matricula })
+      .update({
+        estado: 'aprobada',
+        matricula_generada: matricula,
+        alumno_id: userId,
+      })
       .eq('id', id)
 
-    await sendWelcomeEmail({
+    if (updateError) {
+      console.error('Error actualizando inscripción:', updateError)
+    }
+
+    const emailResult = await sendWelcomeEmail({
       email: inscripcion.email,
       nombre: inscripcion.nombre_completo,
       matricula,
       tempPassword,
+      rol: 'alumno',
     })
 
     return NextResponse.json({
@@ -106,6 +139,8 @@ export async function POST(
       userId,
       matricula,
       tempPassword,
+      emailSent: emailResult.sent,
+      emailError: emailResult.error ?? null,
     })
   } catch (error) {
     console.error('Aprobar inscripción error:', error)

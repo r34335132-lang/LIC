@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,8 +22,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getNombrePerfil } from '@/lib/perfil-utils'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, CheckCircle2 } from 'lucide-react'
+import { toast } from 'sonner'
+import type { Materia, Perfil, ProfesorMateria } from '@/types/database'
 
 type ProfesorMateriaRow = ProfesorMateria & { materia: Materia }
 
@@ -37,6 +40,8 @@ export default function AdminProfesoresPage() {
   const [editPm, setEditPm] = useState<ProfesorMateriaRow | null>(null)
 
   const [newProf, setNewProf] = useState({ nombre: '', email: '', telefono: '', password: '' })
+  const [createdCreds, setCreatedCreds] = useState<{ email: string; tempPassword: string; emailSent: boolean } | null>(null)
+  const [creating, setCreating] = useState(false)
   const [newAssign, setNewAssign] = useState({
     materia_id: '',
     grupo: '',
@@ -49,9 +54,9 @@ export default function AdminProfesoresPage() {
     descripcion: '',
   })
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const { data: profs } = await supabase
       .from('perfiles')
       .select('*')
@@ -69,54 +74,97 @@ export default function AdminProfesoresPage() {
     const grouped: Record<string, ProfesorMateriaRow[]> = {}
     for (const pm of (pms ?? []) as ProfesorMateriaRow[]) {
       if (!grouped[pm.profesor_id]) grouped[pm.profesor_id] = []
-      grouped[pm.profesor_id].push(pm)
+      grouped[pm.profesor_id]!.push(pm)
     }
     setAsignaciones(grouped)
-  }
+  }, [supabase])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const createProfesor = async () => {
-    const res = await fetch('/api/admin/profesores', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newProf),
-    })
-    if (res.ok) {
-      setCreateOpen(false)
-      setNewProf({ nombre: '', email: '', telefono: '', password: '' })
-      loadData()
+    if (!newProf.nombre.trim() || !newProf.email.trim()) {
+      toast.error('Nombre y email son requeridos')
+      return
+    }
+    setCreating(true)
+    try {
+      const res = await fetch('/api/admin/profesores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProf),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setCreateOpen(false)
+        setNewProf({ nombre: '', email: '', telefono: '', password: '' })
+        setCreatedCreds({
+          email: data.email ?? newProf.email,
+          tempPassword: data.tempPassword,
+          emailSent: !!data.emailSent,
+        })
+        toast.success('Profesor creado')
+        if (!data.emailSent) {
+          toast.warning('No se pudo enviar el correo. Comparte la contraseña manualmente.')
+        }
+        await loadData()
+      } else {
+        toast.error(data.error ?? 'No se pudo crear el profesor')
+      }
+    } catch {
+      toast.error('Error de conexión')
+    } finally {
+      setCreating(false)
     }
   }
 
   const assignMateria = async () => {
     if (!selectedProfesor) return
-    const res = await fetch('/api/admin/profesor-materias', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profesor_id: selectedProfesor, ...newAssign }),
-    })
-    if (res.ok) {
-      setAssignOpen(false)
-      setNewAssign({
-        materia_id: '', grupo: '', periodo_escolar: '', horario: '', aula: '',
-        link_clase: '', link_classroom: '', link_drive: '', descripcion: '',
+    if (!newAssign.materia_id) {
+      toast.error('Selecciona una materia')
+      return
+    }
+    try {
+      const res = await fetch('/api/admin/profesor-materias', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profesor_id: selectedProfesor, ...newAssign }),
       })
-      loadData()
+      const data = await res.json()
+      if (res.ok) {
+        setAssignOpen(false)
+        setNewAssign({
+          materia_id: '', grupo: '', periodo_escolar: '', horario: '', aula: '',
+          link_clase: '', link_classroom: '', link_drive: '', descripcion: '',
+        })
+        toast.success('Materia asignada')
+        await loadData()
+      } else {
+        toast.error(data.error ?? 'No se pudo asignar la materia')
+      }
+    } catch {
+      toast.error('Error de conexión')
     }
   }
 
   const updateAsignacion = async (id: string, updates: Partial<ProfesorMateria>) => {
-    const res = await fetch('/api/admin/profesor-materias', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    })
-    if (res.ok) {
-      setEditPm(null)
-      loadData()
+    try {
+      const res = await fetch('/api/admin/profesor-materias', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setEditPm(null)
+        toast.success('Asignación actualizada')
+        await loadData()
+      } else {
+        toast.error(data.error ?? 'No se pudo actualizar')
+      }
+    } catch {
+      toast.error('Error de conexión')
     }
   }
 
@@ -141,12 +189,33 @@ export default function AdminProfesoresPage() {
               <div><Label>Nombre</Label><Input value={newProf.nombre} onChange={(e) => setNewProf({ ...newProf, nombre: e.target.value })} /></div>
               <div><Label>Email</Label><Input type="email" value={newProf.email} onChange={(e) => setNewProf({ ...newProf, email: e.target.value })} /></div>
               <div><Label>Teléfono</Label><Input value={newProf.telefono} onChange={(e) => setNewProf({ ...newProf, telefono: e.target.value })} /></div>
-              <div><Label>Contraseña temporal</Label><Input type="password" value={newProf.password} onChange={(e) => setNewProf({ ...newProf, password: e.target.value })} /></div>
-              <Button onClick={createProfesor} className="w-full bg-brand-primary">Crear</Button>
+              <div>
+                <Label>Contraseña temporal (opcional)</Label>
+                <Input type="text" placeholder="Déjalo vacío para generarla automáticamente" value={newProf.password} onChange={(e) => setNewProf({ ...newProf, password: e.target.value })} />
+                <p className="mt-1 text-xs text-muted-foreground">Si lo dejas vacío, el sistema genera una contraseña segura y la envía por correo.</p>
+              </div>
+              <Button onClick={createProfesor} disabled={creating} className="w-full bg-brand-primary">
+                {creating ? 'Creando...' : 'Crear'}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
+
+      {createdCreds && (
+        <Alert className="mt-6 border-green-200 bg-green-50">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <strong>Profesor creado.</strong> Estas credenciales solo se muestran una vez.
+            <div className="mt-1 font-mono text-sm">
+              Email: {createdCreds.email} | Contraseña temporal: {createdCreds.tempPassword}
+            </div>
+            {createdCreds.emailSent
+              ? <span className="text-xs">Se envió un correo con los accesos.</span>
+              : <span className="text-xs text-red-700">El correo no se envió: comparte la contraseña manualmente.</span>}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="mt-8 space-y-6">
         {profesores.map((prof) => (

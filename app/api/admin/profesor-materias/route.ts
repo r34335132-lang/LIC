@@ -32,6 +32,26 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient()
+
+    // Validamos que profesor y materia existan antes de asignar
+    const [{ data: prof }, { data: mat }] = await Promise.all([
+      admin.from('perfiles').select('id, rol').eq('id', profesor_id).maybeSingle(),
+      admin.from('materias').select('id').eq('id', materia_id).maybeSingle(),
+    ])
+
+    if (!prof || prof.rol !== 'profesor') {
+      return NextResponse.json(
+        { error: 'El profesor indicado no existe' },
+        { status: 400 }
+      )
+    }
+    if (!mat) {
+      return NextResponse.json(
+        { error: 'La materia indicada no existe' },
+        { status: 400 }
+      )
+    }
+
     const { data, error } = await admin
       .from('profesor_materias')
       .insert({
@@ -45,7 +65,7 @@ export async function POST(request: Request) {
         link_classroom: link_classroom ?? null,
         link_drive: link_drive ?? null,
         descripcion: descripcion ?? null,
-        activo: activo ?? true,
+        activo: typeof activo === 'boolean' ? activo : true,
       })
       .select()
       .single()
@@ -68,10 +88,41 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json()
-    const { id, ...updates } = body
+    const { id, ...rest } = body
 
     if (!id) {
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
+    }
+
+    const allowedFields = [
+      'grupo',
+      'periodo_escolar',
+      'horario',
+      'aula',
+      'link_clase',
+      'link_classroom',
+      'link_drive',
+      'descripcion',
+      'activo',
+    ] as const
+
+    const updates: Record<string, unknown> = {}
+    for (const field of allowedFields) {
+      if (rest[field] !== undefined) updates[field] = rest[field]
+    }
+
+    if ('activo' in updates && typeof updates.activo !== 'boolean') {
+      return NextResponse.json(
+        { error: 'El campo activo debe ser booleano' },
+        { status: 400 }
+      )
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: 'No hay campos válidos para actualizar' },
+        { status: 400 }
+      )
     }
 
     const admin = createAdminClient()

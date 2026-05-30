@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth-context'
 import { getNombrePerfil } from '@/lib/perfil-utils'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +15,7 @@ type AlumnoMateriaRow = AlumnoMateria & { materia: Materia }
 export default function DashboardPage() {
   const { perfil } = useAuth()
   const [materias, setMaterias] = useState<AlumnoMateriaRow[]>([])
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     if (!perfil) return

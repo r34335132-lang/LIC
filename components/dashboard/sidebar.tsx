@@ -113,7 +113,7 @@ const menuAdmin: MenuItem[] = [
 
 export function DashboardSidebar() {
   const pathname = usePathname()
-  const { user, logout, switchRole } = useAuth()
+  const { user, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -247,19 +247,6 @@ export function DashboardSidebar() {
               <Link href="/dashboard/perfil">
                 <User className="mr-2 h-4 w-4 text-brand-primary" /> Ver Mi Perfil
               </Link>
-            </DropdownMenuItem>
-            
-            {/* Solo para desarrollo */}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Entorno de Pruebas</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => switchRole('alumno')} className="cursor-pointer py-2">
-              Cambiar a Estudiante
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => switchRole('maestro')} className="cursor-pointer py-2">
-              Cambiar a Catedrático
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => switchRole('admin')} className="cursor-pointer py-2">
-              Cambiar a Coordinador
             </DropdownMenuItem>
             
             <DropdownMenuSeparator />

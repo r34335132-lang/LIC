@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/lib/auth-context'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,7 +13,7 @@ type ProfesorMateriaRow = ProfesorMateria & { materia: Materia }
 export default function ProfesorMateriasPage() {
   const { perfil } = useAuth()
   const [materias, setMaterias] = useState<ProfesorMateriaRow[]>([])
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     if (!perfil) return

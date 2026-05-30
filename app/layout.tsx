@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
 import { FloatingWhatsApp } from '@/components/marketing/floating-whatsapp'
+import { Toaster } from '@/components/ui/sonner'
 import { SITE_URL } from '@/lib/marketing'
 import './globals.css'
 
@@ -115,6 +116,7 @@ export default function RootLayout({
           {children}
           
           <FloatingWhatsApp />
+          <Toaster richColors position="top-right" />
         </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
