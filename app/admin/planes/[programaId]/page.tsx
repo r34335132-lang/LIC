@@ -14,7 +14,7 @@ import {
 import { getPerfilFromSession } from '@/lib/auth-server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cuatrimestreLabel } from '@/lib/academico-utils'
-import { labelTipoPrograma } from '@/lib/programa-utils'
+import { getProgramaIdCandidates, labelTipoPrograma, normalizeProgramaId } from '@/lib/programa-utils'
 import type { Materia, Programa } from '@/types/database'
 
 type PageProps = {
@@ -31,15 +31,29 @@ export default async function AdminPlanProgramaPage({ params }: PageProps) {
   }
 
   const { programaId: rawId } = await params
-  const programaId = decodeURIComponent(rawId)
+  const rawProgramaId = decodeURIComponent(rawId)
+  const programaId = normalizeProgramaId(rawProgramaId)
+  const programaCandidates = getProgramaIdCandidates(rawProgramaId)
 
   const admin = createAdminClient()
 
-  const { data: programa, error: progError } = await admin
+  let { data: programa, error: progError } = await admin
     .from('programas')
     .select('*')
-    .eq('id', programaId)
+    .eq('id', rawProgramaId)
     .maybeSingle()
+
+  if (!programa && rawProgramaId !== programaId) {
+    const normalizedProgram = await admin
+      .from('programas')
+      .select('*')
+      .in('id', programaCandidates)
+      .limit(1)
+      .maybeSingle()
+
+    programa = normalizedProgram.data
+    progError = normalizedProgram.error
+  }
 
   if (progError || !programa) {
     notFound()
@@ -48,9 +62,9 @@ export default async function AdminPlanProgramaPage({ params }: PageProps) {
   const { data: materiasData, error: matError } = await admin
     .from('materias')
     .select('*')
-    .eq('programa_id', programaId)
+    .in('programa_id', programaCandidates)
     .order('periodo', { ascending: true })
-    .order('nombre', { ascending: true })
+    .order('clave', { ascending: true })
 
   if (matError) {
     throw new Error(matError.message)

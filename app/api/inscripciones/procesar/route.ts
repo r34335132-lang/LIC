@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
+import { getProgramaIdCandidates, normalizeProgramaId } from '@/lib/programa-utils'
 import {
   generateMatricula,
   generateTempPassword,
@@ -23,8 +24,10 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as ProcesarBody
     const { email, nombreCompleto, telefono, programaId } = body
+    const normalizedProgramaId = normalizeProgramaId(programaId)
+    const programaCandidates = getProgramaIdCandidates(programaId)
 
-    if (!email || !nombreCompleto || !programaId) {
+    if (!email || !nombreCompleto || !normalizedProgramaId) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos' },
         { status: 400 }
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
         nombre_completo: nombreCompleto,
         rol: 'alumno',
         matricula,
-        programa_id: programaId,
+        programa_id: normalizedProgramaId,
         telefono: telefono ?? null,
       },
       { onConflict: 'id' }
@@ -73,7 +76,9 @@ export async function POST(request: Request) {
     const { data: materias } = await admin
       .from('materias')
       .select('id')
-      .eq('programa_id', programaId)
+      .in('programa_id', programaCandidates)
+      .order('periodo', { ascending: true })
+      .order('clave', { ascending: true })
 
     if (materias && materias.length > 0) {
       await admin.from('alumno_materias').upsert(

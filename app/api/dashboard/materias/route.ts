@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
+import { getProgramaIdCandidates, normalizeProgramaId } from '@/lib/programa-utils'
 import type {
   Actividad,
   AlumnoMateria,
@@ -24,8 +25,10 @@ export async function GET() {
 
     const admin = createAdminClient()
     const alumnoId = session.userId
+    const programaId = normalizeProgramaId(session.perfil.programa_id)
+    const programaCandidates = getProgramaIdCandidates(session.perfil.programa_id)
 
-    // 1. Materias del alumno (incluye datos de la materia)
+    // 1. Materias asignadas al alumno, para conservar estado/calificacion.
     const { data: amData, error: amError } = await admin
       .from('alumno_materias')
       .select('*, materia:materias(*)')
@@ -36,9 +39,41 @@ export async function GET() {
     }
 
     const alumnoMaterias = (amData ?? []) as AlumnoMateriaRow[]
-    const materiaIds = alumnoMaterias
-      .map((am) => am.materia?.id)
-      .filter((id): id is string => !!id)
+    let materiasPlan: Materia[] = []
+
+    if (programaId) {
+      const { data: materiasData, error: materiasError } = await admin
+        .from('materias')
+        .select(
+          'id, programa_id, periodo, nombre_periodo, nombre, clave, seriacion, horas_docente, horas_independientes, creditos, instalacion, created_at'
+        )
+        .in('programa_id', programaCandidates)
+        .order('periodo', { ascending: true })
+        .order('clave', { ascending: true })
+
+      if (materiasError) {
+        return NextResponse.json({ error: materiasError.message }, { status: 400 })
+      }
+
+      materiasPlan = (materiasData ?? []) as Materia[]
+    }
+
+    if (materiasPlan.length === 0) {
+      materiasPlan = alumnoMaterias
+        .map((am) => am.materia)
+        .filter((materia): materia is Materia => !!materia)
+        .sort((a, b) => {
+          if (a.periodo !== b.periodo) return a.periodo - b.periodo
+          return a.clave.localeCompare(b.clave, 'es')
+        })
+    }
+
+    const alumnoMateriaPorMateria = new Map<string, AlumnoMateriaRow>()
+    for (const am of alumnoMaterias) {
+      if (am.materia_id) alumnoMateriaPorMateria.set(am.materia_id, am)
+    }
+
+    const materiaIds = materiasPlan.map((materia) => materia.id)
 
     if (materiaIds.length === 0) {
       return NextResponse.json({ materias: [] })
@@ -75,15 +110,16 @@ export async function GET() {
       actividadesPorMateria.set(act.materia_id, list)
     }
 
-    const materias = alumnoMaterias
-      .map((am) => {
-        const materiaId = am.materia?.id ?? ''
+    const materias = materiasPlan
+      .map((materia) => {
+        const am = alumnoMateriaPorMateria.get(materia.id)
+        const materiaId = materia.id
         const pm = profesorPorMateria.get(materiaId) ?? null
         return {
-          id: am.id,
-          estado: am.estado,
-          calificacion: am.calificacion,
-          materia: am.materia,
+          id: am?.id ?? materia.id,
+          estado: am?.estado ?? 'pendiente',
+          calificacion: am?.calificacion ?? null,
+          materia,
           profesor: pm?.profesor ?? null,
           grupo: pm?.grupo ?? null,
           horario: pm?.horario ?? null,
@@ -100,7 +136,7 @@ export async function GET() {
         const pa = a.materia?.periodo ?? 0
         const pb = b.materia?.periodo ?? 0
         if (pa !== pb) return pa - pb
-        return (a.materia?.nombre ?? '').localeCompare(b.materia?.nombre ?? '', 'es')
+        return (a.materia?.clave ?? '').localeCompare(b.materia?.clave ?? '', 'es')
       })
 
     return NextResponse.json({ materias })

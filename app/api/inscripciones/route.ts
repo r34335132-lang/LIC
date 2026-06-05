@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getProgramaIdCandidates, normalizeProgramaId } from '@/lib/programa-utils'
 
 interface InscripcionBody {
   nombreCompleto: string
@@ -12,8 +13,10 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as InscripcionBody
     const { nombreCompleto, email, telefono, programaId } = body
+    const normalizedProgramaId = normalizeProgramaId(programaId)
+    const programaCandidates = getProgramaIdCandidates(programaId)
 
-    if (!nombreCompleto || !email || !programaId) {
+    if (!nombreCompleto || !email || !normalizedProgramaId) {
       return NextResponse.json(
         { error: 'Nombre, email y programa son requeridos' },
         { status: 400 }
@@ -25,8 +28,9 @@ export async function POST(request: Request) {
     const { data: programa } = await supabase
       .from('programas')
       .select('id')
-      .eq('id', programaId)
+      .in('id', programaCandidates)
       .eq('activo', true)
+      .limit(1)
       .maybeSingle()
 
     if (!programa) {
@@ -40,7 +44,7 @@ export async function POST(request: Request) {
       .from('inscripciones')
       .select('id')
       .eq('email', email)
-      .eq('programa_id', programaId)
+      .eq('programa_id', programa.id)
       .eq('estado', 'pendiente')
       .maybeSingle()
 
@@ -55,7 +59,7 @@ export async function POST(request: Request) {
       nombre_completo: nombreCompleto,
       email,
       telefono: telefono ?? null,
-      programa_id: programaId,
+      programa_id: programa.id,
       estado: 'pendiente',
     })
 

@@ -30,6 +30,9 @@ import { programas } from '@/lib/data'
 import { getProgramaIcono } from '@/lib/icons'
 import { getProgramWhatsAppMessage, RESERVATION_AMOUNT_MXN, SITE_URL } from '@/lib/marketing'
 import { generalFaqs, programBenefits, programSpecificFaqs } from '@/lib/program-content'
+import { getProgramaIdCandidates, normalizeProgramaId } from '@/lib/programa-utils'
+import { createAdminClient } from '@/lib/supabase/admin'
+import type { Materia } from '@/types/database'
 
 export function generateStaticParams() {
   return programas.map((programa) => ({
@@ -42,6 +45,40 @@ function getLevelLabel(tipo: string) {
   if (tipo === 'licenciatura') return 'Licenciatura'
   if (tipo === 'maestria') return 'Maestría'
   return 'Curso'
+}
+
+async function getPlanEstudios(programaId: string, localPlan: { semestre: string; materias: string[] }[] = []) {
+  const normalizedProgramaId = normalizeProgramaId(programaId)
+  if (normalizedProgramaId !== 'psicologia') return localPlan
+  const programaCandidates = getProgramaIdCandidates(programaId)
+
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('materias')
+      .select('id, programa_id, periodo, nombre_periodo, nombre, clave, seriacion, horas_docente, horas_independientes, creditos, instalacion, created_at')
+      .in('programa_id', programaCandidates)
+      .order('periodo', { ascending: true })
+      .order('clave', { ascending: true })
+
+    if (error) {
+      console.error('Error cargando plan de Psicologia:', error)
+      return []
+    }
+
+    const grouped = new Map<number, Materia[]>()
+    for (const materia of (data ?? []) as Materia[]) {
+      grouped.set(materia.periodo, [...(grouped.get(materia.periodo) ?? []), materia])
+    }
+
+    return Array.from(grouped.entries()).map(([periodo, materias]) => ({
+      semestre: materias[0]?.nombre_periodo ?? `${periodo} cuatrimestre`,
+      materias: materias.map((materia) => `${materia.clave} - ${materia.nombre}`),
+    }))
+  } catch (error) {
+    console.error('Error cargando plan de Psicologia:', error)
+    return []
+  }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -115,7 +152,7 @@ export default async function ProgramaPage({ params }: { params: Promise<{ id: s
 
   const Icon = getProgramaIcono(programa.id)
   const benefit = programBenefits[programa.id] || programa.descripcion
-  const planEstudios = programa.planEstudios || []
+  const planEstudios = await getPlanEstudios(programa.id, programa.planEstudios || [])
   const campoLaboral = programa.campoLaboral || []
   const perfilEgreso = programa.perfilEgreso || []
   const programFaqs = [

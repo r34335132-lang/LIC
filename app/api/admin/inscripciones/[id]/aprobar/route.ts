@@ -11,6 +11,7 @@ import {
   formatPeriodoMensualidad,
   mensualidadMontoDefault,
 } from '@/lib/academico-utils'
+import { getProgramaIdCandidates, normalizeProgramaId } from '@/lib/programa-utils'
 
 export async function POST(
   _request: Request,
@@ -47,6 +48,8 @@ export async function POST(
 
     const tempPassword = generateTempPassword()
     const matricula = await generateMatricula(admin)
+    const programaId = normalizeProgramaId(inscripcion.programa_id)
+    const programaCandidates = getProgramaIdCandidates(inscripcion.programa_id)
 
     const { data: authData, error: authError } =
       await admin.auth.admin.createUser({
@@ -78,7 +81,7 @@ export async function POST(
         nombre_completo: inscripcion.nombre_completo,
         rol: 'alumno',
         matricula,
-        programa_id: inscripcion.programa_id,
+        programa_id: programaId,
         telefono: inscripcion.telefono,
       },
       { onConflict: 'id' }
@@ -95,7 +98,9 @@ export async function POST(
     const { data: materias } = await admin
       .from('materias')
       .select('id')
-      .eq('programa_id', inscripcion.programa_id)
+      .in('programa_id', programaCandidates)
+      .order('periodo', { ascending: true })
+      .order('clave', { ascending: true })
 
     if (materias && materias.length > 0) {
       const { error: amError } = await admin.from('alumno_materias').insert(
