@@ -1,7 +1,6 @@
-import { SITE_URL } from '@/lib/marketing'
-
 const DEFAULT_CLIP_BASE_URL = 'https://api-gw.payclip.com'
 const DEFAULT_CLIP_CHECKOUT_PATH = '/checkout'
+const PRODUCTION_SITE_URL = 'https://lic-two.vercel.app'
 
 export type ClipAuthMode =
   | 'authorization_raw'
@@ -25,7 +24,8 @@ export type ClipApiFailure = {
   status: number
   message: string
   detail?: string
-  raw: unknown
+  body: unknown
+  sanitizedPayload?: Record<string, unknown>
 }
 
 export type ClipConfiguration = {
@@ -147,7 +147,7 @@ export function buildClipAuthHeaders(): Record<string, string> {
     throw new ClipApiError({
       status: 0,
       message: 'CLIP_API_KEY no configurada',
-      raw: null,
+      body: null,
     })
   }
 
@@ -155,7 +155,7 @@ export function buildClipAuthHeaders(): Record<string, string> {
     throw new ClipApiError({
       status: 0,
       message: 'CLIP_AUTH_MODE=basic requiere CLIP_API_SECRET',
-      raw: null,
+      body: null,
     })
   }
 
@@ -235,21 +235,28 @@ function parseClipFailure(status: number, raw: unknown): ClipApiFailure {
     status,
     message,
     detail: detail ?? apiMessage,
-    raw,
+    body: raw,
   }
 }
 
 export function getClipConfiguration(): ClipConfiguration {
   const { apiKey, apiSecret } = getClipCredentials()
   const authMode = resolveClipAuthMode()
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '') || SITE_URL
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, '')
 
   if (!apiKey) {
     throw new ClipApiError({
       status: 0,
       message: 'Falta la variable de entorno CLIP_API_KEY',
-      raw: null,
+      body: null,
+    })
+  }
+
+  if (!siteUrl) {
+    throw new ClipApiError({
+      status: 0,
+      message: 'Falta la variable de entorno NEXT_PUBLIC_SITE_URL',
+      body: null,
     })
   }
 
@@ -257,17 +264,23 @@ export function getClipConfiguration(): ClipConfiguration {
     throw new ClipApiError({
       status: 0,
       message: 'CLIP_AUTH_MODE=basic requiere CLIP_API_SECRET',
-      raw: null,
+      body: null,
     })
   }
 
   try {
-    new URL(siteUrl)
+    const parsedSiteUrl = new URL(siteUrl)
+    if (
+      process.env.NODE_ENV === 'production' &&
+      parsedSiteUrl.origin !== PRODUCTION_SITE_URL
+    ) {
+      throw new Error('URL de producción incorrecta')
+    }
   } catch {
     throw new ClipApiError({
       status: 0,
-      message: 'NEXT_PUBLIC_SITE_URL no es una URL válida',
-      raw: null,
+      message: `NEXT_PUBLIC_SITE_URL debe ser ${PRODUCTION_SITE_URL} en producción`,
+      body: null,
     })
   }
 
@@ -287,33 +300,42 @@ function checkoutEndpoint(suffix = ''): string {
 
 async function clipFetch(
   url: string,
-  init: RequestInit
-): Promise<{ ok: true; data: unknown } | { ok: false; failure: ClipApiFailure }> {
+  init: RequestInit,
+  sanitizedPayload?: Record<string, unknown>
+): Promise<unknown> {
   logClipCredentialsDev(url, init.method ?? 'GET')
 
-  const res = await fetch(url, init)
-  const responseText = await res.text()
-  let raw: unknown = responseText
+  let response: Response
+  try {
+    response = await fetch(url, init)
+  } catch {
+    throw new ClipApiError({
+      status: 0,
+      message: 'No se pudo conectar con Clip',
+      body: null,
+      sanitizedPayload,
+    })
+  }
 
-  if (responseText) {
+  const rawText = await response.text()
+  let parsed: unknown = null
+
+  if (rawText) {
     try {
-      raw = JSON.parse(responseText)
+      parsed = JSON.parse(rawText)
     } catch {
-      // Keep the plain response text for a useful, sanitized error message.
+      parsed = rawText
     }
   }
 
-  if (!res.ok) {
-    const failure = parseClipFailure(res.status, raw)
-    console.error('[Clip] respuesta rechazada', {
-      status: failure.status,
-      message: failure.message,
-      detail: failure.detail,
+  if (!response.ok) {
+    throw new ClipApiError({
+      ...parseClipFailure(response.status, parsed),
+      sanitizedPayload,
     })
-    return { ok: false, failure }
   }
 
-  return { ok: true, data: raw }
+  return parsed
 }
 
 export async function createClipCheckout(params: {
@@ -357,20 +379,25 @@ export async function createClipCheckout(params: {
     webhook_url: body.webhook_url,
   })
 
-  const result = await clipFetch(checkoutEndpoint(), {
-    method: 'POST',
-    headers: {
-      ...buildClipAuthHeaders(),
-      'Content-Type': 'application/json',
+  const data = (await clipFetch(
+    checkoutEndpoint(),
+    {
+      method: 'POST',
+      headers: {
+        ...buildClipAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  })
-
-  if (!result.ok) {
-    throw new ClipApiError(result.failure)
-  }
-
-  const data = result.data as ClipCheckoutResponse & {
+    {
+      amount: body.amount,
+      currency: body.currency,
+      purchase_description: body.purchase_description,
+      redirection_url: body.redirection_url,
+      external_reference: body.metadata.external_reference,
+      webhook_url: body.webhook_url,
+    }
+  )) as ClipCheckoutResponse & {
     message?: string
     detail?: string
   }
@@ -380,7 +407,7 @@ export async function createClipCheckout(params: {
       status: 502,
       message: 'Respuesta inválida de Clip',
       detail: 'Faltan payment_request_url o payment_request_id',
-      raw: data,
+      body: data,
     })
   }
 
@@ -390,16 +417,10 @@ export async function createClipCheckout(params: {
 export async function getClipCheckoutStatus(
   paymentRequestId: string
 ): Promise<ClipCheckoutStatus> {
-  const result = await clipFetch(checkoutEndpoint(`/${paymentRequestId}`), {
+  const data = (await clipFetch(checkoutEndpoint(`/${paymentRequestId}`), {
     method: 'GET',
     headers: buildClipAuthHeaders(),
-  })
-
-  if (!result.ok) {
-    throw new ClipApiError(result.failure)
-  }
-
-  const data = result.data as ClipCheckoutStatus & {
+  })) as ClipCheckoutStatus & {
     message?: string
     detail?: string
     metadata?: { external_reference?: string; me_reference_id?: string }

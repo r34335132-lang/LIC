@@ -20,6 +20,15 @@ import type { Mensualidad } from '@/types/database'
 import type { EstadoMensualidadEfectivo } from '@/lib/academico-utils'
 
 type MensualidadRow = Mensualidad & { estadoEfectivo: EstadoMensualidadEfectivo }
+type PaymentResponse = {
+  error?: string
+  detail?: string
+  checkoutUrl?: string
+  clip?: {
+    message?: string
+    detail?: string
+  }
+}
 
 export default function PagosPage() {
   const searchParams = useSearchParams()
@@ -87,17 +96,26 @@ export default function PagosPage() {
         method: 'POST',
         credentials: 'include',
       })
-      const data = await res.json().catch(() => null)
+      const rawText = await res.text()
+      let data: PaymentResponse | null = null
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText) as PaymentResponse
+        } catch {
+          data = null
+        }
+      }
       if (!res.ok) {
         const message =
           data?.error ??
+          data?.detail ??
           data?.clip?.message ??
           data?.clip?.detail ??
-          `No se pudo iniciar el pago (${res.status})`
+          'No se pudo iniciar el pago. Revisa logs de Vercel.'
         throw new Error(message)
       }
 
-      if (data.checkoutUrl) {
+      if (data?.checkoutUrl) {
         window.location.href = data.checkoutUrl
         return
       }

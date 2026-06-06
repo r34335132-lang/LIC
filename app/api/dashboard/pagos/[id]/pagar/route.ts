@@ -9,6 +9,8 @@ import {
 } from '@/lib/clip'
 import type { Mensualidad } from '@/types/database'
 
+export const runtime = 'nodejs'
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -170,33 +172,33 @@ export async function POST(
       checkoutUrl: checkout.payment_request_url,
     })
   } catch (error) {
+    console.error('[PAGAR_ERROR]', error)
+
     if (error instanceof ClipApiError) {
-      const { status, message, detail } = error.clip
-      console.error('Pagar mensualidad Clip error:', {
+      const { status, message, detail, body, sanitizedPayload } = error.clip
+      console.error('[PAGAR_ERROR] Clip', {
         ...context,
-        clip: { status, message, detail },
+        clip: { status, message, detail, body, sanitizedPayload },
       })
 
-      const httpStatus =
-        status === 0 || error.isUnauthorized || (status >= 400 && status < 500)
-          ? 400
-          : 502
+      const httpStatus = status >= 400 && status < 500 ? 400 : 500
 
       return NextResponse.json(
         {
           error: message,
+          detail: detail ?? message,
           clip: { status, message, detail },
         },
         { status: httpStatus }
       )
     }
 
-    console.error('Pagar mensualidad error:', {
-      ...context,
-      error: error instanceof Error ? error.message : String(error),
-    })
+    const detail = error instanceof Error ? error.message : String(error)
     return NextResponse.json(
-      { error: 'Error interno al iniciar el pago' },
+      {
+        error: 'Error interno al iniciar el pago',
+        detail,
+      },
       { status: 500 }
     )
   }
