@@ -69,11 +69,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearSession()
         return
       }
+
       if (!res.ok) {
         clearSession()
         return
       }
+
       const data = await res.json()
+      if (!data.user || !data.perfil) {
+        clearSession()
+        return
+      }
+
       setUser(data.user as SessionUser)
       setPerfil(data.perfil as Perfil)
     } catch {

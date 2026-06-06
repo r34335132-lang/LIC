@@ -87,13 +87,25 @@ export default function PagosPage() {
         method: 'POST',
         credentials: 'include',
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'No se pudo iniciar el pago')
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        const message =
+          data?.error ??
+          data?.clip?.message ??
+          data?.clip?.detail ??
+          `No se pudo iniciar el pago (${res.status})`
+        throw new Error(message)
+      }
+
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl
+        return
       }
+
+      throw new Error('El servidor no devolvió una URL de checkout')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al pagar')
+    } finally {
       setPagando(null)
     }
   }

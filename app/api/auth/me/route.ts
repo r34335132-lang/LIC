@@ -32,7 +32,13 @@ export async function GET() {
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'No autenticado' },
+        {
+          status: 401,
+          headers: { 'Cache-Control': 'no-store' },
+        }
+      )
     }
 
     const { data: perfil, error: perfilError } = await supabase
@@ -48,13 +54,16 @@ export async function GET() {
       )
     }
 
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email ?? perfil.email,
+    return NextResponse.json(
+      {
+        user: {
+          id: user.id,
+          email: user.email ?? perfil.email,
+        },
+        perfil: perfilPayload(perfil as Perfil),
       },
-      perfil: perfilPayload(perfil as Perfil),
-    })
+      { headers: { 'Cache-Control': 'no-store' } }
+    )
   } catch (error) {
     console.error('Auth me error:', error)
     return NextResponse.json(

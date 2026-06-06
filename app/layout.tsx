@@ -96,13 +96,13 @@ export const metadata: Metadata = {
         type: 'image/png',
       },
       {
-        url: '/favicon-48x48.png',
-        sizes: '48x48',
+        url: '/favicon-96x96.png',
+        sizes: '96x96',
         type: 'image/png',
       },
     ],
     shortcut: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    apple: '/apple-icon-180x180.png',
   },
   manifest: '/site.webmanifest',
 }

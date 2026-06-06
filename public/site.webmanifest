@@ -1,0 +1,21 @@
+{
+  "name": "Instituto Universitario de Durango",
+  "short_name": "IUD",
+  "description": "Portal del Instituto Universitario de Durango",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/android-icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-256x256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ]
+}

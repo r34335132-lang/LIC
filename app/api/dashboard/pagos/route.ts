@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getPerfilFromSession, canAccessAlumno } from '@/lib/auth-server'
+import { getPerfilFromSession } from '@/lib/auth-server'
 import { resolverEstadoMensualidad } from '@/lib/academico-utils'
 import type { Mensualidad } from '@/types/database'
 
 export async function GET() {
   try {
     const session = await getPerfilFromSession()
-    if (!session || !canAccessAlumno(session.perfil.rol)) {
+    if (!session || session.perfil.rol !== 'alumno') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 

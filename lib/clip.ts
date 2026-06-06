@@ -1,6 +1,6 @@
 import { SITE_URL } from '@/lib/marketing'
 
-const DEFAULT_CLIP_BASE_URL = 'https://api.payclip.com/v2'
+const DEFAULT_CLIP_BASE_URL = 'https://api-gw.payclip.com'
 const DEFAULT_CLIP_CHECKOUT_PATH = '/checkout'
 
 export type ClipAuthMode =
@@ -28,6 +28,13 @@ export type ClipApiFailure = {
   raw: unknown
 }
 
+export type ClipConfiguration = {
+  authMode: ClipAuthMode
+  baseUrl: string
+  checkoutPath: string
+  siteUrl: string
+}
+
 export class ClipApiError extends Error {
   readonly clip: ClipApiFailure
 
@@ -53,7 +60,7 @@ export function getClipCheckoutPath(): string {
   return path.startsWith('/') ? path : `/${path}`
 }
 
-function resolveAuthMode(): ClipAuthMode {
+export function resolveClipAuthMode(): ClipAuthMode {
   const mode = process.env.CLIP_AUTH_MODE?.trim().toLowerCase()
   if (
     mode === 'authorization_raw' ||
@@ -134,7 +141,7 @@ function getClipCredentials() {
 /** Aísla el esquema de auth para cambiarlo vía CLIP_AUTH_MODE sin tocar el resto. */
 export function buildClipAuthHeaders(): Record<string, string> {
   const { apiKey, apiSecret } = getClipCredentials()
-  const mode = resolveAuthMode()
+  const mode = resolveClipAuthMode()
 
   if (!apiKey) {
     throw new ClipApiError({
@@ -185,7 +192,7 @@ function logClipCredentialsDev(endpoint: string, method: string) {
   logClipDev('request', {
     endpoint,
     method,
-    authMode: resolveAuthMode(),
+    authMode: resolveClipAuthMode(),
     hasApiKey: Boolean(apiKey),
     apiKeyLength: apiKey?.length ?? 0,
     hasApiSecret: Boolean(apiSecret),
@@ -193,31 +200,82 @@ function logClipCredentialsDev(endpoint: string, method: string) {
   })
 }
 
-function logClipErrorDev(status: number, raw: unknown) {
-  if (process.env.NODE_ENV !== 'development') return
-  console.error('[Clip] error response', { status, raw })
-}
-
 function unauthorizedMessage(): string {
-  return 'Clip rechazó el token en Authorization. Revisa CLIP_API_KEY.'
+  return 'Clip rechazó la autenticación. Revisa CLIP_API_KEY, CLIP_API_SECRET y CLIP_AUTH_MODE.'
 }
 
 function parseClipFailure(status: number, raw: unknown): ClipApiFailure {
   const body =
     raw && typeof raw === 'object'
-      ? (raw as { message?: string; detail?: string })
+      ? (raw as Record<string, unknown>)
       : {}
-
-  const detail = body.detail ?? (typeof raw === 'string' ? raw : undefined)
-  const apiMessage = body.message ?? detail ?? `Error HTTP ${status}`
-
-  const message = status === 401 ? unauthorizedMessage() : apiMessage
+  const nestedError =
+    body.error && typeof body.error === 'object'
+      ? (body.error as Record<string, unknown>)
+      : {}
+  const detail =
+    readString(body.detail) ??
+    readString(body.error_description) ??
+    readString(nestedError.detail) ??
+    readString(nestedError.message) ??
+    (typeof raw === 'string' ? raw : undefined)
+  const apiMessage =
+    readString(body.message) ??
+    readString(body.error) ??
+    detail ??
+    `Error HTTP ${status}`
+  const message =
+    status === 401 || status === 403
+      ? unauthorizedMessage()
+      : status === 400
+        ? `Clip rechazó el payload: ${apiMessage}`
+        : apiMessage
 
   return {
     status,
     message,
     detail: detail ?? apiMessage,
     raw,
+  }
+}
+
+export function getClipConfiguration(): ClipConfiguration {
+  const { apiKey, apiSecret } = getClipCredentials()
+  const authMode = resolveClipAuthMode()
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '') || SITE_URL
+
+  if (!apiKey) {
+    throw new ClipApiError({
+      status: 0,
+      message: 'Falta la variable de entorno CLIP_API_KEY',
+      raw: null,
+    })
+  }
+
+  if (authMode === 'basic' && !apiSecret) {
+    throw new ClipApiError({
+      status: 0,
+      message: 'CLIP_AUTH_MODE=basic requiere CLIP_API_SECRET',
+      raw: null,
+    })
+  }
+
+  try {
+    new URL(siteUrl)
+  } catch {
+    throw new ClipApiError({
+      status: 0,
+      message: 'NEXT_PUBLIC_SITE_URL no es una URL válida',
+      raw: null,
+    })
+  }
+
+  return {
+    authMode,
+    baseUrl: getClipBaseUrl(),
+    checkoutPath: getClipCheckoutPath(),
+    siteUrl,
   }
 }
 
@@ -234,17 +292,25 @@ async function clipFetch(
   logClipCredentialsDev(url, init.method ?? 'GET')
 
   const res = await fetch(url, init)
-  let raw: unknown
+  const responseText = await res.text()
+  let raw: unknown = responseText
 
-  try {
-    raw = await res.json()
-  } catch {
-    raw = { parseError: true, status: res.status }
+  if (responseText) {
+    try {
+      raw = JSON.parse(responseText)
+    } catch {
+      // Keep the plain response text for a useful, sanitized error message.
+    }
   }
 
   if (!res.ok) {
-    logClipErrorDev(res.status, raw)
-    return { ok: false, failure: parseClipFailure(res.status, raw) }
+    const failure = parseClipFailure(res.status, raw)
+    console.error('[Clip] respuesta rechazada', {
+      status: failure.status,
+      message: failure.message,
+      detail: failure.detail,
+    })
+    return { ok: false, failure }
   }
 
   return { ok: true, data: raw }
@@ -252,17 +318,18 @@ async function clipFetch(
 
 export async function createClipCheckout(params: {
   amount: number
+  currency?: 'MXN'
   description: string
   reference: string
   customerEmail?: string
   customerName?: string
 }): Promise<ClipCheckoutResponse> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '') || SITE_URL
+  const { siteUrl } = getClipConfiguration()
   const webhookUrl = `${siteUrl}/api/clip/webhook`
 
   const body = {
     amount: params.amount,
-    currency: 'MXN',
+    currency: params.currency ?? 'MXN',
     purchase_description: params.description.slice(0, 250),
     redirection_url: {
       success: `${siteUrl}/dashboard/pagos?pago=ok`,
@@ -278,6 +345,17 @@ export async function createClipCheckout(params: {
     },
     webhook_url: webhookUrl,
   }
+
+  console.info('[Clip] checkout payload', {
+    amount: body.amount,
+    currency: body.currency,
+    description: body.purchase_description,
+    redirection_url: body.redirection_url,
+    metadata: {
+      external_reference: body.metadata.external_reference,
+    },
+    webhook_url: body.webhook_url,
+  })
 
   const result = await clipFetch(checkoutEndpoint(), {
     method: 'POST',
