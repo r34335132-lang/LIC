@@ -107,13 +107,6 @@ export async function POST(
       )
     }
 
-    if (m.estado === 'iniciado' && m.clip_checkout_url) {
-      return NextResponse.json({
-        success: true,
-        checkoutUrl: m.clip_checkout_url,
-      })
-    }
-
     if (!Number.isFinite(amount) || amount <= 0) {
       console.error('Pagar mensualidad con monto inválido:', context)
       return NextResponse.json(

@@ -242,7 +242,14 @@ function parseClipFailure(status: number, raw: unknown): ClipApiFailure {
 export function getClipConfiguration(): ClipConfiguration {
   const { apiKey, apiSecret } = getClipCredentials()
   const authMode = resolveClipAuthMode()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, '')
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(
+    /\/+$/,
+    ''
+  )
+  const siteUrl =
+    process.env.NODE_ENV === 'production'
+      ? PRODUCTION_SITE_URL
+      : configuredSiteUrl
 
   if (!apiKey) {
     throw new ClipApiError({
