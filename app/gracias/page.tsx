@@ -7,7 +7,7 @@ import { WhatsAppLink } from '@/components/marketing/whatsapp-link'
 
 export const metadata: Metadata = {
   title: 'Solicitud recibida',
-  description: 'Gracias por solicitar información al Instituto Universitario de Durango.',
+  description: 'Gracias por solicitar información sobre nuestros programas en línea con cobertura en todo México.',
 }
 
 export default function GraciasPage() {

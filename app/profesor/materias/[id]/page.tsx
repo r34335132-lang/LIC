@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Pencil, ExternalLink, Copy, Users, Clock, Video } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, ExternalLink, Copy, Users, Clock, Video, Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -32,13 +32,43 @@ import type {
   Materia,
   Perfil,
   ProfesorMateria,
+  TareaRecurso,
+  TipoTareaRecurso,
 } from '@/types/database'
 
 type AlumnoRow = AlumnoMateria & {
   alumno: Pick<Perfil, 'id' | 'nombre_completo' | 'matricula' | 'email'>
 }
 
-const emptyAct = { titulo: '', descripcion: '', link_recurso: '', fecha_entrega: '' }
+type RecursoDraft = Pick<TareaRecurso, 'titulo' | 'descripcion' | 'tipo' | 'url'>
+type RecursoFormulario = RecursoDraft & { id?: string }
+type ActividadConRecursos = Actividad & { recursos: RecursoFormulario[] }
+type ActividadDraft = {
+  titulo: string
+  descripcion: string
+  unidad: string
+  instrucciones: string
+  link_recurso: string
+  fecha_entrega: string
+  recursos: RecursoDraft[]
+}
+
+const emptyRecurso: RecursoDraft = {
+  titulo: '',
+  descripcion: '',
+  tipo: 'enlace',
+  url: '',
+}
+
+const emptyAct: ActividadDraft = {
+  titulo: '',
+  descripcion: '',
+  unidad: '',
+  instrucciones: '',
+  link_recurso: '',
+  fecha_entrega: '',
+  recursos: [],
+}
 
 export default function ProfesorMateriaDetailPage({
   params,
@@ -49,10 +79,10 @@ export default function ProfesorMateriaDetailPage({
   const { perfil } = useAuth()
   const [pm, setPm] = useState<(ProfesorMateria & { materia: Materia }) | null>(null)
   const [alumnos, setAlumnos] = useState<AlumnoRow[]>([])
-  const [actividades, setActividades] = useState<Actividad[]>([])
+  const [actividades, setActividades] = useState<ActividadConRecursos[]>([])
   const [actOpen, setActOpen] = useState(false)
   const [newAct, setNewAct] = useState(emptyAct)
-  const [editAct, setEditAct] = useState<Actividad | null>(null)
+  const [editAct, setEditAct] = useState<ActividadConRecursos | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -64,7 +94,7 @@ export default function ProfesorMateriaDetailPage({
       }
       setPm(data.profesorMateria as ProfesorMateria & { materia: Materia })
       setAlumnos((data.alumnos ?? []) as AlumnoRow[])
-      setActividades((data.actividades ?? []) as Actividad[])
+      setActividades((data.actividades ?? []) as ActividadConRecursos[])
     } catch {
       toast.error('Error de conexión')
     }
@@ -126,7 +156,7 @@ export default function ProfesorMateriaDetailPage({
     }
   }
 
-  const updateActividad = async (updates: Partial<Actividad>) => {
+  const updateActividad = async (updates: Partial<ActividadConRecursos>) => {
     if (!editAct) return
     const ok = await callApi(
       '/api/profesor/actividades',
@@ -144,6 +174,28 @@ export default function ProfesorMateriaDetailPage({
       { id: act.id, activo: !act.activo },
       act.activo ? 'Actividad desactivada' : 'Actividad activada'
     )
+
+  const updateNewRecurso = (index: number, updates: Partial<RecursoDraft>) => {
+    setNewAct((current) => ({
+      ...current,
+      recursos: current.recursos.map((recurso, recursoIndex) =>
+        recursoIndex === index ? { ...recurso, ...updates } : recurso
+      ),
+    }))
+  }
+
+  const updateEditRecurso = (index: number, updates: Partial<RecursoDraft>) => {
+    setEditAct((current) =>
+      current
+        ? {
+            ...current,
+            recursos: current.recursos.map((recurso, recursoIndex) =>
+              recursoIndex === index ? { ...recurso, ...updates } : recurso
+            ),
+          }
+        : current
+    )
+  }
 
   const copyClassroomToGroup = async () => {
     try {
@@ -321,13 +373,56 @@ export default function ProfesorMateriaDetailPage({
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-brand-primary"><Plus className="mr-1 h-4 w-4" /> Nueva</Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
                 <DialogHeader><DialogTitle>Nueva actividad</DialogTitle></DialogHeader>
                 <div className="space-y-3">
                   <div><Label>Título</Label><Input value={newAct.titulo} onChange={(e) => setNewAct({ ...newAct, titulo: e.target.value })} /></div>
+                  <div><Label>Semana o unidad</Label><Input value={newAct.unidad} onChange={(e) => setNewAct({ ...newAct, unidad: e.target.value })} placeholder="Ej. Semana 3 · Unidad 1" /></div>
                   <div><Label>Descripción</Label><Textarea value={newAct.descripcion} onChange={(e) => setNewAct({ ...newAct, descripcion: e.target.value })} /></div>
+                  <div><Label>Instrucciones</Label><Textarea value={newAct.instrucciones} onChange={(e) => setNewAct({ ...newAct, instrucciones: e.target.value })} rows={4} /></div>
                   <div><Label>Link recurso</Label><Input value={newAct.link_recurso} onChange={(e) => setNewAct({ ...newAct, link_recurso: e.target.value })} /></div>
                   <div><Label>Fecha entrega</Label><Input type="datetime-local" value={newAct.fecha_entrega} onChange={(e) => setNewAct({ ...newAct, fecha_entrega: e.target.value })} /></div>
+                  <div className="space-y-3 rounded-xl border p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Recursos de apoyo</Label>
+                        <p className="text-xs text-muted-foreground">Videos, PDF, lecturas o documentos externos.</p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setNewAct({
+                            ...newAct,
+                            recursos: [...newAct.recursos, { ...emptyRecurso }],
+                          })
+                        }
+                      >
+                        <Plus className="mr-1 h-4 w-4" /> Agregar
+                      </Button>
+                    </div>
+                    {newAct.recursos.map((recurso, index) => (
+                      <div key={index} className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-2">
+                        <Input placeholder="Título del recurso" value={recurso.titulo} onChange={(e) => updateNewRecurso(index, { titulo: e.target.value })} />
+                        <Select value={recurso.tipo} onValueChange={(value) => updateNewRecurso(index, { tipo: value as TipoTareaRecurso })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="video">Video</SelectItem>
+                            <SelectItem value="pdf">PDF</SelectItem>
+                            <SelectItem value="enlace">Enlace</SelectItem>
+                            <SelectItem value="documento">Documento</SelectItem>
+                            <SelectItem value="lectura">Lectura</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input className="sm:col-span-2" placeholder="https://..." value={recurso.url} onChange={(e) => updateNewRecurso(index, { url: e.target.value })} />
+                        <Input placeholder="Descripción breve" value={recurso.descripcion ?? ''} onChange={(e) => updateNewRecurso(index, { descripcion: e.target.value })} />
+                        <Button type="button" variant="ghost" className="justify-self-end text-red-600" onClick={() => setNewAct({ ...newAct, recursos: newAct.recursos.filter((_, recursoIndex) => recursoIndex !== index) })}>
+                          <Trash2 className="mr-1 h-4 w-4" /> Quitar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                   <Button onClick={createActividad} className="w-full bg-brand-primary">Crear</Button>
                 </div>
               </DialogContent>
@@ -341,7 +436,10 @@ export default function ProfesorMateriaDetailPage({
           {actividades.map((act) => (
             <div key={act.id} className="rounded-lg border p-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-medium">{act.titulo}</p>
+                <div>
+                  <p className="font-medium">{act.titulo}</p>
+                  {act.unidad && <p className="text-xs text-brand-primary">{act.unidad}</p>}
+                </div>
                 <div className="flex items-center gap-2">
                   {!act.activo && <Badge variant="destructive">Inactiva</Badge>}
                   {isOwner && (
@@ -358,6 +456,11 @@ export default function ProfesorMateriaDetailPage({
                 </div>
               </div>
               {act.descripcion && <p className="text-sm text-muted-foreground mt-1">{act.descripcion}</p>}
+              {act.recursos.length > 0 && (
+                <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                  {act.recursos.length} recurso(s) de apoyo
+                </p>
+              )}
               {act.link_recurso && (
                 <a href={act.link_recurso} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-sm text-brand-primary hover:underline">
                   <ExternalLink className="h-3 w-3" /> Recurso
@@ -374,7 +477,7 @@ export default function ProfesorMateriaDetailPage({
       </Card>
 
       <Dialog open={!!editAct} onOpenChange={(o) => !o && setEditAct(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader><DialogTitle>Editar actividad</DialogTitle></DialogHeader>
           {editAct && (
             <div className="space-y-3">
@@ -386,10 +489,25 @@ export default function ProfesorMateriaDetailPage({
                 />
               </div>
               <div>
+                <Label>Semana o unidad</Label>
+                <Input
+                  value={editAct.unidad ?? ''}
+                  onChange={(e) => setEditAct({ ...editAct, unidad: e.target.value })}
+                />
+              </div>
+              <div>
                 <Label>Descripción</Label>
                 <Textarea
                   defaultValue={editAct.descripcion ?? ''}
                   onChange={(e) => setEditAct({ ...editAct, descripcion: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Instrucciones</Label>
+                <Textarea
+                  value={editAct.instrucciones ?? ''}
+                  onChange={(e) => setEditAct({ ...editAct, instrucciones: e.target.value })}
+                  rows={4}
                 />
               </div>
               <div>
@@ -399,12 +517,53 @@ export default function ProfesorMateriaDetailPage({
                   onChange={(e) => setEditAct({ ...editAct, link_recurso: e.target.value })}
                 />
               </div>
+              <div className="space-y-3 rounded-xl border p-4">
+                <div className="flex items-center justify-between">
+                  <Label>Recursos de apoyo</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setEditAct({
+                        ...editAct,
+                        recursos: [...editAct.recursos, { ...emptyRecurso }],
+                      })
+                    }
+                  >
+                    <Plus className="mr-1 h-4 w-4" /> Agregar
+                  </Button>
+                </div>
+                {editAct.recursos.map((recurso, index) => (
+                  <div key={recurso.id || index} className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-2">
+                    <Input placeholder="Título del recurso" value={recurso.titulo} onChange={(e) => updateEditRecurso(index, { titulo: e.target.value })} />
+                    <Select value={recurso.tipo} onValueChange={(value) => updateEditRecurso(index, { tipo: value as TipoTareaRecurso })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="video">Video</SelectItem>
+                        <SelectItem value="pdf">PDF</SelectItem>
+                        <SelectItem value="enlace">Enlace</SelectItem>
+                        <SelectItem value="documento">Documento</SelectItem>
+                        <SelectItem value="lectura">Lectura</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input className="sm:col-span-2" placeholder="https://..." value={recurso.url} onChange={(e) => updateEditRecurso(index, { url: e.target.value })} />
+                    <Input placeholder="Descripción breve" value={recurso.descripcion ?? ''} onChange={(e) => updateEditRecurso(index, { descripcion: e.target.value })} />
+                    <Button type="button" variant="ghost" className="justify-self-end text-red-600" onClick={() => setEditAct({ ...editAct, recursos: editAct.recursos.filter((_, recursoIndex) => recursoIndex !== index) })}>
+                      <Trash2 className="mr-1 h-4 w-4" /> Quitar
+                    </Button>
+                  </div>
+                ))}
+              </div>
               <Button
                 onClick={() =>
                   updateActividad({
                     titulo: editAct.titulo,
                     descripcion: editAct.descripcion || null,
+                    unidad: editAct.unidad || null,
+                    instrucciones: editAct.instrucciones || null,
                     link_recurso: editAct.link_recurso || null,
+                    recursos: editAct.recursos,
                   })
                 }
                 className="w-full bg-brand-primary"

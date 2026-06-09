@@ -92,20 +92,21 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 
   const rvoeText = programa.rvoe ? ` con RVOE ${programa.rvoe}` : ' con modalidad virtual'
-  const title = `${programa.nombre}${rvoeText} en Durango`
+  const title = `${programa.nombre}${rvoeText} en línea en México`
 
   return {
     title,
-    description: `${programa.descripcion} Estudia en modalidad virtual con horarios flexibles, acompañamiento académico y ${programa.rvoe ? 'validez oficial SEP Durango.' : 'acompañamiento institucional.'}`,
+    description: `${programa.descripcion} Estudia en línea desde cualquier estado de México con horarios flexibles, acompañamiento académico y ${programa.rvoe ? 'RVOE visible para consulta.' : 'acompañamiento institucional.'}`,
     keywords: [
-      `${programa.nombre} Durango`,
-      `${programa.nombre} virtual`,
+      `${programa.nombre} en línea México`,
+      `${programa.nombre} virtual México`,
       `${programa.nombre} con RVOE`,
       `Aparta tu lugar ${programa.nombre}`,
       `Aparta inscripcion ${programa.nombre} $600`,
-      programa.rvoe ? `RVOE ${programa.rvoe}` : 'programa virtual Durango',
+      programa.rvoe ? `RVOE ${programa.rvoe}` : 'programa en línea México',
       'Instituto Universitario de Durango',
-      'RVOE SEP Durango',
+      'educación en línea México',
+      'estudiar desde cualquier estado de México',
       'horarios flexibles',
     ],
     alternates: {
@@ -181,6 +182,10 @@ export default async function ProgramaPage({ params }: { params: Promise<{ id: s
           '@type': 'EducationalOrganization',
           name: 'Instituto Universitario de Durango',
           sameAs: SITE_URL,
+          areaServed: {
+            '@type': 'Country',
+            name: 'México',
+          },
         },
         educationalCredentialAwarded: getLevelLabel(programa.tipo),
         courseMode: 'Virtual',

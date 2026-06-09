@@ -35,7 +35,9 @@ type CalificacionesData = {
   creditosAprobados: number
   totalCreditos: number
   porcentajeAvance: number
-  tareasRecientes: (ActividadEntrega & { actividad?: Actividad })[]
+  tareasRecientes: (ActividadEntrega & {
+    actividad?: Pick<Actividad, 'id' | 'titulo' | 'materia_id'>
+  })[]
 }
 
 export default function CalificacionesPage() {
@@ -69,8 +71,8 @@ export default function CalificacionesPage() {
   }, [data])
 
   const getCalificacionColor = (cal: number) => {
-    if (cal >= 90) return 'text-green-600 dark:text-green-400'
-    if (cal >= 70) return 'text-amber-600 dark:text-amber-400'
+    if (cal >= 9) return 'text-green-600 dark:text-green-400'
+    if (cal >= 7) return 'text-amber-600 dark:text-amber-400'
     return 'text-red-600 dark:text-red-400'
   }
 

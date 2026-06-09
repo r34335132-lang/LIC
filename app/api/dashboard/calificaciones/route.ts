@@ -9,6 +9,7 @@ import type {
 } from '@/types/database'
 
 type AlumnoMateriaRow = AlumnoMateria & { materia: Materia | null }
+type ActividadResumen = Pick<Actividad, 'id' | 'titulo' | 'materia_id'>
 
 export async function GET() {
   try {
@@ -34,7 +35,9 @@ export async function GET() {
       .map((am) => am.materia?.id)
       .filter((id): id is string => !!id)
 
-    let entregasRevisadas: (ActividadEntrega & { actividad?: Actividad })[] = []
+    let entregasRevisadas: (ActividadEntrega & {
+      actividad?: ActividadResumen
+    })[] = []
     if (materiaIds.length > 0) {
       const { data: actividades } = await admin
         .from('actividades')

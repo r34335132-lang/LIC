@@ -133,6 +133,16 @@ export async function PATCH(request: Request) {
       )
     }
 
+    if (
+      calificacion !== undefined &&
+      (!Number.isFinite(calificacion) || calificacion < 0 || calificacion > 10)
+    ) {
+      return NextResponse.json(
+        { error: 'La calificación debe ser un número entre 0 y 10' },
+        { status: 400 }
+      )
+    }
+
     const admin = createAdminClient()
 
     const { data: entrega } = await admin

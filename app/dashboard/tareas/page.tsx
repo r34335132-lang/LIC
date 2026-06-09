@@ -24,9 +24,18 @@ import {
   Sparkles,
   ClipboardList,
   Link as LinkIcon,
+  ExternalLink,
+  Video,
+  BookOpen,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Actividad, ActividadEntrega, Materia, Perfil } from '@/types/database'
+import type {
+  Actividad,
+  ActividadEntrega,
+  Materia,
+  Perfil,
+  TareaRecurso,
+} from '@/types/database'
 import type { EstadoEntregaTarea } from '@/lib/academico-utils'
 import { cuatrimestreLabel } from '@/lib/academico-utils'
 
@@ -38,6 +47,7 @@ type TareaRow = {
   estadoEntrega: EstadoEntregaTarea
   calificacion: number | null
   retroalimentacion: string | null
+  recursos: TareaRecurso[]
 }
 
 type Resumen = {
@@ -264,7 +274,13 @@ export default function TareasPage() {
             return (
               <Card
                 key={tarea.actividad.id}
-                className="group relative overflow-hidden bg-white/60 dark:bg-black/40 backdrop-blur-xl border-border/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-primary/10 hover:border-brand-primary/30"
+                role="button"
+                tabIndex={0}
+                onClick={() => abrirModal(tarea)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') abrirModal(tarea)
+                }}
+                className="group relative cursor-pointer overflow-hidden bg-white/60 dark:bg-black/40 backdrop-blur-xl border-border/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-primary/10 hover:border-brand-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
               >
                 <div
                   className={`absolute top-0 left-0 w-1.5 h-full ${
@@ -321,6 +337,14 @@ export default function TareasPage() {
                     </div>
                     <div className="flex flex-row lg:flex-col items-center lg:items-end gap-4 lg:gap-3 w-full lg:w-auto border-t lg:border-t-0 border-border/50 pt-4 lg:pt-0">
                       {getEstadoBadge(tarea.estadoEntrega)}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl h-10 px-5"
+                        onClick={() => abrirModal(tarea)}
+                      >
+                        Ver detalle
+                      </Button>
                       {tarea.estadoEntrega !== 'revisada' &&
                         tarea.estadoEntrega !== 'entregada' && (
                           <Button
@@ -346,7 +370,7 @@ export default function TareasPage() {
                         <div className="text-right bg-emerald-50 dark:bg-emerald-900/10 px-4 py-2 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
                           <p className="text-2xl font-black text-emerald-600">
                             {tarea.calificacion}
-                            <span className="text-sm font-semibold text-emerald-600/60">/100</span>
+                            <span className="text-sm font-semibold text-emerald-600/60">/10</span>
                           </p>
                           {tarea.retroalimentacion && (
                             <p className="text-xs text-muted-foreground mt-1 max-w-xs">
@@ -377,46 +401,166 @@ export default function TareasPage() {
       )}
 
       <Dialog open={!!modalTarea} onOpenChange={(open) => !open && setModalTarea(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Entregar: {modalTarea?.actividad.titulo}</DialogTitle>
+            <DialogTitle className="text-2xl">{modalTarea?.actividad.titulo}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Respuesta escrita</Label>
-              <Textarea
-                value={textoRespuesta}
-                onChange={(e) => setTextoRespuesta(e.target.value)}
-                placeholder="Escribe tu respuesta o comentarios..."
-                rows={4}
-              />
+          {modalTarea && (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-2">
+                {getEstadoBadge(modalTarea.estadoEntrega)}
+                {modalTarea.materia && <Badge variant="outline">{modalTarea.materia.nombre}</Badge>}
+                {modalTarea.actividad.unidad && (
+                  <Badge variant="secondary">{modalTarea.actividad.unidad}</Badge>
+                )}
+              </div>
+
+              <div className="grid gap-4 rounded-2xl border bg-muted/20 p-5 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Fecha de entrega</p>
+                  <p className="mt-1 font-semibold">
+                    {modalTarea.actividad.fecha_entrega
+                      ? new Date(modalTarea.actividad.fecha_entrega).toLocaleString('es-MX')
+                      : 'Sin fecha límite'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Docente</p>
+                  <p className="mt-1 font-semibold">
+                    {modalTarea.profesor?.nombre_completo ?? 'Sin docente asignado'}
+                  </p>
+                </div>
+              </div>
+
+              {modalTarea.actividad.descripcion && (
+                <section>
+                  <h3 className="font-black">Descripción</h3>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {modalTarea.actividad.descripcion}
+                  </p>
+                </section>
+              )}
+
+              {modalTarea.actividad.instrucciones && (
+                <section className="rounded-2xl border-l-4 border-brand-primary bg-brand-primary/5 p-5">
+                  <h3 className="font-black">Instrucciones</h3>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
+                    {modalTarea.actividad.instrucciones}
+                  </p>
+                </section>
+              )}
+
+              {(modalTarea.actividad.link_recurso || modalTarea.recursos.length > 0) && (
+                <section>
+                  <h3 className="font-black">Recursos de apoyo</h3>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {modalTarea.actividad.link_recurso && (
+                      <a
+                        href={modalTarea.actividad.link_recurso}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between rounded-xl border p-4 transition hover:border-brand-primary hover:bg-brand-primary/5"
+                      >
+                        <span className="flex items-center gap-3">
+                          <LinkIcon className="h-5 w-5 text-brand-primary" />
+                          <span>
+                            <span className="block font-bold">Recurso principal</span>
+                            <span className="text-xs text-muted-foreground">Enlace proporcionado por el docente</span>
+                          </span>
+                        </span>
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+                    {modalTarea.recursos.map((recurso) => {
+                      const ResourceIcon =
+                        recurso.tipo === 'video'
+                          ? Video
+                          : recurso.tipo === 'lectura'
+                            ? BookOpen
+                            : recurso.tipo === 'enlace'
+                              ? LinkIcon
+                              : FileText
+
+                      return (
+                        <a
+                          key={recurso.id}
+                          href={recurso.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between rounded-xl border p-4 transition hover:border-brand-primary hover:bg-brand-primary/5"
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            <ResourceIcon className="h-5 w-5 shrink-0 text-brand-primary" />
+                            <span className="min-w-0">
+                              <span className="block truncate font-bold">{recurso.titulo}</span>
+                              <span className="line-clamp-2 text-xs text-muted-foreground">
+                                {recurso.descripcion || recurso.tipo}
+                              </span>
+                            </span>
+                          </span>
+                          <ExternalLink className="h-4 w-4 shrink-0" />
+                        </a>
+                      )
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {modalTarea.estadoEntrega === 'revisada' ? (
+                <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                  <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Calificación</p>
+                  <p className="mt-1 text-3xl font-black text-emerald-700">
+                    {modalTarea.calificacion ?? '-'}<span className="text-base">/10</span>
+                  </p>
+                  {modalTarea.retroalimentacion && (
+                    <p className="mt-3 whitespace-pre-wrap text-sm text-emerald-950">
+                      {modalTarea.retroalimentacion}
+                    </p>
+                  )}
+                </section>
+              ) : (
+                <section className="space-y-4 border-t pt-5">
+                  <h3 className="font-black">
+                    {modalTarea.estadoEntrega === 'entregada' ? 'Editar entrega' : 'Entregar tarea'}
+                  </h3>
+                  <div>
+                    <Label>Respuesta escrita</Label>
+                    <Textarea
+                      value={textoRespuesta}
+                      onChange={(e) => setTextoRespuesta(e.target.value)}
+                      placeholder="Escribe tu respuesta o comentarios..."
+                      rows={4}
+                    />
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-1">
+                      <LinkIcon className="h-4 w-4" /> Link de entrega
+                    </Label>
+                    <Input
+                      value={linkEntrega}
+                      onChange={(e) => setLinkEntrega(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div>
+                    <Label>Link de Drive / archivo (opcional)</Label>
+                    <Input
+                      value={archivoUrl}
+                      onChange={(e) => setArchivoUrl(e.target.value)}
+                      placeholder="https://drive.google.com/..."
+                    />
+                  </div>
+                  <Button
+                    className="w-full bg-brand-primary"
+                    onClick={entregar}
+                    disabled={enviando}
+                  >
+                    {enviando ? 'Enviando...' : 'Enviar entrega'}
+                  </Button>
+                </section>
+              )}
             </div>
-            <div>
-              <Label className="flex items-center gap-1">
-                <LinkIcon className="h-4 w-4" /> Link de entrega
-              </Label>
-              <Input
-                value={linkEntrega}
-                onChange={(e) => setLinkEntrega(e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-            <div>
-              <Label>Link de Drive / archivo (opcional)</Label>
-              <Input
-                value={archivoUrl}
-                onChange={(e) => setArchivoUrl(e.target.value)}
-                placeholder="https://drive.google.com/..."
-              />
-            </div>
-            <Button
-              className="w-full bg-brand-primary"
-              onClick={entregar}
-              disabled={enviando}
-            >
-              {enviando ? 'Enviando...' : 'Enviar entrega'}
-            </Button>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

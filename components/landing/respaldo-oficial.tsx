@@ -10,7 +10,7 @@ import { RVOE_CONSULTA_URL } from '@/lib/marketing'
 const respaldoItems = [
   {
     icon: Landmark,
-    title: 'RVOE SEP Durango',
+    title: 'RVOE por programa',
     text: 'Reconocimiento otorgado para planes y programas específicos.',
   },
   {

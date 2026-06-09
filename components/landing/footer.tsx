@@ -32,7 +32,7 @@ export function Footer() {
               </div>
             </Link>
             <p className="mt-5 max-w-sm text-sm font-medium leading-relaxed text-slate-600">
-              Programas académicos en modalidad virtual, horarios flexibles y acompañamiento para personas que quieren avanzar con respaldo oficial.
+              Preparatoria, licenciaturas y maestrías en línea para estudiantes de todo México, con horarios flexibles y acompañamiento académico.
             </p>
             <Link
               href={RVOE_CONSULTA_URL}
@@ -78,7 +78,7 @@ export function Footer() {
             <ul className="space-y-4 text-sm font-semibold text-slate-600">
               <li className="flex items-start gap-3">
                 <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-brand-primary" />
-                Durango, Dgo.
+                Atención en línea para todo México
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 shrink-0 text-brand-primary" />

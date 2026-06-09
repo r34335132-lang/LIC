@@ -7,6 +7,7 @@ import type {
   ActividadEntrega,
   Materia,
   Perfil,
+  TareaRecurso,
 } from '@/types/database'
 
 export async function GET() {
@@ -38,7 +39,8 @@ export async function GET() {
 
     const materiaMap = new Map<string, Materia>()
     for (const row of amData ?? []) {
-      const m = row.materia as Materia | null
+      const relation = row.materia as Materia | Materia[] | null
+      const m = Array.isArray(relation) ? relation[0] : relation
       if (m) materiaMap.set(m.id, m)
     }
 
@@ -81,7 +83,29 @@ export async function GET() {
       entregas = (entData ?? []) as ActividadEntrega[]
     }
 
+    let recursos: TareaRecurso[] = []
+    if (actividadIds.length > 0) {
+      const { data: recursosData, error: recursosError } = await admin
+        .from('tarea_recursos')
+        .select('*')
+        .in('tarea_id', actividadIds)
+        .order('orden', { ascending: true })
+
+      if (recursosError) {
+        console.warn('Dashboard tareas recursos no disponibles:', recursosError.message)
+      } else {
+        recursos = (recursosData ?? []) as TareaRecurso[]
+      }
+    }
+
     const entregaMap = new Map(entregas.map((e) => [e.actividad_id, e]))
+    const recursosMap = new Map<string, TareaRecurso[]>()
+    for (const recurso of recursos) {
+      recursosMap.set(recurso.tarea_id, [
+        ...(recursosMap.get(recurso.tarea_id) ?? []),
+        recurso,
+      ])
+    }
 
     const tareas = acts.map((act) => {
       const entrega = entregaMap.get(act.id) ?? null
@@ -97,6 +121,7 @@ export async function GET() {
         estadoEntrega,
         calificacion: entrega?.calificacion ?? null,
         retroalimentacion: entrega?.retroalimentacion ?? null,
+        recursos: recursosMap.get(act.id) ?? [],
       }
     })
 

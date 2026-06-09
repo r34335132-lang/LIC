@@ -57,10 +57,39 @@ export async function GET(
       return NextResponse.json({ error: actError.message }, { status: 400 })
     }
 
+    const actividadIds = (actividades ?? []).map((actividad) => actividad.id)
+    let recursos: Record<string, unknown>[] = []
+
+    if (actividadIds.length > 0) {
+      const { data: recursosData, error: recursosError } = await admin
+        .from('tarea_recursos')
+        .select('*')
+        .in('tarea_id', actividadIds)
+        .order('orden', { ascending: true })
+
+      if (recursosError) {
+        console.warn('Profesor materia recursos no disponibles:', recursosError.message)
+      } else {
+        recursos = recursosData ?? []
+      }
+    }
+
+    const recursosPorTarea = new Map<string, Record<string, unknown>[]>()
+    for (const recurso of recursos) {
+      const tareaId = recurso.tarea_id as string
+      recursosPorTarea.set(tareaId, [
+        ...(recursosPorTarea.get(tareaId) ?? []),
+        recurso,
+      ])
+    }
+
     return NextResponse.json({
       profesorMateria: pm,
       alumnos: alumnos ?? [],
-      actividades: actividades ?? [],
+      actividades: (actividades ?? []).map((actividad) => ({
+        ...actividad,
+        recursos: recursosPorTarea.get(actividad.id) ?? [],
+      })),
     })
   } catch (error) {
     console.error('Profesor materia detail GET error:', error)

@@ -59,7 +59,7 @@ export function Beneficios() {
               Estudiar debe sentirse posible, no complicado
             </h2>
             <p className="mt-5 text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
-              El Instituto Universitario de Durango está pensado para personas que quieren avanzar con estructura, claridad y acompañamiento, sin perder de vista la validez oficial de sus estudios.
+              El Instituto Universitario de Durango atiende a estudiantes de todo México que quieren avanzar con estructura, claridad y acompañamiento, sin perder de vista la validez oficial de sus estudios.
             </p>
 
             <div className="mt-8 overflow-hidden rounded-[1.5rem] border border-slate-200">

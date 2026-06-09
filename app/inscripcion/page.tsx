@@ -5,8 +5,12 @@ import { Suspense } from 'react'
 import { InscripcionForm } from '@/components/inscripcion/inscripcion-form'
 
 export const metadata: Metadata = {
-  title: 'Solicitud de inscripción',
-  description: 'Solicita tu inscripción al Instituto Universitario de Durango.',
+  title: 'Inscripción en línea desde cualquier estado de México',
+  description:
+    'Solicita tu inscripción en línea a preparatoria, licenciaturas y maestrías desde cualquier estado de México.',
+  alternates: {
+    canonical: '/inscripcion',
+  },
 }
 
 type InscripcionPageProps = {
@@ -43,7 +47,7 @@ export default async function InscripcionPage({ searchParams }: InscripcionPageP
               Solicita tu inscripción
             </h1>
             <p className="mt-5 text-lg font-medium leading-relaxed text-slate-600">
-              Completa el formulario para registrar tu solicitud de admisión. Un administrador revisará tu información y te contactará para continuar el proceso.
+              Completa el formulario desde cualquier estado de México. Un administrador revisará tu información y te contactará para continuar el proceso de admisión en línea.
             </p>
 
             <div className="mt-8 grid gap-4">

@@ -255,10 +255,10 @@ export function OfertaAcademica() {
             Oferta académica con RVOE
           </div>
           <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
-            Programas para estudiar con horarios flexibles
+            Programas en línea para estudiantes de todo México
           </h2>
           <p className="mt-5 max-w-2xl text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
-            Compara duración, modalidad y RVOE por programa antes de solicitar informes. Cada opción está pensada para avanzar con horarios flexibles.
+            Compara duración, modalidad y RVOE antes de solicitar informes. Estudia desde cualquier estado de México con horarios flexibles y acompañamiento académico.
           </p>
         </motion.div>
 

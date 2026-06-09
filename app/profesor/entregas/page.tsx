@@ -56,6 +56,17 @@ export default function ProfesorEntregasPage() {
 
   const calificar = async () => {
     if (!selected) return
+    const calificacionNumerica = Number(calificacion)
+    if (
+      calificacion.trim() === '' ||
+      !Number.isFinite(calificacionNumerica) ||
+      calificacionNumerica < 0 ||
+      calificacionNumerica > 10
+    ) {
+      toast.error('La calificación debe estar entre 0 y 10')
+      return
+    }
+
     setGuardando(true)
     try {
       const res = await fetch('/api/profesor/entregas', {
@@ -64,7 +75,7 @@ export default function ProfesorEntregasPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: selected.id,
-          calificacion: Number(calificacion),
+          calificacion: calificacionNumerica,
           retroalimentacion,
         }),
       })
@@ -116,7 +127,7 @@ export default function ProfesorEntregasPage() {
                   </div>
                   {e.estado === 'revisada' ? (
                     <Badge className="bg-emerald-100 text-emerald-800">
-                      <CheckCircle className="mr-1 h-3 w-3" /> Revisada · {e.calificacion}
+                      <CheckCircle className="mr-1 h-3 w-3" /> Revisada · {e.calificacion}/10
                     </Badge>
                   ) : (
                     <Badge className="bg-amber-100 text-amber-800">
@@ -165,11 +176,12 @@ export default function ProfesorEntregasPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Calificación (0-100)</Label>
+              <Label>Calificación (0-10)</Label>
               <Input
                 type="number"
                 min={0}
-                max={100}
+                max={10}
+                step={0.1}
                 value={calificacion}
                 onChange={(ev) => setCalificacion(ev.target.value)}
               />

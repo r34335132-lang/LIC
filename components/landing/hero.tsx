@@ -17,7 +17,7 @@ const stats = [
   { value: 'RVOE', label: 'Validez oficial por programa' },
   { value: '$600', label: 'Mensualidad desde' },
   { value: 'Virtual', label: 'Clases y seguimiento' },
-  { value: 'Durango', label: 'Respaldo institucional' },
+  { value: 'México', label: 'Cobertura nacional' },
 ]
 
 export function Hero() {
@@ -26,7 +26,7 @@ export function Hero() {
       <div className="absolute inset-0 z-0">
         <img
           src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2100&auto=format&fit=crop"
-          alt="Estudiantes en institución educativa"
+          alt="Estudiantes de educación en línea en México"
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-black/62" />
@@ -46,11 +46,11 @@ export function Hero() {
           </div>
 
           <h1 className="text-4xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-5xl 2xl:text-6xl">
-            Estudia preparatoria, licenciatura o maestría con validez oficial SEP en Durango
+            Estudia preparatoria, licenciaturas o maestrías en línea desde cualquier lugar de México
           </h1>
 
           <p className="mt-5 max-w-2xl text-base font-medium leading-relaxed text-white/85 sm:text-lg">
-            Clases virtuales, horarios flexibles y acompañamiento durante tu proceso para avanzar sin dejar tu trabajo.
+            Programas con opciones de validez oficial, horarios flexibles y acompañamiento académico para estudiar desde cualquier estado del país.
           </p>
 
           <div className="mt-5 max-w-2xl border-l-4 border-brand-highlight bg-black/35 p-4 shadow-2xl backdrop-blur-md sm:p-5">

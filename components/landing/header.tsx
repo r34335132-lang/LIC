@@ -34,7 +34,7 @@ export function Header() {
       {/* Barra superior RVOE */}
       <div className="flex w-full items-center justify-center gap-2 bg-slate-950 px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
         <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand-highlight" />
-        <span>Programas con RVOE SEP Durango y validez oficial</span>
+        <span>Programas en línea con cobertura nacional y opciones con RVOE</span>
       </div>
 
       {/* BANNER SIN IMAGEN: Revalidación de Materias */}

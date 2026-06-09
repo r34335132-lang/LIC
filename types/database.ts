@@ -93,9 +93,29 @@ export interface Actividad {
   profesor_id: string
   titulo: string
   descripcion: string | null
+  unidad: string | null
+  instrucciones: string | null
   link_recurso: string | null
   fecha_entrega: string | null
   activo: boolean
+  created_at: string
+}
+
+export type TipoTareaRecurso =
+  | 'video'
+  | 'pdf'
+  | 'enlace'
+  | 'documento'
+  | 'lectura'
+
+export interface TareaRecurso {
+  id: string
+  tarea_id: string
+  titulo: string
+  descripcion: string | null
+  tipo: TipoTareaRecurso
+  url: string
+  orden: number
   created_at: string
 }
 

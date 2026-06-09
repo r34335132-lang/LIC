@@ -21,8 +21,8 @@ const contactItems = [
   },
   {
     icon: MapPin,
-    label: 'Ubicación',
-    value: 'Durango, Dgo.',
+    label: 'Cobertura',
+    value: 'Todo México',
   },
 ]
 
