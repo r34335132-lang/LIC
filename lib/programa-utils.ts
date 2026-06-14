@@ -53,6 +53,34 @@ export function getProgramaIdCandidates(programaId: string | null | undefined): 
   return [...new Set(candidates)]
 }
 
+type ProgramaDuracionInput = {
+  id?: string | null
+  nombre?: string | null
+  tipo?: string | null
+  duracion?: string | null
+}
+
+export function getProgramaDuracion(programa: ProgramaDuracionInput): string {
+  if (programa.tipo === 'maestria') return '1 año'
+
+  if (programa.tipo === 'licenciatura') {
+    const esPsicologia =
+      normalizeProgramaId(programa.id) === 'psicologia' ||
+      normalizeProgramaId(programa.nombre) === 'psicologia'
+
+    return esPsicologia ? '4 años' : '3 años'
+  }
+
+  return programa.duracion ?? ''
+}
+
+export function withProgramaDuracion<T extends ProgramaDuracionInput>(programa: T): T {
+  return {
+    ...programa,
+    duracion: getProgramaDuracion(programa),
+  }
+}
+
 export function labelTipoPrograma(tipo: string): string {
   return TIPOS_PROGRAMA.find((t) => t.value === tipo)?.label ?? tipo
 }

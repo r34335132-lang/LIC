@@ -331,7 +331,7 @@ export default function AdminProgramasPage() {
               <Input
                 value={form.duracion}
                 onChange={(e) => setForm({ ...form, duracion: e.target.value })}
-                placeholder="9 cuatrimestres"
+                placeholder="3 años"
               />
             </div>
             <div>

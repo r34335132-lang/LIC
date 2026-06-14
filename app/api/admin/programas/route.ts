@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
-import { slugifyProgramaId, TIPOS_PROGRAMA } from '@/lib/programa-utils'
+import {
+  slugifyProgramaId,
+  TIPOS_PROGRAMA,
+  withProgramaDuracion,
+} from '@/lib/programa-utils'
 import type { Programa, TipoPrograma } from '@/types/database'
 
 const TIPOS_VALIDOS = new Set(TIPOS_PROGRAMA.map((t) => t.value))
@@ -27,7 +31,8 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    return NextResponse.json({ programas: (data ?? []) as Programa[] })
+    const programas = ((data ?? []) as Programa[]).map(withProgramaDuracion)
+    return NextResponse.json({ programas })
   } catch (error) {
     console.error('Admin programas GET error:', error)
     return NextResponse.json({ error: 'Error al obtener programas' }, { status: 500 })
@@ -106,7 +111,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    return NextResponse.json({ programa: data as Programa })
+    return NextResponse.json({
+      programa: withProgramaDuracion(data as Programa),
+    })
   } catch (error) {
     console.error('Admin programas POST error:', error)
     return NextResponse.json({ error: 'Error al crear programa' }, { status: 500 })

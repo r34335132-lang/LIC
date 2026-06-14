@@ -123,7 +123,7 @@ export const programas: Programa[] = [
     nombre: 'Licenciatura en Derecho',
     tipo: 'licenciatura',
     descripcion: 'Formación integral en ciencias jurídicas con enfoque práctico y ético para el ejercicio profesional.',
-    duracion: '4 años',
+    duracion: '3 años',
     rvoe: '20230288', // RVOE
     imagen: 'https://images.unsplash.com/photo-1589391886645-d51941baf7fb?q=80&w=2070&auto=format&fit=crop',
     porQueEstudiar: 'El sistema jurídico requiere profesionales capaces de adaptarse a las nuevas reformas (penales, laborales, digitales). Estudiar Derecho con nosotros significa aprender a argumentar, negociar y litigar mediante el estudio de casos prácticos reales, alejándonos de la memorización tradicional para enfocarnos en la estrategia legal.',
@@ -197,7 +197,7 @@ export const programas: Programa[] = [
     nombre: 'Licenciatura en Pedagogía',
     tipo: 'licenciatura',
     descripcion: 'Formación de profesionales en educación con herramientas innovadoras para la enseñanza.',
-    duracion: '4 años',
+    duracion: '3 años',
     rvoe: '20230290', // RVOE
     imagen: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=2069&auto=format&fit=crop',
     porQueEstudiar: 'La educación está evolucionando más rápido que nunca con la llegada de las plataformas virtuales y la IA. Un pedagogo moderno no solo da clases; diseña sistemas de aprendizaje. Estudiando con nosotros te convertirás en un experto en metodologías activas, diseño curricular y tecnologías educativas, siendo indispensable en colegios y corporativos.',
@@ -234,7 +234,7 @@ export const programas: Programa[] = [
     nombre: 'Licenciatura en Criminología',
     tipo: 'licenciatura',
     descripcion: 'Estudio científico del delito, el delincuente y la víctima con enfoque en prevención y seguridad.',
-    duracion: '4 años',
+    duracion: '3 años',
     rvoe: '20230291', // RVOE
     imagen: 'https://utel.edu.mx/_next/image?url=https:%2F%2Fcmsutel.s3.amazonaws.com%2FLic_En_Criminologia_y_Cirminalistica_fea0de6be9.jpg&w=3840&q=75',
     porQueEstudiar: 'México y el mundo enfrentan retos de seguridad sin precedentes. Estudiar Criminología te convierte en una pieza clave para entender la mente criminal, prevenir delitos y diseñar políticas públicas. Nuestra metodología te preparará no solo para entender el crimen, sino para resolverlo y prevenirlo.',
@@ -271,7 +271,7 @@ export const programas: Programa[] = [
     nombre: 'Maestría en Educación',
     tipo: 'maestria',
     descripcion: 'Posgrado orientado a la innovación educativa y el liderazgo en instituciones de enseñanza.',
-    duracion: '2 años',
+    duracion: '1 año',
     rvoe: '20230350', // RVOE
     imagen: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop',
     porQueEstudiar: 'Lleva tu carrera docente al siguiente nivel. Esta maestría está diseñada para profesores, directivos y profesionistas que desean asumir puestos de liderazgo (coordinaciones, direcciones) o aspiran a escalar en el escalafón magisterial incrementando sus ingresos económicos.',
@@ -301,7 +301,7 @@ export const programas: Programa[] = [
     nombre: 'Maestría en Psicopedagogía',
     tipo: 'maestria',
     descripcion: 'Especialización en la intervención psicopedagógica para mejorar procesos de aprendizaje.',
-    duracion: '2 años',
+    duracion: '1 año',
     rvoe: '20230351', // RVOE
     imagen: 'https://www.anahuac.mx/sites/default/files/gbb-uploads/Licenciatura_Psicopedagogia_Introduccion-zgbvmw.jpg',
     porQueEstudiar: 'En las aulas actuales, las barreras de aprendizaje y la necesidad de inclusión son el desafío principal. Esta maestría te convierte en el especialista más buscado por colegios y padres de familia para diagnosticar, intervenir y potenciar el aprendizaje de niños y jóvenes con necesidades especiales o talentos sobresalientes.',

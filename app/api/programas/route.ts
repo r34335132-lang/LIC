@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { withProgramaDuracion } from '@/lib/programa-utils'
 import type { Programa } from '@/types/database'
 
 export async function GET() {
@@ -15,7 +16,8 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    return NextResponse.json({ programas: (data ?? []) as Programa[] })
+    const programas = ((data ?? []) as Programa[]).map(withProgramaDuracion)
+    return NextResponse.json({ programas })
   } catch (error) {
     console.error('GET programas error:', error)
     return NextResponse.json({ error: 'Error al obtener programas' }, { status: 500 })

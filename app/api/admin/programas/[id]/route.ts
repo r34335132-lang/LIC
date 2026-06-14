@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
-import { TIPOS_PROGRAMA } from '@/lib/programa-utils'
+import { TIPOS_PROGRAMA, withProgramaDuracion } from '@/lib/programa-utils'
 import type { Programa, TipoPrograma } from '@/types/database'
 
 const TIPOS_VALIDOS = new Set(TIPOS_PROGRAMA.map((t) => t.value))
@@ -95,7 +95,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Programa no encontrado' }, { status: 404 })
     }
 
-    return NextResponse.json({ programa: data as Programa })
+    return NextResponse.json({
+      programa: withProgramaDuracion(data as Programa),
+    })
   } catch (error) {
     console.error('Admin programas PATCH error:', error)
     return NextResponse.json({ error: 'Error al actualizar programa' }, { status: 500 })

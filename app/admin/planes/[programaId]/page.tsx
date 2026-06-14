@@ -14,7 +14,12 @@ import {
 import { getPerfilFromSession } from '@/lib/auth-server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cuatrimestreLabel } from '@/lib/academico-utils'
-import { getProgramaIdCandidates, labelTipoPrograma, normalizeProgramaId } from '@/lib/programa-utils'
+import {
+  getProgramaIdCandidates,
+  labelTipoPrograma,
+  normalizeProgramaId,
+  withProgramaDuracion,
+} from '@/lib/programa-utils'
 import type { Materia, Programa } from '@/types/database'
 
 type PageProps = {
@@ -71,7 +76,7 @@ export default async function AdminPlanProgramaPage({ params }: PageProps) {
   }
 
   const materias = (materiasData ?? []) as Materia[]
-  const p = programa as Programa
+  const p = withProgramaDuracion(programa as Programa)
 
   const porPeriodo = materias.reduce<Record<number, Materia[]>>((acc, m) => {
     if (!acc[m.periodo]) acc[m.periodo] = []

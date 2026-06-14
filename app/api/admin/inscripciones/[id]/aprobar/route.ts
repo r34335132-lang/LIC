@@ -11,7 +11,7 @@ import {
   formatPeriodoMensualidad,
   mensualidadMontoDefault,
 } from '@/lib/academico-utils'
-import { getProgramaIdCandidates, normalizeProgramaId } from '@/lib/programa-utils'
+import { getProgramaIdCandidates } from '@/lib/programa-utils'
 
 export async function POST(
   _request: Request,
@@ -48,8 +48,31 @@ export async function POST(
 
     const tempPassword = generateTempPassword()
     const matricula = await generateMatricula(admin)
-    const programaId = normalizeProgramaId(inscripcion.programa_id)
     const programaCandidates = getProgramaIdCandidates(inscripcion.programa_id)
+
+    const { data: programa, error: programaError } = await admin
+      .from('programas')
+      .select('id, nombre')
+      .in('id', programaCandidates)
+      .eq('activo', true)
+      .limit(1)
+      .maybeSingle()
+
+    if (programaError || !programa) {
+      console.error('Programa no encontrado para la inscripción:', {
+        programaId: inscripcion.programa_id,
+        candidates: programaCandidates,
+        error: programaError,
+      })
+      return NextResponse.json(
+        {
+          error: `Programa no válido para la inscripción: ${inscripcion.programa_id}`,
+          detail: programaError?.message ?? null,
+          candidates: programaCandidates,
+        },
+        { status: 400 }
+      )
+    }
 
     const { data: authData, error: authError } =
       await admin.auth.admin.createUser({
@@ -81,13 +104,18 @@ export async function POST(
         nombre_completo: inscripcion.nombre_completo,
         rol: 'alumno',
         matricula,
-        programa_id: programaId,
+        programa_id: programa.id,
         telefono: inscripcion.telefono,
       },
       { onConflict: 'id' }
     )
 
     if (perfilError) {
+      console.error('Error creando perfil, ejecutando rollback:', {
+        userId,
+        programaId: programa.id,
+        error: perfilError,
+      })
       await admin.auth.admin.deleteUser(userId)
       return NextResponse.json(
         { error: `No se pudo crear el perfil: ${perfilError.message}` },
@@ -98,7 +126,7 @@ export async function POST(
     const { data: materias } = await admin
       .from('materias')
       .select('id')
-      .in('programa_id', programaCandidates)
+      .in('programa_id', [...new Set([programa.id, ...programaCandidates])])
       .order('periodo', { ascending: true })
       .order('clave', { ascending: true })
 
@@ -113,7 +141,12 @@ export async function POST(
       )
       // Si falla asignar materias, hacemos rollback del perfil y del usuario Auth
       if (amError) {
-        console.error('Error asignando materias, ejecutando rollback:', amError)
+        console.error('Error asignando materias, ejecutando rollback:', {
+          userId,
+          programaId: programa.id,
+          materiasCount: materias.length,
+          error: amError,
+        })
         await admin.from('perfiles').delete().eq('id', userId)
         await admin.auth.admin.deleteUser(userId)
         return NextResponse.json(

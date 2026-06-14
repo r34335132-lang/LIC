@@ -58,7 +58,7 @@ export default function AdminPsicologiaPlanPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <Badge variant="outline">{planPsicologiaMeta.duracionSemestres} semestres</Badge>
+        <Badge variant="outline">4 años</Badge>
         <Badge variant="outline">{totalMaterias} materias</Badge>
         <Badge variant="outline">{totalCreditos} créditos totales</Badge>
       </div>

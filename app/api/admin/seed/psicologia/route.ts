@@ -18,7 +18,7 @@ export async function POST() {
         nombre: 'Licenciatura en Psicología',
         tipo: 'licenciatura',
         modalidad: 'Virtual',
-        duracion: '9 cuatrimestres',
+        duracion: '4 años',
         rvoe: null,
         descripcion: null,
         imagen_url: null,
