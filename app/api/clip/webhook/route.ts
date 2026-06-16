@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
-  clipStatusToMensualidadEstado,
+  clipCheckoutErrorMessage,
+  clipStatusToEstadoPago,
   extractClipWebhookPaymentId,
   extractClipWebhookReference,
   getClipCheckoutStatus,
 } from '@/lib/clip'
+import {
+  buildPaymentUpdateRecord,
+  parseMensualidadIdFromReference,
+} from '@/lib/mensualidades-pago'
 
 async function findMensualidadId(reference: string): Promise<string | null> {
   if (!reference.startsWith('MENSUALIDAD-')) return null
@@ -20,8 +25,7 @@ async function findMensualidadId(reference: string): Promise<string | null> {
 
   if (byRef?.id) return byRef.id
 
-  const parts = reference.split('-')
-  const mensualidadId = parts[1]
+  const mensualidadId = parseMensualidadIdFromReference(reference)
   if (!mensualidadId) return null
 
   const { data: byId } = await admin
@@ -35,15 +39,15 @@ async function findMensualidadId(reference: string): Promise<string | null> {
 
 async function findMensualidadByPaymentId(
   paymentRequestId: string
-): Promise<string | null> {
+): Promise<{ id: string; estado: string } | null> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('mensualidades')
-    .select('id')
+    .select('id, estado')
     .eq('clip_payment_id', paymentRequestId)
     .maybeSingle()
 
-  return data?.id ?? null
+  return data
 }
 
 async function procesarMensualidadPagada(
@@ -51,25 +55,31 @@ async function procesarMensualidadPagada(
   paymentRequestId: string
 ) {
   const clipStatus = await getClipCheckoutStatus(paymentRequestId)
-  const nuevoEstado = clipStatusToMensualidadEstado(clipStatus.status)
+  const estadoPago = clipStatusToEstadoPago(clipStatus.status)
+  const errorMsg =
+    estadoPago === 'pagado' ? null : clipCheckoutErrorMessage(clipStatus)
 
   const admin = createAdminClient()
-  const updates: Record<string, unknown> = {
-    clip_payment_id: paymentRequestId,
-  }
+  const { data: current } = await admin
+    .from('mensualidades')
+    .select('estado')
+    .eq('id', mensualidadId)
+    .maybeSingle()
 
-  if (nuevoEstado === 'pagado') {
-    updates.estado = 'pagado'
-    updates.paid_at = new Date().toISOString()
-  } else if (nuevoEstado === 'cancelado') {
-    updates.estado = 'cancelado'
-  } else if (nuevoEstado === 'fallido') {
-    updates.estado = 'vencido'
-  } else {
-    updates.estado = 'iniciado'
-  }
-
-  await admin.from('mensualidades').update(updates).eq('id', mensualidadId)
+  await admin
+    .from('mensualidades')
+    .update(
+      buildPaymentUpdateRecord(
+        {
+          metodo_pago: 'clip',
+          estado_pago: estadoPago,
+          pago_error_mensaje: errorMsg,
+          clip_payment_id: paymentRequestId,
+        },
+        current?.estado
+      )
+    )
+    .eq('id', mensualidadId)
 }
 
 export async function POST(request: Request) {
@@ -97,13 +107,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true })
     }
 
-    if (!reference) {
-      console.warn(
-        '[Clip webhook] Sin reference; usando payment_request_id para lookup. Body:',
-        JSON.stringify(body)
-      )
-    }
-
     let mensualidadId: string | null = null
 
     if (reference?.startsWith('MENSUALIDAD-')) {
@@ -111,7 +114,8 @@ export async function POST(request: Request) {
     }
 
     if (!mensualidadId && paymentRequestId) {
-      mensualidadId = await findMensualidadByPaymentId(paymentRequestId)
+      const row = await findMensualidadByPaymentId(paymentRequestId)
+      mensualidadId = row?.id ?? null
     }
 
     if (!mensualidadId) {

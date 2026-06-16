@@ -16,14 +16,16 @@ import {
 } from '@/components/ui/table'
 import { CreditCard, CheckCircle, Clock, AlertCircle, ExternalLink, Info } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Mensualidad } from '@/types/database'
+import type { Mensualidad, MetodoPago } from '@/types/database'
 import type { EstadoMensualidadEfectivo } from '@/lib/academico-utils'
+import { CLIP_DECLINED_USER_MESSAGE } from '@/lib/mensualidades-pago'
 
 type MensualidadRow = Mensualidad & { estadoEfectivo: EstadoMensualidadEfectivo }
 type PaymentResponse = {
   error?: string
   detail?: string
   checkoutUrl?: string
+  metodo?: MetodoPago
   clip?: {
     message?: string
     detail?: string
@@ -37,6 +39,7 @@ export default function PagosPage() {
   const [loading, setLoading] = useState(true)
   const [pagando, setPagando] = useState<string | null>(null)
   const [esperandoConfirmacion, setEsperandoConfirmacion] = useState(false)
+  const [mensajeDeclinado, setMensajeDeclinado] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -61,10 +64,21 @@ export default function PagosPage() {
 
   useEffect(() => {
     const pago = searchParams.get('pago')
+    const metodo = searchParams.get('metodo')
     if (!pago) return
 
     void (async () => {
       const rows = await load()
+
+      if (pago === 'declinado' || (pago === 'error' && metodo === 'clip')) {
+        setEsperandoConfirmacion(false)
+        setMensajeDeclinado(
+          metodo === 'clip' || !metodo
+            ? CLIP_DECLINED_USER_MESSAGE
+            : 'El pago no fue aprobado. Intenta con otro método o tarjeta.'
+        )
+        return
+      }
 
       if (pago === 'error') {
         setEsperandoConfirmacion(false)
@@ -72,15 +86,22 @@ export default function PagosPage() {
         return
       }
 
-      if (pago === 'ok') {
-        const algunaIniciada = rows.some((m) => m.estado === 'iniciado')
-        const algunaPagada = rows.some((m) => m.estado === 'pagado')
+      if (pago === 'ok' || pago === 'pendiente') {
+        setMensajeDeclinado(null)
+        const algunaPagada = rows.some(
+          (m) => m.estado === 'pagado' || m.estado_pago === 'pagado'
+        )
+        const algunaPendienteConfirmar = rows.some(
+          (m) =>
+            m.estado_pago === 'pendiente' ||
+            m.estado === 'iniciado'
+        )
 
-        if (algunaIniciada && !algunaPagada) {
-          setEsperandoConfirmacion(true)
-        } else if (algunaPagada) {
+        if (algunaPagada && pago === 'ok') {
           setEsperandoConfirmacion(false)
           toast.success('¡Pago confirmado!')
+        } else if (algunaPendienteConfirmar) {
+          setEsperandoConfirmacion(true)
         } else {
           setEsperandoConfirmacion(true)
         }
@@ -88,13 +109,16 @@ export default function PagosPage() {
     })()
   }, [searchParams, load])
 
-  const pagar = async (id: string) => {
-    setPagando(id)
+  const pagar = async (id: string, metodo: MetodoPago) => {
+    setPagando(`${id}:${metodo}`)
     setEsperandoConfirmacion(false)
+    setMensajeDeclinado(null)
     try {
       const res = await fetch(`/api/dashboard/pagos/${id}/pagar`, {
         method: 'POST',
         credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metodo }),
       })
       const rawText = await res.text()
       let data: PaymentResponse | null = null
@@ -126,6 +150,12 @@ export default function PagosPage() {
     } finally {
       setPagando(null)
     }
+  }
+
+  const continuarPago = (m: MensualidadRow) => {
+    const url =
+      m.metodo_pago === 'mercado_pago' ? m.mp_checkout_url : m.clip_checkout_url
+    if (url) window.location.href = url
   }
 
   const estadoBadge = (estado: EstadoMensualidadEfectivo) => {
@@ -160,42 +190,73 @@ export default function PagosPage() {
     }
   }
 
-  const botonPago = (m: MensualidadRow) => {
-    if (m.estadoEfectivo === 'pagado') {
+  const botonesPago = (m: MensualidadRow) => {
+    if (m.estadoEfectivo === 'pagado' || m.estado_pago === 'pagado') {
       return (
         <Badge className="bg-emerald-100 text-emerald-800">
           <CheckCircle className="mr-1 h-3 w-3" /> Pagado
         </Badge>
       )
     }
-    if (m.clip_checkout_url && m.estado === 'iniciado') {
-      return (
-        <Button
-          size="sm"
-          variant="outline"
-          className="bg-brand-primary text-white hover:bg-brand-primary/90"
-          disabled={pagando === m.id}
-          onClick={() => pagar(m.id)}
-        >
-          <ExternalLink className="mr-1 h-4 w-4" />
-          Continuar pago
-        </Button>
-      )
-    }
-    if (['pendiente', 'iniciado', 'vencido'].includes(m.estadoEfectivo)) {
-      return (
-        <Button
-          size="sm"
-          className="bg-brand-primary"
-          disabled={pagando === m.id}
-          onClick={() => pagar(m.id)}
-        >
-          <CreditCard className="mr-1 h-4 w-4" />
-          {pagando === m.id ? 'Procesando...' : 'Pagar ahora'}
-        </Button>
-      )
-    }
-    return null
+
+    const puedePagar = ['pendiente', 'iniciado', 'vencido'].includes(m.estadoEfectivo)
+    if (!puedePagar) return null
+
+    const checkoutPendiente =
+      m.estado_pago === 'pendiente' &&
+      ((m.metodo_pago === 'mercado_pago' && m.mp_checkout_url) ||
+        (m.metodo_pago === 'clip' && m.clip_checkout_url))
+
+    const pagandoMp = pagando === `${m.id}:mercado_pago`
+    const pagandoClip = pagando === `${m.id}:clip`
+    const deshabilitado = pagando !== null
+
+    return (
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        {checkoutPendiente && m.metodo_pago === 'mercado_pago' ? (
+          <Button
+            size="sm"
+            className="bg-brand-primary"
+            disabled={deshabilitado}
+            onClick={() => continuarPago(m)}
+          >
+            <ExternalLink className="mr-1 h-4 w-4" />
+            Continuar con Mercado Pago
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            className="bg-brand-primary"
+            disabled={deshabilitado}
+            onClick={() => pagar(m.id, 'mercado_pago')}
+          >
+            <CreditCard className="mr-1 h-4 w-4" />
+            {pagandoMp ? 'Procesando...' : 'Pagar con Mercado Pago'}
+          </Button>
+        )}
+
+        {checkoutPendiente && m.metodo_pago === 'clip' ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={deshabilitado}
+            onClick={() => continuarPago(m)}
+          >
+            <ExternalLink className="mr-1 h-4 w-4" />
+            Continuar con Clip
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={deshabilitado}
+            onClick={() => pagar(m.id, 'clip')}
+          >
+            {pagandoClip ? 'Procesando...' : 'Pagar con Clip'}
+          </Button>
+        )}
+      </div>
+    )
   }
 
   if (loading) {
@@ -206,9 +267,16 @@ export default function PagosPage() {
     )
   }
 
+  const metodoRedirect = searchParams.get('metodo')
+  const proveedorEspera =
+    metodoRedirect === 'mercadopago' || actual?.metodo_pago === 'mercado_pago'
+      ? 'Mercado Pago'
+      : 'Clip'
+
   const mostrarEspera =
     esperandoConfirmacion ||
-    (searchParams.get('pago') === 'ok' && actual?.estado === 'iniciado')
+    (searchParams.get('pago') === 'ok' &&
+      (actual?.estado === 'iniciado' || actual?.estado_pago === 'pendiente'))
 
   return (
     <div className="space-y-6">
@@ -219,12 +287,19 @@ export default function PagosPage() {
         </p>
       </div>
 
+      {mensajeDeclinado && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{mensajeDeclinado}</AlertDescription>
+        </Alert>
+      )}
+
       {mostrarEspera && (
         <Alert className="border-blue-200 bg-blue-50">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-900">
-            Pago enviado, esperando confirmación de Clip. El estado se actualizará en unos momentos;
-            no es necesario volver a pagar.
+            Pago enviado, esperando confirmación de {proveedorEspera}. El estado se actualizará en unos
+            momentos; no es necesario volver a pagar.
           </AlertDescription>
         </Alert>
       )}
@@ -250,7 +325,7 @@ export default function PagosPage() {
               )}
               {estadoBadge(actual.estadoEfectivo)}
             </div>
-            {botonPago(actual)}
+            {botonesPago(actual)}
           </CardContent>
         </Card>
       )}
@@ -284,7 +359,7 @@ export default function PagosPage() {
                         : '-'}
                     </TableCell>
                     <TableCell>{estadoBadge(m.estadoEfectivo)}</TableCell>
-                    <TableCell>{botonPago(m)}</TableCell>
+                    <TableCell>{botonesPago(m)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

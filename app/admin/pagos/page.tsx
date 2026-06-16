@@ -96,6 +96,22 @@ export default function AdminPagosPage() {
     }
   }
 
+  const metodoLabel = (metodo: string | null) => {
+    if (metodo === 'mercado_pago') return 'Mercado Pago'
+    if (metodo === 'clip') return 'Clip'
+    return '—'
+  }
+
+  const estadoPagoColor = (estado: string | null) => {
+    const map: Record<string, string> = {
+      pagado: 'bg-green-100 text-green-800',
+      pendiente: 'bg-blue-100 text-blue-800',
+      declinado: 'bg-orange-100 text-orange-800',
+      error: 'bg-red-100 text-red-800',
+    }
+    return map[estado ?? ''] ?? 'bg-gray-100 text-gray-800'
+  }
+
   const estadoColor = (estado: string) => {
     const map: Record<string, string> = {
       pagado: 'bg-green-100 text-green-800',
@@ -155,6 +171,8 @@ export default function AdminPagosPage() {
                   <TableHead>Monto</TableHead>
                   <TableHead>Vencimiento</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Método</TableHead>
+                  <TableHead>Pago</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -180,6 +198,17 @@ export default function AdminPagosPage() {
                     </TableCell>
                     <TableCell>
                       <Badge className={estadoColor(m.estadoEfectivo)}>{m.estadoEfectivo}</Badge>
+                    </TableCell>
+                    <TableCell>{metodoLabel(m.metodo_pago)}</TableCell>
+                    <TableCell>
+                      <Badge className={estadoPagoColor(m.estado_pago)}>
+                        {m.estado_pago ?? '—'}
+                      </Badge>
+                      {m.pago_error_mensaje && (
+                        <p className="text-xs text-muted-foreground mt-1 max-w-[200px] truncate" title={m.pago_error_mensaje}>
+                          {m.pago_error_mensaje}
+                        </p>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

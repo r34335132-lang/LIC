@@ -1,3 +1,5 @@
+import type { EstadoPagoMensualidad } from '@/types/database'
+
 const DEFAULT_CLIP_BASE_URL = 'https://api-gw.payclip.com'
 const DEFAULT_CLIP_CHECKOUT_PATH = '/checkout'
 const PRODUCTION_SITE_URL = 'https://lic-two.vercel.app'
@@ -14,10 +16,13 @@ export type ClipCheckoutResponse = {
   status: string
 }
 
+
 export type ClipCheckoutStatus = {
   payment_request_id: string
   status: string
   external_reference?: string
+  failure_reason?: string
+  error_message?: string
 }
 
 export type ClipApiFailure = {
@@ -361,8 +366,8 @@ export async function createClipCheckout(params: {
     currency: params.currency ?? 'MXN',
     purchase_description: params.description.slice(0, 250),
     redirection_url: {
-      success: `${siteUrl}/dashboard/pagos?pago=ok`,
-      error: `${siteUrl}/dashboard/pagos?pago=error`,
+      success: `${siteUrl}/dashboard/pagos?pago=ok&metodo=clip`,
+      error: `${siteUrl}/dashboard/pagos?pago=declinado&metodo=clip`,
       default: `${siteUrl}/dashboard/pagos`,
     },
     metadata: {
@@ -440,7 +445,47 @@ export async function getClipCheckoutStatus(
       data.external_reference ??
       data.metadata?.external_reference ??
       data.metadata?.me_reference_id,
+    failure_reason: readString(
+      (data as { failure_reason?: unknown }).failure_reason
+    ) ?? undefined,
+    error_message: readString(
+      (data as { error_message?: unknown; message?: unknown }).error_message ??
+        (data as { message?: unknown }).message
+    ) ?? undefined,
   }
+}
+
+export function clipStatusToEstadoPago(clipStatus: string): EstadoPagoMensualidad {
+  const s = clipStatus.toUpperCase()
+  if (s === 'CHECKOUT_COMPLETED' || s === 'COMPLETED' || s === 'PAID') {
+    return 'pagado'
+  }
+  if (
+    s.includes('DECLIN') ||
+    s.includes('REJECT') ||
+    s === 'FAILED' ||
+    s === 'CHECKOUT_FAILED' ||
+    s === 'PAYMENT_DECLINED'
+  ) {
+    return 'declinado'
+  }
+  if (
+    s === 'CHECKOUT_CANCELLED' ||
+    s === 'CANCELED' ||
+    s === 'CANCELLED' ||
+    s === 'CHECKOUT_EXPIRED' ||
+    s === 'EXPIRED'
+  ) {
+    return 'error'
+  }
+  return 'pendiente'
+}
+
+export function clipCheckoutErrorMessage(status: ClipCheckoutStatus): string | null {
+  const parts = [status.status, status.failure_reason, status.error_message].filter(
+    Boolean
+  )
+  return parts.length > 0 ? parts.join(' — ') : null
 }
 
 export function clipStatusToMensualidadEstado(

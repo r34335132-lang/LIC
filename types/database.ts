@@ -133,6 +133,10 @@ export interface AlumnoMateriaDetalle extends AlumnoMateria {
   actividades?: Actividad[]
 }
 
+export type MetodoPago = 'mercado_pago' | 'clip'
+
+export type EstadoPagoMensualidad = 'pendiente' | 'pagado' | 'declinado' | 'error'
+
 export type EstadoMensualidad =
   | 'pendiente'
   | 'iniciado'
@@ -152,6 +156,13 @@ export interface Mensualidad {
   moneda: string
   estado: EstadoMensualidad
   fecha_vencimiento: string | null
+  metodo_pago: MetodoPago | null
+  estado_pago: EstadoPagoMensualidad | null
+  pago_error_mensaje: string | null
+  mp_preference_id: string | null
+  mp_payment_id: string | null
+  mp_checkout_url: string | null
+  mp_reference: string | null
   clip_checkout_url: string | null
   clip_reference: string | null
   clip_payment_id: string | null

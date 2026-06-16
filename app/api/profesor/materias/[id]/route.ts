@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
+import { loadProfesorMateriaAsignacion } from '@/lib/profesor-materias'
 
 export async function GET(
   _request: Request,
@@ -15,25 +16,36 @@ export async function GET(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { id } = await params
+    const { id: profesorMateriaId } = await params
     const admin = createAdminClient()
+
+    const asignacion = await loadProfesorMateriaAsignacion(
+      admin,
+      profesorMateriaId,
+      { userId: session.userId, rol: session.perfil.rol }
+    )
+
+    if (!asignacion.ok) {
+      return NextResponse.json(
+        { error: asignacion.error },
+        { status: asignacion.status }
+      )
+    }
 
     const { data: pm, error: pmError } = await admin
       .from('profesor_materias')
       .select('*, materia:materias(*)')
-      .eq('id', id)
+      .eq('id', asignacion.asignacion.id)
       .single()
 
     if (pmError || !pm) {
-      return NextResponse.json({ error: 'Materia no encontrada' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Asignación de profesor no encontrada' },
+        { status: 404 }
+      )
     }
 
-    if (
-      session.perfil.rol === 'profesor' &&
-      pm.profesor_id !== session.userId
-    ) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-    }
+    const materiaId = pm.materia_id
 
     const [{ data: alumnos, error: alError }, { data: actividades, error: actError }] =
       await Promise.all([
@@ -42,11 +54,11 @@ export async function GET(
           .select(
             '*, alumno:perfiles!alumno_materias_alumno_id_fkey(id, nombre_completo, matricula, email)'
           )
-          .eq('materia_id', pm.materia_id),
+          .eq('materia_id', materiaId),
         admin
           .from('actividades')
           .select('*')
-          .eq('materia_id', pm.materia_id)
+          .eq('materia_id', materiaId)
           .order('created_at', { ascending: false }),
       ])
 
@@ -85,6 +97,8 @@ export async function GET(
 
     return NextResponse.json({
       profesorMateria: pm,
+      materiaId,
+      profesorMateriaId: asignacion.asignacion.id,
       alumnos: alumnos ?? [],
       actividades: (actividades ?? []).map((actividad) => ({
         ...actividad,

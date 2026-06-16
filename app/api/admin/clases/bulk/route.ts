@@ -65,8 +65,6 @@ export async function POST(request: Request) {
       .from('profesor_materias')
       .select('materia_id')
       .eq('profesor_id', profesor_id)
-      .eq('grupo', grupo)
-      .eq('periodo_escolar', periodo_escolar)
       .in('materia_id', materiaIds)
 
     const existingSet = new Set((existing ?? []).map((e) => e.materia_id))

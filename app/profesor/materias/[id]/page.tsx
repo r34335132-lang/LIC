@@ -113,6 +113,7 @@ export default function ProfesorMateriaDetailPage({
     try {
       const res = await fetch(url, {
         method,
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
@@ -139,7 +140,6 @@ export default function ProfesorMateriaDetailPage({
     callApi('/api/profesor/profesor-materias', 'PATCH', { id, ...updates }, 'Clase actualizada')
 
   const createActividad = async () => {
-    if (!pm?.materia_id) return
     if (!newAct.titulo.trim()) {
       toast.error('El título es requerido')
       return
@@ -147,7 +147,7 @@ export default function ProfesorMateriaDetailPage({
     const ok = await callApi(
       '/api/profesor/actividades',
       'POST',
-      { materia_id: pm.materia_id, ...newAct },
+      { profesor_materia_id: id, ...newAct },
       'Actividad creada'
     )
     if (ok) {

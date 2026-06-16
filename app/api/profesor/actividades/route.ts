@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
+import {
+  profesorTieneMateria,
+  resolveMateriaIdForProfesor,
+} from '@/lib/profesor-materias'
 import type { TipoTareaRecurso } from '@/types/database'
 
 const TIPOS_RECURSO = new Set<TipoTareaRecurso>([
@@ -83,20 +87,6 @@ async function replaceRecursos(
   if (insertError) throw insertError
 }
 
-async function profesorTieneMateria(
-  admin: ReturnType<typeof createAdminClient>,
-  profesorId: string,
-  materiaId: string
-) {
-  const { data } = await admin
-    .from('profesor_materias')
-    .select('id')
-    .eq('materia_id', materiaId)
-    .eq('profesor_id', profesorId)
-    .maybeSingle()
-  return !!data
-}
-
 export async function POST(request: Request) {
   try {
     const session = await getPerfilFromSession()
@@ -108,16 +98,12 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const materia_id = typeof body.materia_id === 'string' ? body.materia_id : ''
     const titulo = typeof body.titulo === 'string' ? body.titulo.trim() : ''
     const { descripcion, unidad, instrucciones, link_recurso, fecha_entrega } = body
     const recursos = parseRecursos(body.recursos)
 
-    if (!materia_id || !titulo) {
-      return NextResponse.json(
-        { error: 'Materia y título son requeridos' },
-        { status: 400 }
-      )
+    if (!titulo) {
+      return NextResponse.json({ error: 'El título es requerido' }, { status: 400 })
     }
 
     if (body.recursos !== undefined && recursos?.length !== body.recursos.length) {
@@ -129,16 +115,19 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient()
 
-    // El profesor solo puede crear actividades en materias asignadas
-    if (
-      session.perfil.rol === 'profesor' &&
-      !(await profesorTieneMateria(admin, session.userId, materia_id))
-    ) {
-      return NextResponse.json(
-        { error: 'No tienes esta materia asignada' },
-        { status: 403 }
-      )
+    const resolved = await resolveMateriaIdForProfesor(admin, {
+      userId: session.userId,
+      rol: session.perfil.rol,
+    }, {
+      profesor_materia_id: body.profesor_materia_id,
+      materia_id: body.materia_id,
+    })
+
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: resolved.status })
     }
+
+    const materia_id = resolved.materiaId
 
     const { data, error } = await admin
       .from('actividades')
@@ -266,7 +255,7 @@ export async function PATCH(request: Request) {
       !(await profesorTieneMateria(admin, session.userId, actividad.materia_id))
     ) {
       return NextResponse.json(
-        { error: 'No puedes modificar esta actividad' },
+        { error: 'El profesor no está asignado a esta materia' },
         { status: 403 }
       )
     }

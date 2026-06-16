@@ -52,6 +52,20 @@ export async function POST(request: Request) {
       )
     }
 
+    const { data: existing } = await admin
+      .from('profesor_materias')
+      .select('id')
+      .eq('profesor_id', profesor_id)
+      .eq('materia_id', materia_id)
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Este profesor ya está asignado a esa materia' },
+        { status: 409 }
+      )
+    }
+
     const { data, error } = await admin
       .from('profesor_materias')
       .insert({
