@@ -1,15 +1,33 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
+  getMercadoPagoMerchantOrder,
   getMercadoPagoPayment,
+  isMercadoPagoMerchantOrderTopic,
+  isMercadoPagoPaymentTopic,
   mercadoPagoErrorMessage,
   mercadoPagoStatusToEstadoPago,
+  type MercadoPagoPayment,
 } from '@/lib/mercadopago'
 import {
   buildPaymentUpdateRecord,
   parseMensualidadIdFromReference,
 } from '@/lib/mensualidades-pago'
 import { finalizarCuponEnMensualidadPagada } from '@/lib/cupones'
+
+type WebhookBody = {
+  type?: string
+  topic?: string
+  action?: string
+  data?: { id?: string | number }
+  id?: string | number
+}
+
+type ParsedWebhookEvent = {
+  topic: string | null
+  resourceId: string | null
+  source: 'query' | 'body' | null
+}
 
 async function findMensualidadByReference(reference: string) {
   const admin = createAdminClient()
@@ -50,14 +68,104 @@ async function findMensualidadByMpPaymentId(paymentId: string) {
   return data
 }
 
-async function procesarPagoMercadoPago(paymentId: string) {
-  const payment = await getMercadoPagoPayment(paymentId)
+function parseWebhookEvent(url: URL, body: WebhookBody | null): ParsedWebhookEvent {
+  const queryTopic = url.searchParams.get('topic')
+  const queryId = url.searchParams.get('id')
+
+  if (queryTopic || queryId) {
+    return {
+      topic: queryTopic ?? body?.type ?? body?.topic ?? null,
+      resourceId: queryId ?? (body?.data?.id != null ? String(body.data.id) : null),
+      source: 'query',
+    }
+  }
+
+  if (body) {
+    const topic = body.type ?? body.topic ?? body.action ?? null
+    const resourceId =
+      body.data?.id != null
+        ? String(body.data.id)
+        : body.id != null
+          ? String(body.id)
+          : null
+    return { topic, resourceId, source: 'body' }
+  }
+
+  return { topic: null, resourceId: null, source: null }
+}
+
+async function resolveApprovedPaymentFromMerchantOrder(
+  merchantOrderId: string
+): Promise<MercadoPagoPayment | null> {
+  const merchantOrder = await getMercadoPagoMerchantOrder(merchantOrderId)
+
+  console.info('[MP webhook] merchant_order consultada', {
+    merchant_order_id: merchantOrderId,
+    order_id: merchantOrder.id,
+    external_reference: merchantOrder.external_reference ?? null,
+    payments_count: merchantOrder.payments?.length ?? 0,
+  })
+
+  const approvedInOrder = merchantOrder.payments?.find(
+    (payment) => payment.status?.toLowerCase() === 'approved'
+  )
+
+  if (!approvedInOrder?.id) {
+    console.info('[MP webhook] Sin payment approved en merchant_order', {
+      merchant_order_id: merchantOrderId,
+      payments: merchantOrder.payments?.map((p) => ({
+        id: p.id,
+        status: p.status,
+      })),
+    })
+    return null
+  }
+
+  console.info('[MP webhook] payment_id encontrado en merchant_order', {
+    merchant_order_id: merchantOrderId,
+    payment_id: approvedInOrder.id,
+  })
+
+  const payment = await getMercadoPagoPayment(approvedInOrder.id)
+
+  console.info('[MP webhook] payment consultado', {
+    payment_id: payment.id,
+    external_reference: payment.external_reference ?? merchantOrder.external_reference ?? null,
+    status: payment.status,
+    status_detail: payment.status_detail ?? null,
+  })
+
+  if (payment.status?.toLowerCase() !== 'approved') {
+    console.info('[MP webhook] payment no approved tras consulta directa', {
+      payment_id: payment.id,
+      status: payment.status,
+    })
+    return null
+  }
+
+  if (!payment.external_reference && merchantOrder.external_reference) {
+    payment.external_reference = merchantOrder.external_reference
+  }
+
+  return payment
+}
+
+async function actualizarMensualidadDesdePago(payment: MercadoPagoPayment) {
   const estadoPago = mercadoPagoStatusToEstadoPago(
     payment.status,
     payment.status_detail
   )
   const errorMsg =
     estadoPago === 'pagado' ? null : mercadoPagoErrorMessage(payment)
+
+  console.info('[MP webhook] estado final del pago', {
+    payment_id: payment.id,
+    external_reference: payment.external_reference ?? null,
+    proveedor_pago: 'mercadopago',
+    mercado_pago_payment_id: String(payment.id),
+    mp_status: payment.status,
+    estado_pago: estadoPago,
+  })
 
   let mensualidadId: string | null = null
   let currentEstado: string | undefined
@@ -76,8 +184,8 @@ async function procesarPagoMercadoPago(paymentId: string) {
 
   if (!mensualidadId) {
     console.warn('[MP webhook] Mensualidad no encontrada', {
-      paymentId,
-      external_reference: payment.external_reference,
+      payment_id: payment.id,
+      external_reference: payment.external_reference ?? null,
     })
     return
   }
@@ -99,44 +207,80 @@ async function procesarPagoMercadoPago(paymentId: string) {
     .eq('id', mensualidadId)
 
   if (estadoPago === 'pagado') {
+    console.info('[MP webhook] mensualidad marcada como pagada', {
+      mensualidad_id: mensualidadId,
+      payment_id: payment.id,
+      proveedor_pago: 'mercadopago',
+    })
     await finalizarCuponEnMensualidadPagada(admin, mensualidadId)
   }
 }
 
-export async function POST(request: Request) {
-  try {
-    const url = new URL(request.url)
-    const topic = url.searchParams.get('topic')
-    const queryId = url.searchParams.get('id')
+async function procesarPagoMercadoPago(paymentId: string) {
+  const payment = await getMercadoPagoPayment(paymentId)
+  await actualizarMensualidadDesdePago(payment)
+}
 
-    let paymentId: string | null = queryId
+async function handleWebhook(request: Request) {
+  const url = new URL(request.url)
+  let body: WebhookBody | null = null
 
-    if (!paymentId) {
-      try {
-        const body = (await request.json()) as {
-          type?: string
-          topic?: string
-          data?: { id?: string | number }
-          id?: string | number
-        }
-        const type = body.type ?? body.topic ?? topic
-        if (type === 'payment' && body.data?.id != null) {
-          paymentId = String(body.data.id)
-        } else if (body.id != null && !paymentId) {
-          paymentId = String(body.id)
-        }
-      } catch {
-        // body vacío en algunos pings
+  if (request.method === 'POST') {
+    try {
+      const raw = await request.text()
+      if (raw) {
+        body = JSON.parse(raw) as WebhookBody
       }
+    } catch {
+      console.warn('[MP webhook] Body JSON inválido')
     }
+  }
 
-    if (!paymentId) {
-      console.warn('[MP webhook] Sin payment id', { topic, queryId })
+  const event = parseWebhookEvent(url, body)
+
+  console.info('[MP webhook] evento recibido', {
+    topic: event.topic,
+    id: event.resourceId,
+    source: event.source,
+    method: request.method,
+  })
+
+  if (!event.topic || !event.resourceId) {
+    console.warn('[MP webhook] Sin topic o id utilizable', {
+      topic: event.topic,
+      id: event.resourceId,
+    })
+    return NextResponse.json({ received: true })
+  }
+
+  if (isMercadoPagoMerchantOrderTopic(event.topic)) {
+    const payment = await resolveApprovedPaymentFromMerchantOrder(event.resourceId)
+    if (!payment) {
+      console.info('[MP webhook] merchant_order sin pago approved; no se actualiza mensualidad', {
+        merchant_order_id: event.resourceId,
+      })
       return NextResponse.json({ received: true })
     }
 
-    await procesarPagoMercadoPago(paymentId)
+    await actualizarMensualidadDesdePago(payment)
     return NextResponse.json({ received: true })
+  }
+
+  if (isMercadoPagoPaymentTopic(event.topic)) {
+    await procesarPagoMercadoPago(event.resourceId)
+    return NextResponse.json({ received: true })
+  }
+
+  console.warn('[MP webhook] topic no soportado; ignorado', {
+    topic: event.topic,
+    id: event.resourceId,
+  })
+  return NextResponse.json({ received: true })
+}
+
+export async function POST(request: Request) {
+  try {
+    return await handleWebhook(request)
   } catch (error) {
     console.error('[MP webhook] error:', error)
     return NextResponse.json({ received: true })
@@ -144,5 +288,10 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  return POST(request)
+  try {
+    return await handleWebhook(request)
+  } catch (error) {
+    console.error('[MP webhook] error:', error)
+    return NextResponse.json({ received: true })
+  }
 }

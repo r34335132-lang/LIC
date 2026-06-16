@@ -50,3 +50,4 @@ CREATE POLICY "admin_all_cupones" ON public.cupones
       WHERE id = auth.uid() AND rol = 'admin'
     )
   );
+BECA100

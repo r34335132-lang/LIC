@@ -22,6 +22,17 @@ export type MercadoPagoPayment = {
   transaction_amount?: number
 }
 
+export type MercadoPagoMerchantOrderPayment = {
+  id: number | string
+  status: string
+}
+
+export type MercadoPagoMerchantOrder = {
+  id: number | string
+  external_reference?: string
+  payments?: MercadoPagoMerchantOrderPayment[]
+}
+
 export { MercadoPagoApiError } from '@/lib/mercadopago-config'
 
 function getSiteUrl(): string {
@@ -129,6 +140,30 @@ export async function getMercadoPagoPayment(
     `/v1/payments/${paymentId}`,
     config.accessToken
   )
+}
+
+export async function getMercadoPagoMerchantOrder(
+  merchantOrderId: string | number
+): Promise<MercadoPagoMerchantOrder> {
+  const config = validateMercadoPagoConfig()
+  return mpFetch<MercadoPagoMerchantOrder>(
+    `/merchant_orders/${merchantOrderId}`,
+    config.accessToken
+  )
+}
+
+export function isMercadoPagoMerchantOrderTopic(topic: string): boolean {
+  const normalized = topic.trim().toLowerCase()
+  return (
+    normalized === 'merchant_order' ||
+    normalized === 'topic_merchant_order_wh' ||
+    normalized.includes('merchant_order')
+  )
+}
+
+export function isMercadoPagoPaymentTopic(topic: string): boolean {
+  const normalized = topic.trim().toLowerCase()
+  return normalized === 'payment' || normalized.startsWith('topic_payment')
 }
 
 export function mercadoPagoStatusToEstadoPago(
