@@ -26,92 +26,125 @@ type WebhookBody = {
 type ParsedWebhookEvent = {
   topic: string | null
   resourceId: string | null
-  source: 'query' | 'body' | null
+  source: 'query' | 'body' | 'mixed' | null
 }
 
-async function findMensualidadByReference(reference: string) {
+type MensualidadWebhookRow = {
+  id: string
+  estado: string
+  estado_pago: string | null
+  mp_payment_id: string | null
+  cupon_id: string | null
+  cupon_consumido: boolean
+}
+
+function parseWebhookEvent(url: URL, body: WebhookBody | null): ParsedWebhookEvent {
+  const queryTopic =
+    url.searchParams.get('topic') ?? url.searchParams.get('type')
+
+  const queryId =
+    url.searchParams.get('data.id') ?? url.searchParams.get('id')
+
+  const bodyTopic = body?.topic ?? body?.type ?? null
+  const bodyId =
+    body?.data?.id != null
+      ? String(body.data.id)
+      : body?.id != null
+        ? String(body.id)
+        : null
+
+  const topic = queryTopic ?? bodyTopic
+  const resourceId = queryId ?? bodyId
+
+  let source: ParsedWebhookEvent['source'] = null
+  if ((queryTopic || queryId) && (bodyTopic || bodyId)) source = 'mixed'
+  else if (queryTopic || queryId) source = 'query'
+  else if (bodyTopic || bodyId) source = 'body'
+
+  return { topic, resourceId, source }
+}
+
+async function findMensualidadByReference(
+  reference: string
+): Promise<MensualidadWebhookRow | null> {
   const admin = createAdminClient()
+  const select =
+    'id, estado, estado_pago, mp_payment_id, cupon_id, cupon_consumido'
 
   const { data: byMpRef } = await admin
     .from('mensualidades')
-    .select('id, estado')
+    .select(select)
     .eq('mp_reference', reference)
     .maybeSingle()
-  if (byMpRef?.id) return byMpRef
-
-  const { data: byClipRef } = await admin
-    .from('mensualidades')
-    .select('id, estado')
-    .eq('clip_reference', reference)
-    .maybeSingle()
-  if (byClipRef?.id) return byClipRef
+  if (byMpRef?.id) return byMpRef as MensualidadWebhookRow
 
   const mensualidadId = parseMensualidadIdFromReference(reference)
   if (!mensualidadId) return null
 
   const { data: byId } = await admin
     .from('mensualidades')
-    .select('id, estado')
+    .select(select)
     .eq('id', mensualidadId)
     .maybeSingle()
 
-  return byId
+  return (byId as MensualidadWebhookRow | null) ?? null
 }
 
-async function findMensualidadByMpPaymentId(paymentId: string) {
+async function findMensualidadByMpPaymentId(
+  paymentId: string
+): Promise<MensualidadWebhookRow | null> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('mensualidades')
-    .select('id, estado')
+    .select('id, estado, estado_pago, mp_payment_id, cupon_id, cupon_consumido')
     .eq('mp_payment_id', paymentId)
     .maybeSingle()
-  return data
+
+  return (data as MensualidadWebhookRow | null) ?? null
 }
 
-function parseWebhookEvent(url: URL, body: WebhookBody | null): ParsedWebhookEvent {
-  const queryTopic = url.searchParams.get('topic')
-  const queryId = url.searchParams.get('id')
+function mensualidadYaPagada(m: MensualidadWebhookRow): boolean {
+  return m.estado_pago === 'pagado' || m.estado === 'pagado'
+}
 
-  if (queryTopic || queryId) {
-    return {
-      topic: queryTopic ?? body?.type ?? body?.topic ?? null,
-      resourceId: queryId ?? (body?.data?.id != null ? String(body.data.id) : null),
-      source: 'query',
-    }
+async function resolveMensualidadForPayment(
+  payment: MercadoPagoPayment
+): Promise<MensualidadWebhookRow | null> {
+  if (payment.external_reference) {
+    const byRef = await findMensualidadByReference(payment.external_reference)
+    if (byRef) return byRef
   }
 
-  if (body) {
-    const topic = body.type ?? body.topic ?? body.action ?? null
-    const resourceId =
-      body.data?.id != null
-        ? String(body.data.id)
-        : body.id != null
-          ? String(body.id)
-          : null
-    return { topic, resourceId, source: 'body' }
-  }
-
-  return { topic: null, resourceId: null, source: null }
+  return findMensualidadByMpPaymentId(String(payment.id))
 }
 
 async function resolveApprovedPaymentFromMerchantOrder(
   merchantOrderId: string
 ): Promise<MercadoPagoPayment | null> {
   const merchantOrder = await getMercadoPagoMerchantOrder(merchantOrderId)
+  const orderStatus = merchantOrder.status?.toLowerCase() ?? null
 
   console.info('[MP webhook] merchant_order consultada', {
     merchant_order_id: merchantOrderId,
     order_id: merchantOrder.id,
+    order_status: orderStatus,
     external_reference: merchantOrder.external_reference ?? null,
     payments_count: merchantOrder.payments?.length ?? 0,
   })
 
+  if (orderStatus === 'opened') {
+    console.info('[MP webhook] merchant_order opened; no se marca mensualidad', {
+      merchant_order_id: merchantOrderId,
+    })
+    return null
+  }
+
   const approvedInOrder = merchantOrder.payments?.find(
-    (payment) => payment.status?.toLowerCase() === 'approved'
+    (p) => p.status?.toLowerCase() === 'approved'
   )
 
   if (!approvedInOrder?.id) {
-    console.info('[MP webhook] Sin payment approved en merchant_order', {
+    console.info('[MP webhook] sin payment approved en merchant_order', {
       merchant_order_id: merchantOrderId,
       payments: merchantOrder.payments?.map((p) => ({
         id: p.id,
@@ -121,27 +154,30 @@ async function resolveApprovedPaymentFromMerchantOrder(
     return null
   }
 
-  console.info('[MP webhook] payment_id encontrado en merchant_order', {
+  console.info('[MP webhook] payment encontrado en merchant_order', {
     merchant_order_id: merchantOrderId,
     payment_id: approvedInOrder.id,
+    payment_status: approvedInOrder.status,
   })
 
   const payment = await getMercadoPagoPayment(approvedInOrder.id)
 
-  console.info('[MP webhook] payment consultado', {
-    payment_id: payment.id,
-    external_reference: payment.external_reference ?? merchantOrder.external_reference ?? null,
-    status: payment.status,
-    status_detail: payment.status_detail ?? null,
-  })
-
   if (payment.status?.toLowerCase() !== 'approved') {
-    console.info('[MP webhook] payment no approved tras consulta directa', {
+    console.info('[MP webhook] payment no approved tras consulta API', {
       payment_id: payment.id,
       status: payment.status,
+      status_detail: payment.status_detail ?? null,
     })
     return null
   }
+
+  console.info('[MP webhook] payment aprobado', {
+    payment_id: payment.id,
+    external_reference:
+      payment.external_reference ?? merchantOrder.external_reference ?? null,
+    status: payment.status,
+    status_detail: payment.status_detail ?? null,
+  })
 
   if (!payment.external_reference && merchantOrder.external_reference) {
     payment.external_reference = merchantOrder.external_reference
@@ -150,7 +186,10 @@ async function resolveApprovedPaymentFromMerchantOrder(
   return payment
 }
 
-async function actualizarMensualidadDesdePago(payment: MercadoPagoPayment) {
+async function actualizarMensualidadDesdePago(
+  payment: MercadoPagoPayment
+): Promise<void> {
+  const paymentId = String(payment.id)
   const estadoPago = mercadoPagoStatusToEstadoPago(
     payment.status,
     payment.status_detail
@@ -158,40 +197,49 @@ async function actualizarMensualidadDesdePago(payment: MercadoPagoPayment) {
   const errorMsg =
     estadoPago === 'pagado' ? null : mercadoPagoErrorMessage(payment)
 
-  console.info('[MP webhook] estado final del pago', {
-    payment_id: payment.id,
+  console.info('[MP webhook] procesando actualización de mensualidad', {
+    payment_id: paymentId,
     external_reference: payment.external_reference ?? null,
-    proveedor_pago: 'mercadopago',
-    mercado_pago_payment_id: String(payment.id),
     mp_status: payment.status,
     estado_pago: estadoPago,
   })
 
-  let mensualidadId: string | null = null
-  let currentEstado: string | undefined
+  const mensualidad = await resolveMensualidadForPayment(payment)
 
-  if (payment.external_reference) {
-    const row = await findMensualidadByReference(payment.external_reference)
-    mensualidadId = row?.id ?? null
-    currentEstado = row?.estado
-  }
-
-  if (!mensualidadId) {
-    const row = await findMensualidadByMpPaymentId(String(payment.id))
-    mensualidadId = row?.id ?? null
-    currentEstado = row?.estado
-  }
-
-  if (!mensualidadId) {
-    console.warn('[MP webhook] Mensualidad no encontrada', {
-      payment_id: payment.id,
+  if (!mensualidad) {
+    console.warn('[MP webhook] mensualidad no encontrada', {
+      payment_id: paymentId,
       external_reference: payment.external_reference ?? null,
     })
     return
   }
 
+  if (mensualidadYaPagada(mensualidad)) {
+    console.info('[MP webhook] mensualidad ya pagada; idempotente skip', {
+      mensualidad_id: mensualidad.id,
+      mp_payment_id: mensualidad.mp_payment_id,
+      payment_id: paymentId,
+    })
+    return
+  }
+
+  const otraConMismoPago = await findMensualidadByMpPaymentId(paymentId)
+  if (
+    otraConMismoPago &&
+    otraConMismoPago.id !== mensualidad.id &&
+    mensualidadYaPagada(otraConMismoPago)
+  ) {
+    console.warn('[MP webhook] mp_payment_id ya usado en otra mensualidad pagada', {
+      payment_id: paymentId,
+      mensualidad_id: mensualidad.id,
+      otra_mensualidad_id: otraConMismoPago.id,
+    })
+    return
+  }
+
   const admin = createAdminClient()
-  await admin
+
+  const { data: updated, error: updateError } = await admin
     .from('mensualidades')
     .update(
       buildPaymentUpdateRecord(
@@ -199,82 +247,108 @@ async function actualizarMensualidadDesdePago(payment: MercadoPagoPayment) {
           metodo_pago: 'mercado_pago',
           estado_pago: estadoPago,
           pago_error_mensaje: errorMsg,
-          mp_payment_id: String(payment.id),
+          mp_payment_id: paymentId,
         },
-        currentEstado
+        mensualidad.estado
       )
     )
-    .eq('id', mensualidadId)
+    .eq('id', mensualidad.id)
+    .neq('estado_pago', 'pagado')
+    .select('id')
+    .maybeSingle()
+
+  if (updateError) {
+    console.error('[MP webhook] error al actualizar mensualidad', {
+      mensualidad_id: mensualidad.id,
+      payment_id: paymentId,
+      error: updateError.message,
+    })
+    return
+  }
+
+  if (!updated) {
+    console.info('[MP webhook] mensualidad no actualizada (ya pagada concurrente)', {
+      mensualidad_id: mensualidad.id,
+      payment_id: paymentId,
+    })
+    return
+  }
+
+  console.info('[MP webhook] mensualidad actualizada', {
+    mensualidad_id: mensualidad.id,
+    payment_id: paymentId,
+    estado_pago: estadoPago,
+    proveedor_pago: 'mercadopago',
+  })
 
   if (estadoPago === 'pagado') {
-    console.info('[MP webhook] mensualidad marcada como pagada', {
-      mensualidad_id: mensualidadId,
-      payment_id: payment.id,
-      proveedor_pago: 'mercadopago',
-    })
-    await finalizarCuponEnMensualidadPagada(admin, mensualidadId)
+    try {
+      await finalizarCuponEnMensualidadPagada(admin, mensualidad.id)
+      console.info('[MP webhook] cupón finalizado', {
+        mensualidad_id: mensualidad.id,
+        cupon_id: mensualidad.cupon_id,
+        cupon_consumido: mensualidad.cupon_consumido,
+      })
+    } catch (cuponError) {
+      console.error('[MP webhook] error al finalizar cupón', {
+        mensualidad_id: mensualidad.id,
+        error: cuponError instanceof Error ? cuponError.message : String(cuponError),
+      })
+    }
   }
 }
 
-async function procesarPagoMercadoPago(paymentId: string) {
+async function procesarPagoMercadoPago(paymentId: string): Promise<void> {
   const payment = await getMercadoPagoPayment(paymentId)
   await actualizarMensualidadDesdePago(payment)
 }
 
-async function handleWebhook(request: Request) {
+async function handleWebhook(request: Request): Promise<NextResponse> {
   const url = new URL(request.url)
   let body: WebhookBody | null = null
 
   if (request.method === 'POST') {
     try {
       const raw = await request.text()
-      if (raw) {
-        body = JSON.parse(raw) as WebhookBody
-      }
+      if (raw) body = JSON.parse(raw) as WebhookBody
     } catch {
-      console.warn('[MP webhook] Body JSON inválido')
+      console.warn('[MP webhook] body JSON inválido')
     }
   }
 
-  const event = parseWebhookEvent(url, body)
+  const { topic, resourceId, source } = parseWebhookEvent(url, body)
 
-  console.info('[MP webhook] evento recibido', {
-    topic: event.topic,
-    id: event.resourceId,
-    source: event.source,
+  console.info('[MP webhook]', {
+    topic,
+    resourceId,
+    source,
     method: request.method,
   })
 
-  if (!event.topic || !event.resourceId) {
-    console.warn('[MP webhook] Sin topic o id utilizable', {
-      topic: event.topic,
-      id: event.resourceId,
+  if (!topic || !resourceId) {
+    console.warn('[MP webhook] sin topic/type o id utilizable', {
+      topic,
+      resourceId,
+      query: url.search,
     })
     return NextResponse.json({ received: true })
   }
 
-  if (isMercadoPagoMerchantOrderTopic(event.topic)) {
-    const payment = await resolveApprovedPaymentFromMerchantOrder(event.resourceId)
+  if (isMercadoPagoMerchantOrderTopic(topic)) {
+    const payment = await resolveApprovedPaymentFromMerchantOrder(resourceId)
     if (!payment) {
-      console.info('[MP webhook] merchant_order sin pago approved; no se actualiza mensualidad', {
-        merchant_order_id: event.resourceId,
-      })
       return NextResponse.json({ received: true })
     }
-
     await actualizarMensualidadDesdePago(payment)
     return NextResponse.json({ received: true })
   }
 
-  if (isMercadoPagoPaymentTopic(event.topic)) {
-    await procesarPagoMercadoPago(event.resourceId)
+  if (isMercadoPagoPaymentTopic(topic)) {
+    await procesarPagoMercadoPago(resourceId)
     return NextResponse.json({ received: true })
   }
 
-  console.warn('[MP webhook] topic no soportado; ignorado', {
-    topic: event.topic,
-    id: event.resourceId,
-  })
+  console.warn('[MP webhook] topic/type no soportado', { topic, resourceId })
   return NextResponse.json({ received: true })
 }
 
@@ -282,7 +356,9 @@ export async function POST(request: Request) {
   try {
     return await handleWebhook(request)
   } catch (error) {
-    console.error('[MP webhook] error:', error)
+    console.error('[MP webhook] error no controlado', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json({ received: true })
   }
 }
@@ -291,7 +367,9 @@ export async function GET(request: Request) {
   try {
     return await handleWebhook(request)
   } catch (error) {
-    console.error('[MP webhook] error:', error)
+    console.error('[MP webhook] error no controlado', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json({ received: true })
   }
 }

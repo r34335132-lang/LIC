@@ -29,6 +29,7 @@ export type MercadoPagoMerchantOrderPayment = {
 
 export type MercadoPagoMerchantOrder = {
   id: number | string
+  status?: string
   external_reference?: string
   payments?: MercadoPagoMerchantOrderPayment[]
 }
@@ -152,18 +153,15 @@ export async function getMercadoPagoMerchantOrder(
   )
 }
 
+const MERCHANT_ORDER_TOPICS = new Set(['merchant_order', 'topic_merchant_order_wh'])
+const PAYMENT_TOPICS = new Set(['payment', 'topic_payment_wh'])
+
 export function isMercadoPagoMerchantOrderTopic(topic: string): boolean {
-  const normalized = topic.trim().toLowerCase()
-  return (
-    normalized === 'merchant_order' ||
-    normalized === 'topic_merchant_order_wh' ||
-    normalized.includes('merchant_order')
-  )
+  return MERCHANT_ORDER_TOPICS.has(topic.trim().toLowerCase())
 }
 
 export function isMercadoPagoPaymentTopic(topic: string): boolean {
-  const normalized = topic.trim().toLowerCase()
-  return normalized === 'payment' || normalized.startsWith('topic_payment')
+  return PAYMENT_TOPICS.has(topic.trim().toLowerCase())
 }
 
 export function mercadoPagoStatusToEstadoPago(
