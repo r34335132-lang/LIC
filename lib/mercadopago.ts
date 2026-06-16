@@ -1,5 +1,10 @@
 import { SITE_URL } from '@/lib/marketing'
 import { buildMensualidadPaymentReference } from '@/lib/mensualidades-pago'
+import {
+  MercadoPagoApiError,
+  resolvePreferenceCheckoutUrl,
+  validateMercadoPagoConfig,
+} from '@/lib/mercadopago-config'
 
 const MP_API = 'https://api.mercadopago.com'
 
@@ -17,25 +22,7 @@ export type MercadoPagoPayment = {
   transaction_amount?: number
 }
 
-export class MercadoPagoApiError extends Error {
-  readonly status: number
-  readonly body: unknown
-
-  constructor(message: string, status: number, body: unknown) {
-    super(message)
-    this.name = 'MercadoPagoApiError'
-    this.status = status
-    this.body = body
-  }
-}
-
-function getAccessToken(): string {
-  const token = process.env.MERCADOPAGO_ACCESS_TOKEN?.trim()
-  if (!token) {
-    throw new MercadoPagoApiError('MERCADOPAGO_ACCESS_TOKEN no configurado', 0, null)
-  }
-  return token
-}
+export { MercadoPagoApiError } from '@/lib/mercadopago-config'
 
 function getSiteUrl(): string {
   return (
@@ -49,11 +36,15 @@ function checkoutBaseUrl(): string {
   return `${getSiteUrl()}/dashboard/pagos`
 }
 
-async function mpFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function mpFetch<T>(
+  path: string,
+  accessToken: string,
+  init?: RequestInit
+): Promise<T> {
   const res = await fetch(`${MP_API}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${getAccessToken()}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
       ...(init?.headers ?? {}),
     },
@@ -86,6 +77,7 @@ export async function createMercadoPagoPreference(params: {
   amount: number
   payerEmail?: string
 }): Promise<{ preferenceId: string; checkoutUrl: string; reference: string }> {
+  const config = validateMercadoPagoConfig()
   const siteUrl = getSiteUrl()
   const reference = buildMensualidadPaymentReference(params.mensualidadId)
   const base = checkoutBaseUrl()
@@ -111,15 +103,16 @@ export async function createMercadoPagoPreference(params: {
     notification_url: `${siteUrl}/api/mercadopago/webhook`,
   }
 
-  const data = await mpFetch<MercadoPagoPreferenceResponse>('/checkout/preferences', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  const data = await mpFetch<MercadoPagoPreferenceResponse>(
+    '/checkout/preferences',
+    config.accessToken,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  )
 
-  const checkoutUrl =
-    process.env.MERCADOPAGO_SANDBOX === 'true' && data.sandbox_init_point
-      ? data.sandbox_init_point
-      : data.init_point
+  const checkoutUrl = resolvePreferenceCheckoutUrl(data, config.sandbox)
 
   if (!data.id || !checkoutUrl) {
     throw new MercadoPagoApiError('Respuesta inválida de Mercado Pago', 502, data)
@@ -131,7 +124,11 @@ export async function createMercadoPagoPreference(params: {
 export async function getMercadoPagoPayment(
   paymentId: string | number
 ): Promise<MercadoPagoPayment> {
-  return mpFetch<MercadoPagoPayment>(`/v1/payments/${paymentId}`)
+  const config = validateMercadoPagoConfig()
+  return mpFetch<MercadoPagoPayment>(
+    `/v1/payments/${paymentId}`,
+    config.accessToken
+  )
 }
 
 export function mercadoPagoStatusToEstadoPago(
@@ -153,3 +150,8 @@ export function mercadoPagoErrorMessage(payment: MercadoPagoPayment): string | n
   const parts = [payment.status, payment.status_detail].filter(Boolean)
   return parts.length > 0 ? parts.join(' — ') : null
 }
+
+export {
+  canReuseMercadoPagoCheckoutUrl,
+  validateMercadoPagoConfig,
+} from '@/lib/mercadopago-config'

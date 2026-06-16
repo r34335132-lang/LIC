@@ -19,6 +19,10 @@ import { toast } from 'sonner'
 import type { Mensualidad, MetodoPago } from '@/types/database'
 import type { EstadoMensualidadEfectivo } from '@/lib/academico-utils'
 import { CLIP_DECLINED_USER_MESSAGE } from '@/lib/mensualidades-pago'
+import {
+  canReuseMercadoPagoCheckoutUrlClient,
+  validateClientMercadoPagoPublicKey,
+} from '@/lib/mercadopago-client'
 
 type MensualidadRow = Mensualidad & { estadoEfectivo: EstadoMensualidadEfectivo }
 type PaymentResponse = {
@@ -40,6 +44,11 @@ export default function PagosPage() {
   const [pagando, setPagando] = useState<string | null>(null)
   const [esperandoConfirmacion, setEsperandoConfirmacion] = useState(false)
   const [mensajeDeclinado, setMensajeDeclinado] = useState<string | null>(null)
+  const [configMpError, setConfigMpError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setConfigMpError(validateClientMercadoPagoPublicKey())
+  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -153,9 +162,16 @@ export default function PagosPage() {
   }
 
   const continuarPago = (m: MensualidadRow) => {
-    const url =
-      m.metodo_pago === 'mercado_pago' ? m.mp_checkout_url : m.clip_checkout_url
-    if (url) window.location.href = url
+    if (m.metodo_pago === 'mercado_pago') {
+      const url = m.mp_checkout_url
+      if (url && canReuseMercadoPagoCheckoutUrlClient(url)) {
+        window.location.href = url
+        return
+      }
+      void pagar(m.id, 'mercado_pago')
+      return
+    }
+    if (m.clip_checkout_url) window.location.href = m.clip_checkout_url
   }
 
   const estadoBadge = (estado: EstadoMensualidadEfectivo) => {
@@ -204,7 +220,9 @@ export default function PagosPage() {
 
     const checkoutPendiente =
       m.estado_pago === 'pendiente' &&
-      ((m.metodo_pago === 'mercado_pago' && m.mp_checkout_url) ||
+      ((m.metodo_pago === 'mercado_pago' &&
+        m.mp_checkout_url &&
+        canReuseMercadoPagoCheckoutUrlClient(m.mp_checkout_url)) ||
         (m.metodo_pago === 'clip' && m.clip_checkout_url))
 
     const pagandoMp = pagando === `${m.id}:mercado_pago`
@@ -286,6 +304,15 @@ export default function PagosPage() {
           Consulta y paga tus mensualidades. La inscripción es gratuita; el primer pago es tu mensualidad.
         </p>
       </div>
+
+      {configMpError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Mercado Pago no está configurado correctamente: {configMpError}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {mensajeDeclinado && (
         <Alert variant="destructive">

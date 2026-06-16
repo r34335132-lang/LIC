@@ -7,6 +7,7 @@ import {
 } from '@/lib/clip'
 import {
   MercadoPagoApiError,
+  canReuseMercadoPagoCheckoutUrl,
   createMercadoPagoPreference,
 } from '@/lib/mercadopago'
 import { buildMensualidadPaymentReference, buildPaymentUpdateRecord } from '@/lib/mensualidades-pago'
@@ -53,7 +54,12 @@ export async function POST(
     const amount = Number(m.monto)
 
     if (metodo === 'mercado_pago') {
-      if (m.mp_checkout_url && m.metodo_pago === 'mercado_pago' && m.estado_pago === 'pendiente') {
+      if (
+        m.mp_checkout_url &&
+        m.metodo_pago === 'mercado_pago' &&
+        m.estado_pago === 'pendiente' &&
+        canReuseMercadoPagoCheckoutUrl(m.mp_checkout_url)
+      ) {
         return NextResponse.json({
           success: true,
           checkoutUrl: m.mp_checkout_url,
@@ -154,13 +160,19 @@ export async function POST(
     console.error('[PAGAR_ERROR]', error)
 
     if (error instanceof MercadoPagoApiError) {
+      const status =
+        error.status >= 400 && error.status < 500
+          ? error.status
+          : error.status === 0
+            ? 503
+            : 502
       return NextResponse.json(
         {
           error: error.message,
           metodo: 'mercado_pago',
           provider: { status: error.status, body: error.body },
         },
-        { status: error.status >= 400 && error.status < 500 ? 400 : 502 }
+        { status }
       )
     }
 
