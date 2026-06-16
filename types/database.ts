@@ -133,7 +133,21 @@ export interface AlumnoMateriaDetalle extends AlumnoMateria {
   actividades?: Actividad[]
 }
 
-export type MetodoPago = 'mercado_pago' | 'clip'
+export type MetodoPago = 'mercado_pago' | 'clip' | 'cupon'
+
+export type TipoCupon = 'porcentaje'
+
+export interface Cupon {
+  id: string
+  codigo: string
+  tipo: TipoCupon
+  valor: number
+  activo: boolean
+  usos_maximos: number | null
+  usos_actuales: number
+  expires_at: string | null
+  created_at: string
+}
 
 export type EstadoPagoMensualidad = 'pendiente' | 'pagado' | 'declinado' | 'error'
 
@@ -166,6 +180,11 @@ export interface Mensualidad {
   clip_checkout_url: string | null
   clip_reference: string | null
   clip_payment_id: string | null
+  cupon_id: string | null
+  cupon_codigo: string | null
+  monto_descuento: number | null
+  monto_final: number | null
+  cupon_consumido: boolean
   paid_at: string | null
   created_at: string
 }

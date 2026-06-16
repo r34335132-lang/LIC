@@ -6,6 +6,11 @@ import {
   getClipConfiguration,
 } from '@/lib/clip'
 import {
+  CuponError,
+  buildCuponFieldsUpdate,
+  validarCuponParaMonto,
+} from '@/lib/cupones'
+import {
   MercadoPagoApiError,
   canReuseMercadoPagoCheckoutUrl,
   createMercadoPagoPreference,
@@ -22,6 +27,12 @@ function parseMetodo(body: unknown): MetodoPago | null {
   if (metodo === 'clip' || metodo === 'mercado_pago') return metodo
   if (!metodo) return 'mercado_pago'
   return null
+}
+
+function parseCodigoCupon(body: unknown): string {
+  if (!body || typeof body !== 'object') return ''
+  const codigo = (body as { codigo_cupon?: string }).codigo_cupon
+  return typeof codigo === 'string' ? codigo.trim() : ''
 }
 
 export async function POST(
@@ -51,10 +62,36 @@ export async function POST(
     if (!loaded.ok) return loaded.response
 
     const { admin, mensualidad: m } = loaded.data
-    const amount = Number(m.monto)
+    const codigoCupon = parseCodigoCupon(body)
+
+    let amount = Number(m.monto)
+    let cuponUpdate: Record<string, unknown> = {}
+
+    if (codigoCupon) {
+      const calculo = await validarCuponParaMonto(admin, codigoCupon, amount)
+      if (calculo.cubiertoTotal) {
+        return NextResponse.json(
+          {
+            error:
+              'Este cupón cubre el total. Usa "Aplicar cupón" en lugar del checkout.',
+          },
+          { status: 400 }
+        )
+      }
+      amount = calculo.montoFinal
+      cuponUpdate = buildCuponFieldsUpdate(calculo)
+    }
+
+    if (amount <= 0) {
+      return NextResponse.json(
+        { error: 'El monto a cobrar debe ser mayor a cero' },
+        { status: 400 }
+      )
+    }
 
     if (metodo === 'mercado_pago') {
       if (
+        !codigoCupon &&
         m.mp_checkout_url &&
         m.metodo_pago === 'mercado_pago' &&
         m.estado_pago === 'pendiente' &&
@@ -76,8 +113,8 @@ export async function POST(
 
       const { error: updateError } = await admin
         .from('mensualidades')
-        .update(
-          buildPaymentUpdateRecord(
+        .update({
+          ...buildPaymentUpdateRecord(
             {
               metodo_pago: 'mercado_pago',
               estado_pago: 'pendiente',
@@ -87,8 +124,10 @@ export async function POST(
               mp_preference_id: preference.preferenceId,
             },
             m.estado
-          )
-        )
+          ),
+          ...cuponUpdate,
+          cupon_consumido: false,
+        })
         .eq('id', m.id)
         .eq('alumno_id', loaded.data.userId)
 
@@ -103,12 +142,18 @@ export async function POST(
         success: true,
         checkoutUrl: preference.checkoutUrl,
         metodo: 'mercado_pago',
+        montoFinal: amount,
       })
     }
 
     getClipConfiguration()
 
-    if (m.clip_checkout_url && m.metodo_pago === 'clip' && m.estado_pago === 'pendiente') {
+    if (
+      !codigoCupon &&
+      m.clip_checkout_url &&
+      m.metodo_pago === 'clip' &&
+      m.estado_pago === 'pendiente'
+    ) {
       return NextResponse.json({
         success: true,
         checkoutUrl: m.clip_checkout_url,
@@ -128,8 +173,8 @@ export async function POST(
 
     const { error: updateError } = await admin
       .from('mensualidades')
-      .update(
-        buildPaymentUpdateRecord(
+      .update({
+        ...buildPaymentUpdateRecord(
           {
             metodo_pago: 'clip',
             estado_pago: 'pendiente',
@@ -139,8 +184,10 @@ export async function POST(
             clip_payment_id: checkout.payment_request_id,
           },
           m.estado
-        )
-      )
+        ),
+        ...cuponUpdate,
+        cupon_consumido: false,
+      })
       .eq('id', m.id)
       .eq('alumno_id', loaded.data.userId)
 
@@ -155,9 +202,14 @@ export async function POST(
       success: true,
       checkoutUrl: checkout.payment_request_url,
       metodo: 'clip',
+      montoFinal: amount,
     })
   } catch (error) {
     console.error('[PAGAR_ERROR]', error)
+
+    if (error instanceof CuponError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
 
     if (error instanceof MercadoPagoApiError) {
       const status =

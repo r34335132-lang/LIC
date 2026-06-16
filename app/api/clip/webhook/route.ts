@@ -11,6 +11,7 @@ import {
   buildPaymentUpdateRecord,
   parseMensualidadIdFromReference,
 } from '@/lib/mensualidades-pago'
+import { finalizarCuponEnMensualidadPagada } from '@/lib/cupones'
 
 async function findMensualidadId(reference: string): Promise<string | null> {
   if (!reference.startsWith('MENSUALIDAD-')) return null
@@ -80,6 +81,10 @@ async function procesarMensualidadPagada(
       )
     )
     .eq('id', mensualidadId)
+
+  if (estadoPago === 'pagado') {
+    await finalizarCuponEnMensualidadPagada(admin, mensualidadId)
+  }
 }
 
 export async function POST(request: Request) {

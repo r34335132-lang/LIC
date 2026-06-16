@@ -9,6 +9,7 @@ import {
   buildPaymentUpdateRecord,
   parseMensualidadIdFromReference,
 } from '@/lib/mensualidades-pago'
+import { finalizarCuponEnMensualidadPagada } from '@/lib/cupones'
 
 async function findMensualidadByReference(reference: string) {
   const admin = createAdminClient()
@@ -96,6 +97,10 @@ async function procesarPagoMercadoPago(paymentId: string) {
       )
     )
     .eq('id', mensualidadId)
+
+  if (estadoPago === 'pagado') {
+    await finalizarCuponEnMensualidadPagada(admin, mensualidadId)
+  }
 }
 
 export async function POST(request: Request) {

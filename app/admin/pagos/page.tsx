@@ -99,6 +99,7 @@ export default function AdminPagosPage() {
   const metodoLabel = (metodo: string | null) => {
     if (metodo === 'mercado_pago') return 'Mercado Pago'
     if (metodo === 'clip') return 'Clip'
+    if (metodo === 'cupon') return 'Cupón / beca'
     return '—'
   }
 
