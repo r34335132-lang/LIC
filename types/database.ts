@@ -113,6 +113,19 @@ export interface Actividad {
   created_at: string
 }
 
+export type TipoAviso = 'general' | 'materia' | 'urgente' | 'clase'
+
+export interface Aviso {
+  id: string
+  profesor_id: string
+  materia_id: string
+  titulo: string
+  contenido: string
+  tipo: TipoAviso
+  activo: boolean
+  created_at: string
+}
+
 export type TipoTareaRecurso =
   | 'video'
   | 'pdf'

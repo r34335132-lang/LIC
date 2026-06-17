@@ -9,12 +9,8 @@ import { CheckCircle2, Eye, CreditCard } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { toast } from 'sonner'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import type { Inscripcion } from '@/types/database'
 
 type Credentials = {
@@ -29,6 +25,50 @@ export default function AdminInscripcionesPage() {
   const [loading, setLoading] = useState<string | null>(null)
   const [credentials, setCredentials] = useState<Credentials | null>(null)
   const [detalle, setDetalle] = useState<Inscripcion | null>(null)
+  const [editPago, setEditPago] = useState({ apartado_pagado_at: '', estado_pago: '' })
+  const [guardandoPago, setGuardandoPago] = useState(false)
+
+  const toDateTimeLocal = (iso: string | null) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
+  const abrirDetalle = (ins: Inscripcion) => {
+    setDetalle(ins)
+    setEditPago({
+      apartado_pagado_at: toDateTimeLocal(ins.apartado_pagado_at),
+      estado_pago: ins.estado_pago ?? '',
+    })
+  }
+
+  const guardarPagoInscripcion = async () => {
+    if (!detalle) return
+    setGuardandoPago(true)
+    try {
+      const res = await fetch(`/api/admin/inscripciones/${detalle.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apartado_pagado_at: editPago.apartado_pagado_at
+            ? new Date(editPago.apartado_pagado_at).toISOString()
+            : null,
+          estado_pago: editPago.estado_pago || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al guardar')
+      toast.success('Pago de apartado actualizado')
+      setDetalle(data.inscripcion)
+      await load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar')
+    } finally {
+      setGuardandoPago(false)
+    }
+  }
 
   const load = useCallback(async () => {
     const res = await fetch('/api/admin/inscripciones', { credentials: 'include' })
@@ -155,7 +195,7 @@ export default function AdminInscripcionesPage() {
                 </div>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => setDetalle(ins)}>
+                <Button variant="outline" size="sm" onClick={() => abrirDetalle(ins)}>
                   <Eye className="mr-1 h-4 w-4" /> Detalle
                 </Button>
                 {(ins.estado === 'pendiente' || ins.estado === 'apartado') && (
@@ -216,9 +256,32 @@ export default function AdminInscripcionesPage() {
                 ) : '—'}
               </p>
               <p>
-                <span className="font-medium">Fecha:</span>{' '}
+                <span className="font-medium">Fecha solicitud:</span>{' '}
                 {format(new Date(detalle.created_at), "d MMM yyyy HH:mm", { locale: es })}
               </p>
+
+              <div className="mt-4 rounded-lg border p-4 space-y-3">
+                <p className="font-bold text-sm">Editar pago de apartado</p>
+                <div>
+                  <Label className="text-xs">Fecha de pago</Label>
+                  <Input
+                    type="datetime-local"
+                    value={editPago.apartado_pagado_at}
+                    onChange={(e) => setEditPago({ ...editPago, apartado_pagado_at: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Estado pago</Label>
+                  <Input
+                    placeholder="pagado, pendiente, declinado..."
+                    value={editPago.estado_pago}
+                    onChange={(e) => setEditPago({ ...editPago, estado_pago: e.target.value })}
+                  />
+                </div>
+                <Button size="sm" className="bg-brand-primary" onClick={guardarPagoInscripcion} disabled={guardandoPago}>
+                  {guardandoPago ? 'Guardando...' : 'Guardar fecha de pago'}
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

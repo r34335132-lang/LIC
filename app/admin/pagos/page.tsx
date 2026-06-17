@@ -27,7 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { CreditCard, Plus } from 'lucide-react'
+import { CreditCard, Plus, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Mensualidad, Perfil } from '@/types/database'
 import type { EstadoMensualidadEfectivo } from '@/lib/academico-utils'
@@ -44,6 +44,15 @@ export default function AdminPagosPage() {
   const [loading, setLoading] = useState(true)
   const [generando, setGenerando] = useState(false)
   const [dialogGenerar, setDialogGenerar] = useState(false)
+  const [editando, setEditando] = useState<MensualidadAdmin | null>(null)
+  const [guardando, setGuardando] = useState(false)
+  const [editForm, setEditForm] = useState({
+    estado: 'pendiente',
+    estado_pago: '',
+    monto: '',
+    fecha_vencimiento: '',
+    paid_at: '',
+  })
   const [form, setForm] = useState({
     mes: String(new Date().getMonth() + 1),
     anio: String(new Date().getFullYear()),
@@ -93,6 +102,57 @@ export default function AdminPagosPage() {
       toast.error(err instanceof Error ? err.message : 'Error al generar')
     } finally {
       setGenerando(false)
+    }
+  }
+
+  const toDateInput = (iso: string | null) =>
+    iso ? iso.slice(0, 10) : ''
+
+  const toDateTimeLocal = (iso: string | null) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
+  const abrirEditar = (m: MensualidadAdmin) => {
+    setEditando(m)
+    setEditForm({
+      estado: m.estado,
+      estado_pago: m.estado_pago ?? '',
+      monto: String(m.monto),
+      fecha_vencimiento: toDateInput(m.fecha_vencimiento),
+      paid_at: toDateTimeLocal(m.paid_at),
+    })
+  }
+
+  const guardarEdicion = async () => {
+    if (!editando) return
+    setGuardando(true)
+    try {
+      const payload: Record<string, unknown> = {
+        estado: editForm.estado,
+        monto: Number(editForm.monto),
+        fecha_vencimiento: editForm.fecha_vencimiento || null,
+        paid_at: editForm.paid_at ? new Date(editForm.paid_at).toISOString() : null,
+      }
+      if (editForm.estado_pago) payload.estado_pago = editForm.estado_pago
+
+      const res = await fetch(`/api/admin/mensualidades/${editando.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al guardar')
+      toast.success('Mensualidad actualizada')
+      setEditando(null)
+      await load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar')
+    } finally {
+      setGuardando(false)
     }
   }
 
@@ -173,7 +233,9 @@ export default function AdminPagosPage() {
                   <TableHead>Vencimiento</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Método</TableHead>
-                  <TableHead>Pago</TableHead>
+                  <TableHead>Estado pago</TableHead>
+                  <TableHead>Fecha pago</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -210,6 +272,16 @@ export default function AdminPagosPage() {
                           {m.pago_error_mensaje}
                         </p>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      {m.paid_at
+                        ? new Date(m.paid_at).toLocaleString('es-MX')
+                        : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => abrirEditar(m)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -265,6 +337,82 @@ export default function AdminPagosPage() {
               {generando ? 'Generando...' : 'Generar para todos los alumnos'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editando} onOpenChange={(o) => !o && setEditando(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar mensualidad</DialogTitle>
+          </DialogHeader>
+          {editando && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {editando.alumno?.nombre_completo} — {editando.periodo}
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Estado</Label>
+                  <Select value={editForm.estado} onValueChange={(v) => setEditForm({ ...editForm, estado: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendiente">Pendiente</SelectItem>
+                      <SelectItem value="iniciado">Iniciado</SelectItem>
+                      <SelectItem value="pagado">Pagado</SelectItem>
+                      <SelectItem value="vencido">Vencido</SelectItem>
+                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Estado pago</Label>
+                  <Select
+                    value={editForm.estado_pago || 'none'}
+                    onValueChange={(v) => setEditForm({ ...editForm, estado_pago: v === 'none' ? '' : v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">—</SelectItem>
+                      <SelectItem value="pendiente">Pendiente</SelectItem>
+                      <SelectItem value="pagado">Pagado</SelectItem>
+                      <SelectItem value="declinado">Declinado</SelectItem>
+                      <SelectItem value="error">Error</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label>Monto (MXN)</Label>
+                <Input
+                  type="number"
+                  value={editForm.monto}
+                  onChange={(e) => setEditForm({ ...editForm, monto: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Fecha de vencimiento</Label>
+                <Input
+                  type="date"
+                  value={editForm.fecha_vencimiento}
+                  onChange={(e) => setEditForm({ ...editForm, fecha_vencimiento: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Fecha de pago</Label>
+                <Input
+                  type="datetime-local"
+                  value={editForm.paid_at}
+                  onChange={(e) => setEditForm({ ...editForm, paid_at: e.target.value })}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Déjala vacía si aún no ha pagado.
+                </p>
+              </div>
+              <Button className="w-full bg-brand-primary" onClick={guardarEdicion} disabled={guardando}>
+                {guardando ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

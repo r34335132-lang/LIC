@@ -63,7 +63,7 @@ function isMenuSection(item: MenuItem): item is MenuSection {
 const menuAlumno: MenuItem[] = [
   { section: 'Principal' },
   { href: '/dashboard', label: 'Tablero', icon: LayoutDashboard },
-  { href: '/dashboard/avisos', label: 'Avisos', icon: Bell, badge: '2' },
+  { href: '/dashboard/avisos', label: 'Avisos', icon: Bell },
   
   { section: 'Académico' },
   { href: '/dashboard/cursos', label: 'Mis Materias', icon: BookOpen },

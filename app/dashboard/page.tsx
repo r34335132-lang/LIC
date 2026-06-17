@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { BookOpen, ArrowRight } from 'lucide-react'
+import { BookOpen, ArrowRight, Megaphone, AlertTriangle, Video } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface MateriaResumen {
@@ -14,18 +14,33 @@ interface MateriaResumen {
   estado: string
 }
 
+type AvisoResumen = {
+  id: string
+  titulo: string
+  contenido: string
+  tipo: string
+  created_at: string
+  materia?: { nombre: string } | null
+  profesor_nombre?: string
+}
+
 export default function DashboardPage() {
   const { perfil } = useAuth()
   const [materias, setMaterias] = useState<MateriaResumen[]>([])
+  const [avisos, setAvisos] = useState<AvisoResumen[]>([])
 
   useEffect(() => {
     if (!perfil) return
     let active = true
     async function load() {
       try {
-        const res = await fetch('/api/dashboard/materias', { credentials: 'include' })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? 'Error al cargar materias')
+        const [materiasRes, avisosRes] = await Promise.all([
+          fetch('/api/dashboard/materias', { credentials: 'include' }),
+          fetch('/api/dashboard/avisos', { credentials: 'include' }),
+        ])
+        const data = await materiasRes.json()
+        const avisosData = await avisosRes.json()
+        if (!materiasRes.ok) throw new Error(data.error ?? 'Error al cargar materias')
         if (active) {
           setMaterias(
             (data.materias ?? []).map((m: MateriaResumen) => ({
@@ -33,6 +48,7 @@ export default function DashboardPage() {
               estado: m.estado,
             }))
           )
+          if (avisosRes.ok) setAvisos((avisosData.avisos ?? []).slice(0, 3))
         }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Error al cargar materias')
@@ -70,6 +86,46 @@ export default function DashboardPage() {
           <CardContent><p className="text-3xl font-black text-yellow-600">{pendientes}</p></CardContent>
         </Card>
       </div>
+
+      {avisos.length > 0 && (
+        <div className="mt-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-black text-slate-950">Avisos recientes</h2>
+            <Link href="/dashboard/avisos" className="text-sm font-bold text-brand-primary hover:underline">
+              Ver todos
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {avisos.map((aviso) => (
+              <Card
+                key={aviso.id}
+                className={aviso.tipo === 'urgente' ? 'border-red-200 bg-red-50/40' : aviso.tipo === 'clase' ? 'border-blue-200' : ''}
+              >
+                <CardContent className="p-4">
+                  <div className="flex gap-3">
+                    {aviso.tipo === 'urgente' ? (
+                      <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
+                    ) : aviso.tipo === 'clase' ? (
+                      <Video className="h-5 w-5 shrink-0 text-blue-600" />
+                    ) : (
+                      <Megaphone className="h-5 w-5 shrink-0 text-brand-primary" />
+                    )}
+                    <div>
+                      <p className="font-bold">{aviso.titulo}</p>
+                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{aviso.contenido}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {aviso.profesor_nombre && `${aviso.profesor_nombre} · `}
+                        {aviso.materia?.nombre && `${aviso.materia.nombre} · `}
+                        {new Date(aviso.created_at).toLocaleDateString('es-MX')}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Link href="/dashboard/materias" className="mt-8 block">
         <Card className="transition-shadow hover:shadow-md">

@@ -2,15 +2,6 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
 
-const ALLOWED_ESTADOS = [
-  'pendiente',
-  'iniciado',
-  'pagado',
-  'vencido',
-  'cancelado',
-  'fallido',
-] as const
-
 const ALLOWED_ESTADO_PAGO = ['pendiente', 'pagado', 'declinado', 'error'] as const
 
 function parseDateInput(value: unknown): string | null | undefined {
@@ -20,12 +11,6 @@ function parseDateInput(value: unknown): string | null | undefined {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return undefined
   return d.toISOString()
-}
-
-function parseDateOnly(value: unknown): string | undefined {
-  if (value === undefined || typeof value !== 'string') return undefined
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined
-  return value
 }
 
 export async function PATCH(
@@ -42,16 +27,14 @@ export async function PATCH(
     const body = await request.json()
     const updates: Record<string, unknown> = {}
 
-    if (body.estado !== undefined) {
-      if (!ALLOWED_ESTADOS.includes(body.estado)) {
-        return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
+    if (body.apartado_pagado_at !== undefined) {
+      const paidAt = parseDateInput(body.apartado_pagado_at)
+      if (paidAt === undefined) {
+        return NextResponse.json({ error: 'apartado_pagado_at inválida' }, { status: 400 })
       }
-      updates.estado = body.estado
-      if (body.estado === 'pagado' && body.paid_at === undefined) {
-        updates.paid_at = new Date().toISOString()
-      }
-      if (body.estado !== 'pagado' && body.paid_at === undefined && body.clear_paid_at) {
-        updates.paid_at = null
+      updates.apartado_pagado_at = paidAt
+      if (paidAt && body.estado === undefined) {
+        updates.estado = 'apartado'
       }
     }
 
@@ -60,30 +43,17 @@ export async function PATCH(
         return NextResponse.json({ error: 'estado_pago inválido' }, { status: 400 })
       }
       updates.estado_pago = body.estado_pago
+      if (body.estado_pago === 'pagado' && body.estado === undefined) {
+        updates.estado = 'apartado'
+      }
     }
 
-    if (body.monto !== undefined) {
-      const monto = Number(body.monto)
+    if (body.apartado_monto !== undefined) {
+      const monto = Number(body.apartado_monto)
       if (!monto || monto <= 0) {
         return NextResponse.json({ error: 'Monto inválido' }, { status: 400 })
       }
-      updates.monto = monto
-    }
-
-    if (body.fecha_vencimiento !== undefined) {
-      const fecha = parseDateOnly(body.fecha_vencimiento)
-      if (fecha === undefined && body.fecha_vencimiento !== null && body.fecha_vencimiento !== '') {
-        return NextResponse.json({ error: 'fecha_vencimiento inválida' }, { status: 400 })
-      }
-      updates.fecha_vencimiento = fecha ?? null
-    }
-
-    if (body.paid_at !== undefined) {
-      const paidAt = parseDateInput(body.paid_at)
-      if (paidAt === undefined) {
-        return NextResponse.json({ error: 'paid_at inválida' }, { status: 400 })
-      }
-      updates.paid_at = paidAt
+      updates.apartado_monto = monto
     }
 
     if (Object.keys(updates).length === 0) {
@@ -95,7 +65,7 @@ export async function PATCH(
 
     const admin = createAdminClient()
     const { data, error } = await admin
-      .from('mensualidades')
+      .from('inscripciones')
       .update(updates)
       .eq('id', id)
       .select()
@@ -105,11 +75,11 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    return NextResponse.json({ mensualidad: data })
+    return NextResponse.json({ inscripcion: data })
   } catch (error) {
-    console.error('PATCH mensualidad error:', error)
+    console.error('PATCH inscripción error:', error)
     return NextResponse.json(
-      { error: 'Error al actualizar mensualidad' },
+      { error: 'Error al actualizar inscripción' },
       { status: 500 }
     )
   }

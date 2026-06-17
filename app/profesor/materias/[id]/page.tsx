@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Pencil, ExternalLink, Copy, Users, Clock, Video, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, ExternalLink, Copy, Users, Clock, Video, Trash2, Megaphone, ClipboardList, FileText } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -248,6 +248,19 @@ export default function ProfesorMateriaDetailPage({
         <Card className="mt-6">
           <CardHeader><CardTitle className="text-base">Acciones rápidas</CardTitle></CardHeader>
           <CardContent className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => scrollTo('actividades')}>
+              <FileText className="mr-1 h-4 w-4" /> Ver tareas
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/profesor/avisos">
+                <Megaphone className="mr-1 h-4 w-4" /> Publicar aviso
+              </Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/profesor/entregas">
+                <ClipboardList className="mr-1 h-4 w-4" /> Revisar entregas
+              </Link>
+            </Button>
             <Button size="sm" variant="outline" onClick={() => scrollTo('clase-info')}>
               <Video className="mr-1 h-4 w-4" /> Editar link de clase
             </Button>
@@ -259,9 +272,6 @@ export default function ProfesorMateriaDetailPage({
             </Button>
             <Button size="sm" variant="outline" onClick={() => scrollTo('alumnos')}>
               <Users className="mr-1 h-4 w-4" /> Ver alumnos
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => scrollTo('alumnos')}>
-              <Pencil className="mr-1 h-4 w-4" /> Calificar
             </Button>
           </CardContent>
         </Card>
@@ -365,9 +375,17 @@ export default function ProfesorMateriaDetailPage({
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
+      <Card className="mt-6 border-brand-primary/30 bg-brand-primary/5" id="actividades">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Actividades</CardTitle>
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-brand-primary" />
+              Tareas y actividades ({actividades.filter((a) => a.activo).length} activas)
+            </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Lo que publiques aquí lo ven tus alumnos en Entregables.
+            </p>
+          </div>
           {isOwner && (
             <Dialog open={actOpen} onOpenChange={setActOpen}>
               <DialogTrigger asChild>
@@ -434,43 +452,67 @@ export default function ProfesorMateriaDetailPage({
             <p className="text-sm text-muted-foreground">Sin actividades.</p>
           )}
           {actividades.map((act) => (
-            <div key={act.id} className="rounded-lg border p-3">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium">{act.titulo}</p>
-                  {act.unidad && <p className="text-xs text-brand-primary">{act.unidad}</p>}
+            <div
+              key={act.id}
+              className={`rounded-xl border-2 p-4 ${act.activo ? 'border-brand-primary/20 bg-white' : 'border-dashed opacity-60'}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <p className="text-lg font-bold">{act.titulo}</p>
+                  {act.unidad && (
+                    <Badge variant="outline" className="mt-1">{act.unidad}</Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {!act.activo && <Badge variant="destructive">Inactiva</Badge>}
+                  {act.fecha_entrega && (
+                    <Badge className="bg-amber-100 text-amber-900 shrink-0">
+                      <Clock className="mr-1 h-3 w-3" />
+                      {new Date(act.fecha_entrega).toLocaleString('es-MX', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Badge>
+                  )}
                   {isOwner && (
                     <>
                       <Switch
                         checked={act.activo}
                         onCheckedChange={() => toggleActividad(act)}
                       />
-                      <Button variant="ghost" size="sm" onClick={() => setEditAct(act)}>
+                      <Button variant="ghost" size="sm" onClick={() => setEditAct({
+                        ...act,
+                        fecha_entrega: act.fecha_entrega
+                          ? act.fecha_entrega.slice(0, 16)
+                          : '',
+                      } as ActividadConRecursos & { fecha_entrega: string })}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </>
                   )}
                 </div>
               </div>
-              {act.descripcion && <p className="text-sm text-muted-foreground mt-1">{act.descripcion}</p>}
-              {act.recursos.length > 0 && (
-                <p className="mt-1 text-xs font-semibold text-muted-foreground">
-                  {act.recursos.length} recurso(s) de apoyo
+              {act.descripcion && (
+                <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{act.descripcion}</p>
+              )}
+              {act.instrucciones && (
+                <p className="mt-2 text-sm font-medium text-slate-700 whitespace-pre-wrap line-clamp-4">
+                  {act.instrucciones}
                 </p>
               )}
-              {act.link_recurso && (
-                <a href={act.link_recurso} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-sm text-brand-primary hover:underline">
-                  <ExternalLink className="h-3 w-3" /> Recurso
-                </a>
-              )}
-              {act.fecha_entrega && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Entrega: {new Date(act.fecha_entrega).toLocaleString('es-MX')}
-                </p>
-              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {act.recursos.length > 0 && (
+                  <Badge variant="secondary">{act.recursos.length} recurso(s)</Badge>
+                )}
+                {act.link_recurso && (
+                  <a href={act.link_recurso} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-brand-primary hover:underline">
+                    <ExternalLink className="h-3 w-3" /> Ver recurso
+                  </a>
+                )}
+              </div>
             </div>
           ))}
         </CardContent>
@@ -515,6 +557,14 @@ export default function ProfesorMateriaDetailPage({
                 <Input
                   defaultValue={editAct.link_recurso ?? ''}
                   onChange={(e) => setEditAct({ ...editAct, link_recurso: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Fecha de entrega</Label>
+                <Input
+                  type="datetime-local"
+                  value={editAct.fecha_entrega ?? ''}
+                  onChange={(e) => setEditAct({ ...editAct, fecha_entrega: e.target.value })}
                 />
               </div>
               <div className="space-y-3 rounded-xl border p-4">
@@ -563,6 +613,7 @@ export default function ProfesorMateriaDetailPage({
                     unidad: editAct.unidad || null,
                     instrucciones: editAct.instrucciones || null,
                     link_recurso: editAct.link_recurso || null,
+                    fecha_entrega: editAct.fecha_entrega || null,
                     recursos: editAct.recursos,
                   })
                 }
