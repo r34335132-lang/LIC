@@ -1,4 +1,6 @@
 import { SITE_URL } from '@/lib/marketing'
+import { buildInscripcionPaymentReference } from '@/lib/inscripciones-pago'
+import { inscripcionCheckoutReturnUrl } from '@/lib/inscripciones-checkout'
 import { buildMensualidadPaymentReference } from '@/lib/mensualidades-pago'
 import {
   MercadoPagoApiError,
@@ -110,6 +112,55 @@ export async function createMercadoPagoPreference(params: {
       success: `${base}?pago=ok&metodo=mercadopago`,
       failure: `${base}?pago=declinado&metodo=mercadopago`,
       pending: `${base}?pago=pendiente&metodo=mercadopago`,
+    },
+    auto_return: 'approved',
+    notification_url: `${siteUrl}/api/mercadopago/webhook`,
+  }
+
+  const data = await mpFetch<MercadoPagoPreferenceResponse>(
+    '/checkout/preferences',
+    config.accessToken,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  )
+
+  const checkoutUrl = resolvePreferenceCheckoutUrl(data, config.sandbox)
+
+  if (!data.id || !checkoutUrl) {
+    throw new MercadoPagoApiError('Respuesta inválida de Mercado Pago', 502, data)
+  }
+
+  return { preferenceId: data.id, checkoutUrl, reference }
+}
+
+export async function createMercadoPagoPreferenceForInscripcion(params: {
+  inscripcionId: string
+  title: string
+  amount: number
+  payerEmail?: string
+}): Promise<{ preferenceId: string; checkoutUrl: string; reference: string }> {
+  const config = validateMercadoPagoConfig()
+  const siteUrl = getSiteUrl()
+  const reference = buildInscripcionPaymentReference(params.inscripcionId)
+
+  const payload = {
+    items: [
+      {
+        id: params.inscripcionId,
+        title: params.title.slice(0, 256),
+        quantity: 1,
+        unit_price: params.amount,
+        currency_id: 'MXN',
+      },
+    ],
+    payer: params.payerEmail ? { email: params.payerEmail } : undefined,
+    external_reference: reference,
+    back_urls: {
+      success: inscripcionCheckoutReturnUrl(siteUrl, params.inscripcionId, 'ok', 'mercadopago'),
+      failure: inscripcionCheckoutReturnUrl(siteUrl, params.inscripcionId, 'declinado', 'mercadopago'),
+      pending: inscripcionCheckoutReturnUrl(siteUrl, params.inscripcionId, 'pendiente', 'mercadopago'),
     },
     auto_return: 'approved',
     notification_url: `${siteUrl}/api/mercadopago/webhook`,

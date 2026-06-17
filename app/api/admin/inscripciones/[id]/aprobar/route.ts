@@ -11,6 +11,7 @@ import {
   formatPeriodoMensualidad,
   mensualidadMontoDefault,
 } from '@/lib/academico-utils'
+import { inscripcionApartadoPagado } from '@/lib/inscripciones-pago'
 import { getProgramaIdCandidates } from '@/lib/programa-utils'
 
 export async function POST(
@@ -39,12 +40,14 @@ export async function POST(
       )
     }
 
-    if (inscripcion.estado !== 'pendiente') {
+    if (inscripcion.estado !== 'pendiente' && inscripcion.estado !== 'apartado') {
       return NextResponse.json(
         { error: 'La inscripción ya fue procesada' },
         { status: 400 }
       )
     }
+
+    const apartadoPagado = inscripcionApartadoPagado(inscripcion)
 
     const tempPassword = generateTempPassword()
     const matricula = await generateMatricula(admin)
@@ -160,16 +163,34 @@ export async function POST(
     const mes = now.getMonth() + 1
     const anio = now.getFullYear()
 
+    const montoInicial =
+      apartadoPagado && inscripcion.apartado_monto != null
+        ? Number(inscripcion.apartado_monto)
+        : mensualidadMontoDefault()
+
     const { error: mensualidadError } = await admin.from('mensualidades').upsert(
       {
         alumno_id: userId,
-        concepto: 'Mensualidad inicial',
+        concepto: apartadoPagado
+          ? 'Mensualidad inicial (apartado en inscripción)'
+          : 'Mensualidad inicial',
         periodo: formatPeriodoMensualidad(mes, anio),
         mes,
         anio,
-        monto: mensualidadMontoDefault(),
+        monto: montoInicial,
         moneda: 'MXN',
-        estado: 'pendiente',
+        estado: apartadoPagado ? 'pagado' : 'pendiente',
+        estado_pago: apartadoPagado ? 'pagado' : null,
+        metodo_pago: apartadoPagado ? inscripcion.metodo_pago : null,
+        paid_at: apartadoPagado ? inscripcion.apartado_pagado_at : null,
+        mp_payment_id:
+          apartadoPagado && inscripcion.metodo_pago === 'mercado_pago'
+            ? inscripcion.mp_payment_id
+            : null,
+        clip_payment_id:
+          apartadoPagado && inscripcion.metodo_pago === 'clip'
+            ? inscripcion.clip_payment_id
+            : null,
         fecha_vencimiento: fechaVencimientoDesdeHoy(),
       },
       { onConflict: 'alumno_id,mes,anio', ignoreDuplicates: false }

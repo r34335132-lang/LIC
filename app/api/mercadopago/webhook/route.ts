@@ -14,6 +14,10 @@ import {
   parseMensualidadIdFromReference,
 } from '@/lib/mensualidades-pago'
 import { finalizarCuponEnMensualidadPagada } from '@/lib/cupones'
+import {
+  actualizarInscripcionDesdePago,
+  isInscripcionPaymentReference,
+} from '@/lib/inscripciones-webhook'
 
 type WebhookBody = {
   type?: string
@@ -189,6 +193,11 @@ async function resolveApprovedPaymentFromMerchantOrder(
 async function actualizarMensualidadDesdePago(
   payment: MercadoPagoPayment
 ): Promise<void> {
+  if (isInscripcionPaymentReference(payment.external_reference)) {
+    await actualizarInscripcionDesdePago(payment)
+    return
+  }
+
   const paymentId = String(payment.id)
   const estadoPago = mercadoPagoStatusToEstadoPago(
     payment.status,

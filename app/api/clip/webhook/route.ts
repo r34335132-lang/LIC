@@ -12,6 +12,11 @@ import {
   parseMensualidadIdFromReference,
 } from '@/lib/mensualidades-pago'
 import { finalizarCuponEnMensualidadPagada } from '@/lib/cupones'
+import {
+  actualizarInscripcionDesdeClip,
+  resolveInscripcionIdFromReference,
+} from '@/lib/inscripciones-webhook'
+import { parseInscripcionIdFromReference } from '@/lib/inscripciones-pago'
 
 async function findMensualidadId(reference: string): Promise<string | null> {
   if (!reference.startsWith('MENSUALIDAD-')) return null
@@ -113,18 +118,36 @@ export async function POST(request: Request) {
     }
 
     let mensualidadId: string | null = null
+    let inscripcionId: string | null = null
 
-    if (reference?.startsWith('MENSUALIDAD-')) {
+    const admin = createAdminClient()
+
+    if (reference?.startsWith('INSCRIPCION-')) {
+      inscripcionId =
+        parseInscripcionIdFromReference(reference) ??
+        (await resolveInscripcionIdFromReference(admin, reference))
+    }
+
+    if (!inscripcionId && reference?.startsWith('MENSUALIDAD-')) {
       mensualidadId = await findMensualidadId(reference)
     }
 
-    if (!mensualidadId && paymentRequestId) {
+    if (!inscripcionId && !mensualidadId && paymentRequestId) {
+      const { data: insByClip } = await admin
+        .from('inscripciones')
+        .select('id')
+        .eq('clip_payment_id', paymentRequestId)
+        .maybeSingle()
+      if (insByClip?.id) inscripcionId = insByClip.id
+    }
+
+    if (!mensualidadId && !inscripcionId && paymentRequestId) {
       const row = await findMensualidadByPaymentId(paymentRequestId)
       mensualidadId = row?.id ?? null
     }
 
-    if (!mensualidadId) {
-      console.warn('[Clip webhook] Mensualidad no encontrada.', {
+    if (!mensualidadId && !inscripcionId) {
+      console.warn('[Clip webhook] Recurso no encontrado.', {
         reference,
         paymentRequestId,
       })
@@ -135,11 +158,26 @@ export async function POST(request: Request) {
       console.warn('[Clip webhook] payment_request_id ausente; no se puede verificar con Clip.', {
         reference,
         mensualidadId,
+        inscripcionId,
       })
       return NextResponse.json({ received: true })
     }
 
-    await procesarMensualidadPagada(mensualidadId, paymentRequestId)
+    if (inscripcionId) {
+      const clipStatus = await getClipCheckoutStatus(paymentRequestId)
+      const estadoPago = clipStatusToEstadoPago(clipStatus.status)
+      const errorMsg =
+        estadoPago === 'pagado' ? null : clipCheckoutErrorMessage(clipStatus)
+      await actualizarInscripcionDesdeClip(
+        inscripcionId,
+        paymentRequestId,
+        estadoPago,
+        errorMsg
+      )
+      return NextResponse.json({ received: true })
+    }
+
+    await procesarMensualidadPagada(mensualidadId!, paymentRequestId)
 
     return NextResponse.json({ received: true })
   } catch (error) {

@@ -1,20 +1,21 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowLeft, GraduationCap, ShieldCheck, FileCheck2 } from 'lucide-react'
+import { ArrowLeft, GraduationCap, ShieldCheck, CreditCard } from 'lucide-react'
 import { Suspense } from 'react'
 import { InscripcionForm } from '@/components/inscripcion/inscripcion-form'
+import { RESERVATION_AMOUNT_MXN } from '@/lib/marketing'
 
 export const metadata: Metadata = {
   title: 'Inscripción en línea desde cualquier estado de México',
   description:
-    'Solicita tu inscripción en línea a preparatoria, licenciaturas y maestrías desde cualquier estado de México.',
+    'Aparta tu lugar con pago en línea. Preparatoria, licenciaturas y maestrías desde cualquier estado de México.',
   alternates: {
     canonical: '/inscripcion',
   },
 }
 
 type InscripcionPageProps = {
-  searchParams?: Promise<{ programa?: string }>
+  searchParams?: Promise<{ programa?: string; apartar?: string }>
 }
 
 export default async function InscripcionPage({ searchParams }: InscripcionPageProps) {
@@ -44,16 +45,25 @@ export default async function InscripcionPage({ searchParams }: InscripcionPageP
               Inscripción en línea
             </div>
             <h1 className="text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-              Solicita tu inscripción
+              Aparta tu lugar hoy
             </h1>
             <p className="mt-5 text-lg font-medium leading-relaxed text-slate-600">
-              Completa el formulario desde cualquier estado de México. Un administrador revisará tu información y te contactará para continuar el proceso de admisión en línea.
+              Regístrate y paga ${RESERVATION_AMOUNT_MXN} MXN en línea para reservar tu cupo desde
+              cualquier estado de México. Después completamos contigo el resto del proceso de admisión.
             </p>
 
             <div className="mt-8 grid gap-4">
               {[
-                { icon: ShieldCheck, title: 'Proceso seguro', text: 'Tus datos se almacenan de forma segura en nuestra plataforma académica.' },
-                { icon: FileCheck2, title: 'Revisión administrativa', text: 'Tu solicitud será revisada y, al ser aprobada, recibirás tus credenciales de acceso.' },
+                {
+                  icon: CreditCard,
+                  title: 'Paga al registrarte',
+                  text: `Aparta tu lugar con Mercado Pago o tarjeta (Clip) por $${RESERVATION_AMOUNT_MXN} MXN. Sin esperar aprobación para pagar.`,
+                },
+                {
+                  icon: ShieldCheck,
+                  title: 'Proceso seguro',
+                  text: 'Tus datos y pagos se procesan de forma segura. Te contactamos para finalizar tu admisión.',
+                },
               ].map((item) => (
                 <div key={item.title} className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-primary text-white">
@@ -69,9 +79,11 @@ export default async function InscripcionPage({ searchParams }: InscripcionPageP
           </div>
 
           <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-7">
-            <h2 className="text-xl font-black text-slate-950 mb-1">Formulario de inscripción</h2>
+            <h2 className="text-xl font-black text-slate-950 mb-1">Inscripción y apartado</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              {params.programa ? `Programa seleccionado: ${params.programa}` : 'Selecciona tu programa de interés.'}
+              {params.programa
+                ? 'Completa tus datos y continúa al pago para apartar tu lugar.'
+                : `Aparta con $${params.apartar ?? RESERVATION_AMOUNT_MXN} MXN — selecciona tu programa.`}
             </p>
             <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-slate-100" />}>
               <InscripcionForm />

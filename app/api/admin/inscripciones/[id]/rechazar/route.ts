@@ -28,7 +28,7 @@ export async function POST(
       )
     }
 
-    if (inscripcion.estado !== 'pendiente') {
+    if (inscripcion.estado !== 'pendiente' && inscripcion.estado !== 'apartado') {
       return NextResponse.json(
         { error: 'La inscripción ya fue procesada' },
         { status: 400 }

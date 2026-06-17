@@ -1,6 +1,6 @@
 export type Rol = 'admin' | 'alumno' | 'profesor'
 
-export type EstadoInscripcion = 'pendiente' | 'aprobada' | 'rechazada'
+export type EstadoInscripcion = 'pendiente' | 'apartado' | 'aprobada' | 'rechazada'
 
 export type EstadoAlumnoMateria =
   | 'pendiente'
@@ -84,6 +84,18 @@ export interface Inscripcion {
   estado: EstadoInscripcion
   comprobante_url: string | null
   matricula_generada: string | null
+  apartado_monto: number | null
+  apartado_pagado_at: string | null
+  metodo_pago: MetodoPago | null
+  estado_pago: EstadoPagoMensualidad | null
+  pago_error_mensaje: string | null
+  mp_preference_id: string | null
+  mp_payment_id: string | null
+  mp_checkout_url: string | null
+  mp_reference: string | null
+  clip_checkout_url: string | null
+  clip_reference: string | null
+  clip_payment_id: string | null
   created_at: string
 }
 

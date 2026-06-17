@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle2, Eye } from 'lucide-react'
+import { CheckCircle2, Eye, CreditCard } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -93,10 +93,16 @@ export default function AdminInscripcionesPage() {
   const estadoColor = (estado: string) => {
     switch (estado) {
       case 'aprobada': return 'bg-green-100 text-green-800'
+      case 'apartado': return 'bg-emerald-100 text-emerald-800'
       case 'rechazada': return 'bg-red-100 text-red-800'
       default: return 'bg-yellow-100 text-yellow-800'
     }
   }
+
+  const apartadoPagado = (ins: Inscripcion) =>
+    ins.estado === 'apartado' ||
+    ins.estado_pago === 'pagado' ||
+    !!ins.apartado_pagado_at
 
   return (
     <div>
@@ -132,6 +138,14 @@ export default function AdminInscripcionesPage() {
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{ins.programa_id}</Badge>
                   <Badge className={estadoColor(ins.estado)}>{ins.estado}</Badge>
+                  {apartadoPagado(ins) && (
+                    <Badge className="bg-emerald-100 text-emerald-800">
+                      <CreditCard className="mr-1 h-3 w-3" /> Apartado pagado
+                    </Badge>
+                  )}
+                  {ins.estado_pago && ins.estado_pago !== 'pagado' && (
+                    <Badge variant="outline">Pago: {ins.estado_pago}</Badge>
+                  )}
                   {ins.matricula_generada && (
                     <Badge variant="secondary">{ins.matricula_generada}</Badge>
                   )}
@@ -144,7 +158,7 @@ export default function AdminInscripcionesPage() {
                 <Button variant="outline" size="sm" onClick={() => setDetalle(ins)}>
                   <Eye className="mr-1 h-4 w-4" /> Detalle
                 </Button>
-                {ins.estado === 'pendiente' && (
+                {(ins.estado === 'pendiente' || ins.estado === 'apartado') && (
                   <>
                     <Button
                       variant="outline"
@@ -179,6 +193,19 @@ export default function AdminInscripcionesPage() {
               <p><span className="font-medium">Teléfono:</span> {detalle.telefono ?? '—'}</p>
               <p><span className="font-medium">Programa:</span> {detalle.programa_id}</p>
               <p><span className="font-medium">Estado:</span> {detalle.estado}</p>
+              {apartadoPagado(detalle) && (
+                <p className="text-emerald-700 font-medium">
+                  Apartado pagado
+                  {detalle.apartado_monto != null && ` — $${Number(detalle.apartado_monto).toLocaleString('es-MX')} MXN`}
+                  {detalle.apartado_pagado_at && (
+                    <> el {format(new Date(detalle.apartado_pagado_at), "d MMM yyyy HH:mm", { locale: es })}</>
+                  )}
+                  {detalle.metodo_pago && <> ({detalle.metodo_pago})</>}
+                </p>
+              )}
+              {detalle.estado_pago && (
+                <p><span className="font-medium">Estado pago:</span> {detalle.estado_pago}</p>
+              )}
               <p><span className="font-medium">Matrícula generada:</span> {detalle.matricula_generada ?? '—'}</p>
               <p>
                 <span className="font-medium">Comprobante:</span>{' '}

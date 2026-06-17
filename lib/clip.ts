@@ -357,19 +357,37 @@ export async function createClipCheckout(params: {
   reference: string
   customerEmail?: string
   customerName?: string
+  returnUrls?: {
+    success: 'inscripcion' | 'dashboard'
+    error: 'inscripcion' | 'dashboard'
+    inscripcionId?: string
+  }
 }): Promise<ClipCheckoutResponse> {
   const { siteUrl } = getClipConfiguration()
   const webhookUrl = `${siteUrl}/api/clip/webhook`
+
+  let redirection_url: { success: string; error: string; default: string }
+
+  if (params.returnUrls?.success === 'inscripcion' && params.returnUrls.inscripcionId) {
+    const id = params.returnUrls.inscripcionId
+    redirection_url = {
+      success: `${siteUrl}/inscripcion?pago=ok&id=${id}&metodo=clip`,
+      error: `${siteUrl}/inscripcion?pago=declinado&id=${id}&metodo=clip`,
+      default: `${siteUrl}/inscripcion?id=${id}`,
+    }
+  } else {
+    redirection_url = {
+      success: `${siteUrl}/dashboard/pagos?pago=ok&metodo=clip`,
+      error: `${siteUrl}/dashboard/pagos?pago=declinado&metodo=clip`,
+      default: `${siteUrl}/dashboard/pagos`,
+    }
+  }
 
   const body = {
     amount: params.amount,
     currency: params.currency ?? 'MXN',
     purchase_description: params.description.slice(0, 250),
-    redirection_url: {
-      success: `${siteUrl}/dashboard/pagos?pago=ok&metodo=clip`,
-      error: `${siteUrl}/dashboard/pagos?pago=declinado&metodo=clip`,
-      default: `${siteUrl}/dashboard/pagos`,
-    },
+    redirection_url,
     metadata: {
       external_reference: params.reference,
       customer_info: {

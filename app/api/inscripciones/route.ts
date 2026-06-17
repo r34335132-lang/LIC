@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { montoApartadoInscripcion } from '@/lib/inscripciones-checkout'
 import { getProgramaIdCandidates, normalizeProgramaId } from '@/lib/programa-utils'
 
 interface InscripcionBody {
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
 
     const { data: programa } = await supabase
       .from('programas')
-      .select('id')
+      .select('id, nombre')
       .in('id', programaCandidates)
       .eq('activo', true)
       .limit(1)
@@ -42,32 +43,60 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from('inscripciones')
-      .select('id')
-      .eq('email', email)
+      .select('id, estado, estado_pago, apartado_pagado_at')
+      .eq('email', email.trim().toLowerCase())
       .eq('programa_id', programa.id)
-      .eq('estado', 'pendiente')
+      .in('estado', ['pendiente', 'apartado'])
       .maybeSingle()
 
     if (existing) {
-      return NextResponse.json(
-        { error: 'Ya existe una solicitud pendiente con este correo' },
-        { status: 409 }
-      )
+      const { error: updateError } = await supabase
+        .from('inscripciones')
+        .update({
+          nombre_completo: nombreCompleto.trim(),
+          telefono: telefono?.trim() ?? null,
+        })
+        .eq('id', existing.id)
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 400 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        inscripcionId: existing.id,
+        existing: true,
+        monto: montoApartadoInscripcion(),
+        apartado:
+          existing.estado === 'apartado' ||
+          existing.estado_pago === 'pagado' ||
+          !!existing.apartado_pagado_at,
+      })
     }
 
-    const { error } = await supabase.from('inscripciones').insert({
-      nombre_completo: nombreCompleto,
-      email,
-      telefono: telefono ?? null,
-      programa_id: programa.id,
-      estado: 'pendiente',
-    })
+    const { data: inserted, error } = await supabase
+      .from('inscripciones')
+      .insert({
+        nombre_completo: nombreCompleto.trim(),
+        email: email.trim().toLowerCase(),
+        telefono: telefono?.trim() ?? null,
+        programa_id: programa.id,
+        estado: 'pendiente',
+      })
+      .select('id')
+      .single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      success: true,
+      inscripcionId: inserted.id,
+      existing: false,
+      apartado: false,
+      monto: montoApartadoInscripcion(),
+    })
   } catch (error) {
     console.error('Inscripción error:', error)
     const message =
