@@ -218,7 +218,10 @@ export function InscripcionForm() {
 
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? 'No se pudo iniciar el pago')
+        setError(
+          [data.error, data.detail].filter(Boolean).join(' — ') ||
+            'No se pudo iniciar el pago'
+        )
         return
       }
 

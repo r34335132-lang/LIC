@@ -122,8 +122,16 @@ export async function POST(
         .eq('id', inscripcion.id)
 
       if (updateError) {
+        console.error('[INSCRIPCION PAGAR] Error guardando checkout MP:', updateError)
+        const migrationHint =
+          /column|schema cache|does not exist/i.test(updateError.message)
+            ? ' Falta aplicar la migración 20260529170000_inscripciones_apartado_pago.sql en Supabase.'
+            : ''
         return NextResponse.json(
-          { error: 'No se pudo guardar el checkout de Mercado Pago' },
+          {
+            error: `No se pudo guardar el checkout de Mercado Pago.${migrationHint}`,
+            detail: updateError.message,
+          },
           { status: 500 }
         )
       }
@@ -180,8 +188,16 @@ export async function POST(
       .eq('id', inscripcion.id)
 
     if (updateError) {
+      console.error('[INSCRIPCION PAGAR] Error guardando checkout Clip:', updateError)
+      const migrationHint =
+        /column|schema cache|does not exist/i.test(updateError.message)
+          ? ' Falta aplicar la migración 20260529170000_inscripciones_apartado_pago.sql en Supabase.'
+          : ''
       return NextResponse.json(
-        { error: 'El checkout se creó, pero no se pudo guardar' },
+        {
+          error: `El checkout se creó, pero no se pudo guardar.${migrationHint}`,
+          detail: updateError.message,
+        },
         { status: 500 }
       )
     }
