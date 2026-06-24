@@ -229,3 +229,77 @@ export interface ActividadEntrega {
   created_at: string
   updated_at: string
 }
+
+export type TipoRubricaCriterio = 'tareas' | 'examenes' | 'otro'
+
+export interface MateriaRubrica {
+  id: string
+  materia_id: string
+  profesor_id: string
+  titulo: string
+  descripcion: string | null
+  activo: boolean
+  created_at: string
+}
+
+export interface MateriaRubricaCriterio {
+  id: string
+  rubrica_id: string
+  nombre: string
+  descripcion: string | null
+  peso: number
+  tipo: TipoRubricaCriterio
+  orden: number
+}
+
+export interface Examen {
+  id: string
+  materia_id: string
+  profesor_id: string
+  titulo: string
+  descripcion: string | null
+  link_llamada: string | null
+  tiempo_limite_minutos: number
+  activo: boolean
+  created_at: string
+}
+
+export type TipoExamenPregunta = 'texto' | 'opcion_multiple'
+
+export interface ExamenPregunta {
+  id: string
+  examen_id: string
+  texto: string
+  tipo: TipoExamenPregunta
+  opciones: string[] | null
+  respuesta_correcta: string
+  puntos: number
+  orden: number
+}
+
+export type EstadoExamenIntento = 'en_progreso' | 'finalizado' | 'revisado'
+
+export interface ExamenIntento {
+  id: string
+  examen_id: string
+  alumno_id: string
+  iniciado_at: string
+  finalizado_at: string | null
+  tiempo_usado_segundos: number | null
+  puntos_obtenidos: number | null
+  puntos_totales: number | null
+  calificacion: number | null
+  estado: EstadoExamenIntento
+}
+
+export interface ExamenRespuesta {
+  id: string
+  intento_id: string
+  pregunta_id: string
+  respuesta_alumno: string | null
+  es_correcta: boolean | null
+  puntos_obtenidos: number | null
+  puntos_maximos: number
+  corregido_manual: boolean
+  nota_profesor: string | null
+}

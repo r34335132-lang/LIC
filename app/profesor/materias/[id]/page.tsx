@@ -35,6 +35,9 @@ import type {
   TareaRecurso,
   TipoTareaRecurso,
 } from '@/types/database'
+import { MateriaRubricaSection } from '@/components/profesor/materia-rubrica-section'
+import { MateriaExamenesSection } from '@/components/profesor/materia-examenes-section'
+import { MateriaResumenAlumnosSection } from '@/components/profesor/materia-resumen-alumnos-section'
 
 type AlumnoRow = AlumnoMateria & {
   alumno: Pick<Perfil, 'id' | 'nombre_completo' | 'matricula' | 'email'>
@@ -270,8 +273,14 @@ export default function ProfesorMateriaDetailPage({
             <Button size="sm" variant="outline" onClick={copyClassroomToGroup} disabled={!pm.link_classroom || !pm.grupo}>
               <Copy className="mr-1 h-4 w-4" /> Copiar Classroom al grupo
             </Button>
-            <Button size="sm" variant="outline" onClick={() => scrollTo('alumnos')}>
-              <Users className="mr-1 h-4 w-4" /> Ver alumnos
+            <Button size="sm" variant="outline" onClick={() => scrollTo('rubrica')}>
+              <FileText className="mr-1 h-4 w-4" /> Rúbrica
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => scrollTo('examenes')}>
+              <FileText className="mr-1 h-4 w-4" /> Exámenes
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => scrollTo('resumen-alumnos')}>
+              <Users className="mr-1 h-4 w-4" /> Resumen alumnos
             </Button>
           </CardContent>
         </Card>
@@ -517,6 +526,10 @@ export default function ProfesorMateriaDetailPage({
           ))}
         </CardContent>
       </Card>
+
+      {isOwner && <MateriaRubricaSection profesorMateriaId={id} isOwner={isOwner} />}
+      {isOwner && <MateriaExamenesSection profesorMateriaId={id} isOwner={isOwner} />}
+      <MateriaResumenAlumnosSection profesorMateriaId={id} isOwner={isOwner} />
 
       <Dialog open={!!editAct} onOpenChange={(o) => !o && setEditAct(null)}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
