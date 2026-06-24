@@ -12,7 +12,7 @@ export async function GET() {
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('inscripciones')
-      .select('*')
+      .select('*, programa:programas(id, nombre)')
       .order('created_at', { ascending: false })
 
     if (error) {

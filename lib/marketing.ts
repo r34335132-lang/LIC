@@ -43,13 +43,16 @@ export function buildClipPaymentUrl({
       .replace('{amount}', String(RESERVATION_AMOUNT_MXN))
   }
 
-  const params = new URLSearchParams({
-    apartar: String(RESERVATION_AMOUNT_MXN),
-  })
-
+  const params = new URLSearchParams()
   if (programId) params.set('programa', programId)
-
   return `/inscripcion?${params.toString()}`
+}
+
+export function buildPreInscripcionUrl(programaId?: string) {
+  const params = new URLSearchParams()
+  if (programaId) params.set('programa', programaId)
+  const qs = params.toString()
+  return qs ? `/inscripcion?${qs}` : '/inscripcion'
 }
 
 export function trackEvent(event: MarketingEvent, payload?: Record<string, unknown>) {

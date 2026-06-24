@@ -92,8 +92,8 @@ export function Hero() {
               variant="outline"
               className="h-14 rounded-md border-white/30 bg-white/10 px-7 text-sm font-black uppercase tracking-wider text-white backdrop-blur hover:bg-white hover:text-slate-950"
             >
-              <Link href="/#oferta">
-                Ver programas con RVOE
+              <Link href="/inscripcion">
+                Pre inscríbete hoy
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>

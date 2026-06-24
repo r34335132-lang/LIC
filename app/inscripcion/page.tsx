@@ -1,26 +1,19 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowLeft, GraduationCap, ShieldCheck, CreditCard } from 'lucide-react'
+import { ArrowLeft, GraduationCap, FileText, Phone } from 'lucide-react'
 import { Suspense } from 'react'
 import { InscripcionForm } from '@/components/inscripcion/inscripcion-form'
-import { RESERVATION_AMOUNT_MXN } from '@/lib/marketing'
 
 export const metadata: Metadata = {
-  title: 'Inscripción en línea desde cualquier estado de México',
+  title: 'Pre-inscripción en línea | Instituto Universitario de Durango',
   description:
-    'Aparta tu lugar con pago en línea. Preparatoria, licenciaturas y maestrías desde cualquier estado de México.',
+    'Pre inscríbete hoy sin pago en línea. Deja tus datos y un asesor te contactará para completar tu admisión.',
   alternates: {
     canonical: '/inscripcion',
   },
 }
 
-type InscripcionPageProps = {
-  searchParams?: Promise<{ programa?: string; apartar?: string }>
-}
-
-export default async function InscripcionPage({ searchParams }: InscripcionPageProps) {
-  const params = (await searchParams) || {}
-
+export default async function InscripcionPage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
@@ -42,27 +35,27 @@ export default async function InscripcionPage({ searchParams }: InscripcionPageP
         <div className="container mx-auto grid gap-10 px-4 md:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div>
             <div className="mb-5 inline-flex rounded-full bg-brand-primary/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-brand-primary">
-              Inscripción en línea
+              Pre-inscripción
             </div>
             <h1 className="text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-              Aparta tu lugar hoy
+              Pre inscríbete hoy
             </h1>
             <p className="mt-5 text-lg font-medium leading-relaxed text-slate-600">
-              Regístrate y paga ${RESERVATION_AMOUNT_MXN} MXN en línea para reservar tu cupo desde
-              cualquier estado de México. Después completamos contigo el resto del proceso de admisión.
+              Deja tus datos y un asesor de admisiones se comunicará contigo. Generamos tu ficha de
+              pre-inscripción sin cobro en línea para apartar tu lugar.
             </p>
 
             <div className="mt-8 grid gap-4">
               {[
                 {
-                  icon: CreditCard,
-                  title: 'Paga al registrarte',
-                  text: `Aparta tu lugar con Mercado Pago o tarjeta (Clip) por $${RESERVATION_AMOUNT_MXN} MXN. Sin esperar aprobación para pagar.`,
+                  icon: FileText,
+                  title: 'Ficha de pre-inscripción',
+                  text: 'Al registrarte recibes un folio y una ficha con los conceptos de inscripción y mensualidad de referencia.',
                 },
                 {
-                  icon: ShieldCheck,
-                  title: 'Proceso seguro',
-                  text: 'Tus datos y pagos se procesan de forma segura. Te contactamos para finalizar tu admisión.',
+                  icon: Phone,
+                  title: 'Te contactamos',
+                  text: 'Revisamos tu solicitud, te indicamos los documentos según tu programa y damos seguimiento personalizado.',
                 },
               ].map((item) => (
                 <div key={item.title} className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5">
@@ -79,11 +72,9 @@ export default async function InscripcionPage({ searchParams }: InscripcionPageP
           </div>
 
           <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-7">
-            <h2 className="text-xl font-black text-slate-950 mb-1">Inscripción y apartado</h2>
+            <h2 className="text-xl font-black text-slate-950 mb-1">Formulario de pre-inscripción</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              {params.programa
-                ? 'Completa tus datos y continúa al pago para apartar tu lugar.'
-                : `Aparta con $${params.apartar ?? RESERVATION_AMOUNT_MXN} MXN — selecciona tu programa.`}
+              Completa tus datos. No se realiza ningún cargo en línea.
             </p>
             <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-slate-100" />}>
               <InscripcionForm />

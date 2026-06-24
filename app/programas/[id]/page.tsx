@@ -6,7 +6,6 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   Clock3,
-  CreditCard,
   FileText,
   GraduationCap,
   LockKeyhole,
@@ -14,6 +13,7 @@ import {
   Sparkles,
   ShieldCheck,
   Target,
+  UserPlus,
 } from 'lucide-react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
@@ -21,14 +21,14 @@ import { Button } from '@/components/ui/button'
 import { AdmissionLeadForm } from '@/components/forms/admission-lead-form'
 import { Header } from '@/components/landing/header'
 import { Footer } from '@/components/landing/footer'
-import { ClipPaymentLink } from '@/components/marketing/clip-payment-link'
 import { ProgramViewTracker } from '@/components/marketing/program-view-tracker'
 import { TrackLink } from '@/components/marketing/track-link'
 import { WhatsAppIcon } from '@/components/marketing/whatsapp-icon'
 import { WhatsAppLink } from '@/components/marketing/whatsapp-link'
 import { programas } from '@/lib/data'
 import { getProgramaIcono } from '@/lib/icons'
-import { getProgramWhatsAppMessage, RESERVATION_AMOUNT_MXN, SITE_URL } from '@/lib/marketing'
+import { getProgramWhatsAppMessage, buildPreInscripcionUrl, SITE_URL } from '@/lib/marketing'
+import { montoMensualidadFicha } from '@/lib/preinscripcion-utils'
 import { generalFaqs, programBenefits, programSpecificFaqs } from '@/lib/program-content'
 import { getProgramaIdCandidates, normalizeProgramaId } from '@/lib/programa-utils'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -193,7 +193,7 @@ export default async function ProgramaPage({ params }: { params: Promise<{ id: s
         identifier: programa.rvoe,
         offers: {
           '@type': 'Offer',
-          price: RESERVATION_AMOUNT_MXN,
+          price: montoMensualidadFicha(),
           priceCurrency: 'MXN',
           availability: 'https://schema.org/InStock',
           category: 'Apartado de lugar',
@@ -313,10 +313,10 @@ export default async function ProgramaPage({ params }: { params: Promise<{ id: s
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild size="lg" className="h-14 rounded-full bg-brand-highlight px-7 font-black text-slate-950 shadow-xl shadow-brand-highlight/20 hover:bg-white">
-                  <ClipPaymentLink programId={programa.id} programName={programa.nombre}>
-                    <CreditCard className="mr-2 h-5 w-5" />
-                    Aparta tu lugar con ${RESERVATION_AMOUNT_MXN} MXN
-                  </ClipPaymentLink>
+                  <Link href={buildPreInscripcionUrl(programa.id)}>
+                    <UserPlus className="mr-2 h-5 w-5" />
+                    Pre inscríbete hoy
+                  </Link>
                 </Button>
                 <Button asChild size="lg" className="h-14 rounded-full bg-brand-primary px-7 font-black text-white hover:bg-brand-primary/90">
                   <WhatsAppLink message={whatsappMessage} programId={programa.id}>
@@ -344,20 +344,20 @@ export default async function ProgramaPage({ params }: { params: Promise<{ id: s
                     <LockKeyhole className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-brand-primary">Aparta tu lugar</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-brand-primary">Pre-inscripción</p>
                     <h2 className="mt-1 text-xl font-black text-slate-950">
-                      ${RESERVATION_AMOUNT_MXN} MXN
+                      Inscripción gratis
                     </h2>
                     <p className="mt-1 text-sm font-medium leading-relaxed text-slate-600">
-                      Inicia tu proceso de admisión con pago seguro por Clip y recibe seguimiento de un asesor.
+                      Deja tus datos y recibe tu ficha sin pago en línea. Un asesor te contactará.
                     </p>
                   </div>
                 </div>
                 <Button asChild className="mt-4 h-11 w-full rounded-xl bg-brand-primary font-black text-white hover:bg-brand-primary/90">
-                  <ClipPaymentLink programId={programa.id} programName={programa.nombre}>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Apartar lugar
-                  </ClipPaymentLink>
+                  <Link href={buildPreInscripcionUrl(programa.id)}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Pre inscribirme
+                  </Link>
                 </Button>
               </div>
               <AdmissionLeadForm
@@ -619,10 +619,10 @@ export default async function ProgramaPage({ params }: { params: Promise<{ id: s
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Button asChild className="h-12 rounded-full bg-brand-highlight px-6 font-black text-slate-950 hover:bg-white">
-                <ClipPaymentLink programId={programa.id} programName={programa.nombre}>
-                  <CreditCard className="mr-2 h-5 w-5" />
-                  Apartar con ${RESERVATION_AMOUNT_MXN} MXN
-                </ClipPaymentLink>
+                <Link href={buildPreInscripcionUrl(programa.id)}>
+                  <UserPlus className="mr-2 h-5 w-5" />
+                  Pre inscríbete hoy
+                </Link>
               </Button>
               <Button asChild className="h-12 rounded-full bg-white px-6 font-black text-brand-primary hover:bg-brand-highlight hover:text-slate-950">
                 <WhatsAppLink message={whatsappMessage} programId={programa.id}>

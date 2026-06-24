@@ -17,6 +17,7 @@ import {
   BarChart3,
   CreditCard,
   FileQuestion,
+  Upload,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -27,6 +28,7 @@ const menuItems = [
   { href: '/dashboard/materias', label: 'Materias', icon: BookOpen },
   { href: '/dashboard/tareas', label: 'Tareas', icon: ClipboardList },
   { href: '/dashboard/examenes', label: 'Exámenes', icon: FileQuestion },
+  { href: '/dashboard/documentos', label: 'Documentos', icon: Upload },
   { href: '/dashboard/calificaciones', label: 'Calificaciones', icon: BarChart3 },
   { href: '/dashboard/pagos', label: 'Pagos', icon: CreditCard },
   { href: '/cuenta/seguridad', label: 'Seguridad', icon: Shield },

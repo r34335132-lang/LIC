@@ -1,13 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { motion, type Variants } from 'framer-motion'
-import { ArrowRight, BookOpen, Clock3, CreditCard, MonitorPlay, ShieldCheck } from 'lucide-react'
+import { ArrowRight, BookOpen, Clock3, MonitorPlay, ShieldCheck, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { programas } from '@/lib/data'
 import { getProgramaIcono } from '@/lib/icons'
-import { getProgramWhatsAppMessage, RESERVATION_AMOUNT_MXN } from '@/lib/marketing'
+import { getProgramWhatsAppMessage, buildPreInscripcionUrl } from '@/lib/marketing'
 import { programBenefits } from '@/lib/program-content'
-import { ClipPaymentLink } from '@/components/marketing/clip-payment-link'
 import { TrackLink } from '@/components/marketing/track-link'
 import { WhatsAppIcon } from '@/components/marketing/whatsapp-icon'
 import { WhatsAppLink } from '@/components/marketing/whatsapp-link'
@@ -37,18 +37,17 @@ function ProgramCard({
   const Icon = getProgramaIcono(programa.id)
   const benefit = programBenefits[programa.id] || programa.descripcion
 
-  const renderReservation = () => (
-    <ClipPaymentLink
-      programId={programa.id}
-      programName={programa.nombre}
+  const renderPreInscripcion = () => (
+    <Link
+      href={buildPreInscripcionUrl(programa.id)}
       className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-brand-highlight/50 bg-brand-highlight px-3.5 py-2.5 text-xs font-black text-slate-950 transition hover:bg-white"
     >
       <span className="inline-flex min-w-0 items-center gap-2">
-        <CreditCard className="h-4 w-4 shrink-0" />
-        <span className="truncate">Aparta tu lugar</span>
+        <UserPlus className="h-4 w-4 shrink-0" />
+        <span className="truncate">Pre inscríbete hoy</span>
       </span>
-      <span className="shrink-0">${RESERVATION_AMOUNT_MXN} MXN</span>
-    </ClipPaymentLink>
+      <ArrowRight className="h-4 w-4 shrink-0" />
+    </Link>
   )
 
   const renderActions = () => (
@@ -142,7 +141,7 @@ function ProgramCard({
                 <p className="mt-1 line-clamp-2 text-sm font-semibold leading-relaxed text-white/80">{benefit}</p>
               </div>
 
-              {renderReservation()}
+              {renderPreInscripcion()}
               {renderActions()}
             </div>
           ) : (
@@ -163,7 +162,7 @@ function ProgramCard({
                 <p className="mt-1 line-clamp-1 text-sm font-semibold leading-relaxed text-white/80">{benefit}</p>
               </div>
 
-              {renderReservation()}
+              {renderPreInscripcion()}
               {renderActions()}
             </div>
           )}

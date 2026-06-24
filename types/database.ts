@@ -2,6 +2,15 @@ export type Rol = 'admin' | 'alumno' | 'profesor'
 
 export type EstadoInscripcion = 'pendiente' | 'apartado' | 'aprobada' | 'rechazada'
 
+export type EstadoSeguimientoInscripcion =
+  | 'sin_contactar'
+  | 'en_comunicacion'
+  | 'interesado'
+  | 'faltan_documentos'
+  | 'documentos_completos'
+  | 'listo_aprobar'
+  | 'no_interesado'
+
 export type EstadoAlumnoMateria =
   | 'pendiente'
   | 'cursando'
@@ -97,6 +106,33 @@ export interface Inscripcion {
   clip_reference: string | null
   clip_payment_id: string | null
   created_at: string
+  folio_preinscripcion?: string | null
+  estado_seguimiento?: EstadoSeguimientoInscripcion
+  notas_seguimiento?: string | null
+}
+
+export interface ProgramaDocumentoRequerido {
+  id: string
+  programa_id: string
+  nombre: string
+  descripcion: string | null
+  obligatorio: boolean
+  orden: number
+  created_at: string
+}
+
+export type EstadoInscripcionDocumento = 'pendiente' | 'aprobado' | 'rechazado'
+
+export interface InscripcionDocumento {
+  id: string
+  inscripcion_id: string
+  documento_requerido_id: string
+  archivo_url: string
+  nombre_archivo: string | null
+  estado: EstadoInscripcionDocumento
+  notas_admin: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Actividad {

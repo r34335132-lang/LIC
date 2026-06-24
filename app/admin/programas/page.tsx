@@ -29,10 +29,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Pencil, BookOpen } from 'lucide-react'
+import { Plus, Pencil, BookOpen, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { Programa } from '@/types/database'
+import { ProgramaDocumentosDialog } from '@/components/admin/programa-documentos-dialog'
 import {
   labelTipoPrograma,
   slugifyProgramaId,
@@ -59,6 +60,7 @@ export default function AdminProgramasPage() {
   const [editing, setEditing] = useState<Programa | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [filtro, setFiltro] = useState<'todos' | 'activos' | 'inactivos'>('todos')
+  const [docsPrograma, setDocsPrograma] = useState<Programa | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -260,6 +262,10 @@ export default function AdminProgramasPage() {
                             Plan
                           </Link>
                         </Button>
+                        <Button size="sm" variant="outline" onClick={() => setDocsPrograma(p)}>
+                          <FileText className="mr-1 h-3 w-3" />
+                          Docs
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => abrirEditar(p)}>
                           <Pencil className="mr-1 h-3 w-3" />
                           Editar
@@ -370,6 +376,15 @@ export default function AdminProgramasPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {docsPrograma && (
+        <ProgramaDocumentosDialog
+          programaId={docsPrograma.id}
+          programaNombre={docsPrograma.nombre}
+          open={!!docsPrograma}
+          onOpenChange={(o) => !o && setDocsPrograma(null)}
+        />
+      )}
     </div>
   )
 }

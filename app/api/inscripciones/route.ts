@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { montoApartadoInscripcion } from '@/lib/inscripciones-checkout'
+import { generarFolioPreinscripcion } from '@/lib/preinscripcion-utils'
 import { getProgramaIdCandidates, normalizeProgramaId } from '@/lib/programa-utils'
 
 interface InscripcionBody {
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from('inscripciones')
-      .select('id, estado, estado_pago, apartado_pagado_at')
+      .select('id, estado, folio_preinscripcion')
       .eq('email', email.trim().toLowerCase())
       .eq('programa_id', programa.id)
       .in('estado', ['pendiente', 'apartado'])
@@ -66,13 +66,13 @@ export async function POST(request: Request) {
         success: true,
         inscripcionId: existing.id,
         existing: true,
-        monto: montoApartadoInscripcion(),
-        apartado:
-          existing.estado === 'apartado' ||
-          existing.estado_pago === 'pagado' ||
-          !!existing.apartado_pagado_at,
+        folio: existing.folio_preinscripcion ?? null,
+        programaNombre: programa.nombre,
+        preInscripcion: true,
       })
     }
+
+    const folio = generarFolioPreinscripcion()
 
     const { data: inserted, error } = await supabase
       .from('inscripciones')
@@ -82,8 +82,10 @@ export async function POST(request: Request) {
         telefono: telefono?.trim() ?? null,
         programa_id: programa.id,
         estado: 'pendiente',
+        folio_preinscripcion: folio,
+        estado_seguimiento: 'sin_contactar',
       })
-      .select('id')
+      .select('id, folio_preinscripcion')
       .single()
 
     if (error) {
@@ -93,9 +95,10 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       inscripcionId: inserted.id,
+      folio: inserted.folio_preinscripcion,
+      programaNombre: programa.nombre,
       existing: false,
-      apartado: false,
-      monto: montoApartadoInscripcion(),
+      preInscripcion: true,
     })
   } catch (error) {
     console.error('Inscripción error:', error)
