@@ -162,12 +162,12 @@ export const generalFaqs = [
   {
     question: '¿El certificado tiene validez oficial?',
     answer:
-      'Sí. Los programas académicos mostrados con RVOE cuentan con reconocimiento de validez oficial. En cada programa verás el número de RVOE correspondiente para consultarlo.',
+      'Los programas académicos cuentan con reconocimiento de validez oficial conforme al nivel cursado. Un asesor de admisiones puede confirmarte los detalles del programa que te interesa.',
   },
   {
     question: '¿Qué es el RVOE?',
     answer:
-      'Es el Reconocimiento de Validez Oficial de Estudios. Indica que un plan y programa de estudios fue incorporado al Sistema Educativo Nacional por una autoridad educativa.',
+      'Es el Reconocimiento de Validez Oficial de Estudios. Indica que un plan y programa de estudios fue incorporado al Sistema Educativo Nacional por una autoridad educativa. Si necesitas verificar un acuerdo, admisiones puede orientarte.',
   },
   {
     question: '¿Puedo estudiar si trabajo?',

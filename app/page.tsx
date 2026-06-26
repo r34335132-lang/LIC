@@ -1,19 +1,18 @@
 import { Header } from '@/components/landing/header'
 import { Hero } from '@/components/landing/hero'
 import { Beneficios } from '@/components/landing/beneficios'
-import { RespaldoOficial } from '@/components/landing/respaldo-oficial'
 import { OfertaAcademica } from '@/components/landing/oferta-academica'
 import { ComoFunciona } from '@/components/landing/como-funciona'
-import { Testimonios } from '@/components/landing/testimonios'
 import { FAQ } from '@/components/landing/faq'
 import { Contacto } from '@/components/landing/contacto'
 import { Footer } from '@/components/landing/footer'
+import { MobileReserveBar } from '@/components/landing/mobile-reserve-bar'
 import { SITE_URL } from '@/lib/marketing'
 import { programas } from '@/lib/data'
 import { generalFaqs } from '@/lib/program-content'
 
 export default function HomePage() {
-  const programasConRvoe = programas.filter((programa) => programa.rvoe)
+  const programasAcademicos = programas.filter((programa) => programa.tipo !== 'curso')
   const structuredData = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -40,7 +39,7 @@ export default function HomePage() {
           'Universidad en línea México',
           'Maestrías en línea México',
           'Revalidación de materias',
-          'Programas con RVOE',
+          'Educación en línea flexible',
         ],
         contactPoint: {
           '@type': 'ContactPoint',
@@ -50,8 +49,8 @@ export default function HomePage() {
         },
         hasOfferCatalog: {
           '@type': 'OfferCatalog',
-          name: 'Programas académicos con RVOE',
-          itemListElement: programasConRvoe.map((programa) => ({
+          name: 'Programas académicos en línea',
+          itemListElement: programasAcademicos.map((programa) => ({
             '@type': 'Course',
             name: programa.nombre,
             description: programa.descripcion,
@@ -59,7 +58,6 @@ export default function HomePage() {
             courseMode: 'Virtual',
             timeRequired: programa.duracion,
             educationalCredentialAwarded: programa.tipo,
-            identifier: programa.rvoe,
             provider: {
               '@id': `${SITE_URL}/#institucion`,
             },
@@ -98,17 +96,16 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <main className="flex-1">
+      <main className="flex-1 pb-20 lg:pb-0">
         <Hero />
-        <RespaldoOficial />
         <Beneficios />
         <OfertaAcademica />
         <ComoFunciona />
-        <Testimonios />
         <FAQ />
         <Contacto />
       </main>
       <Footer />
+      <MobileReserveBar />
     </div>
   )
 }

@@ -4,7 +4,7 @@ const pasos = [
   {
     icon: MessageSquareText,
     title: 'Solicita informes',
-    text: 'Un asesor te explica el programa, RVOE, duración, costos y próxima fecha de inicio.',
+    text: 'Un asesor te explica el programa, duración, costos, requisitos y próxima fecha de inicio.',
   },
   {
     icon: FileText,

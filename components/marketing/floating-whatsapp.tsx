@@ -21,7 +21,9 @@ export function FloatingWhatsApp() {
 
   return (
     <div
-      className="group fixed bottom-5 right-4 z-[80] sm:bottom-6 sm:right-6"
+      className={`group fixed right-4 z-[80] sm:right-6 ${
+        pathname === '/' ? 'bottom-20 sm:bottom-6' : 'bottom-5 sm:bottom-6'
+      }`}
       onPointerEnter={showHint}
       onFocusCapture={showHint}
       onTouchStart={showHint}

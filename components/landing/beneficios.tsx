@@ -6,8 +6,8 @@ import { BookOpenCheck, CalendarClock, Headphones, Laptop, ShieldCheck, UserChec
 const beneficios = [
   {
     icon: ShieldCheck,
-    title: 'Respaldo oficial visible',
-    description: 'Consulta el RVOE del programa antes de iniciar tu proceso de inscripción.',
+    title: 'Proceso claro de ingreso',
+    description: 'Te explicamos requisitos, costos y fechas de inicio antes de apartar tu lugar.',
   },
   {
     icon: CalendarClock,

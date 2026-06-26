@@ -8,9 +8,9 @@ import { WhatsAppIcon } from '@/components/marketing/whatsapp-icon'
 import { WhatsAppLink } from '@/components/marketing/whatsapp-link'
 
 const navLinks = [
-  { href: '/#respaldo-oficial', label: 'RVOE' },
   { href: '/#oferta', label: 'Programas' },
   { href: '/#beneficios', label: 'Modalidad' },
+  { href: '/#como-funciona', label: 'Proceso' },
   { href: '/#faq', label: 'Preguntas' },
   { href: '/#contacto', label: 'Admisiones' },
 ]
@@ -31,20 +31,9 @@ export function Header() {
         scrolled ? 'border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl' : 'bg-transparent'
       }`}
     >
-      {/* Barra superior RVOE */}
       <div className="flex w-full items-center justify-center gap-2 bg-slate-950 px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
         <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand-highlight" />
-        <span>Programas en línea con cobertura nacional y opciones con RVOE</span>
-      </div>
-
-      {/* BANNER SIN IMAGEN: Revalidación de Materias */}
-      <div className="w-full bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 px-4 py-2 shadow-sm text-center">
-        <span className="text-[11px] font-black uppercase tracking-wide text-slate-900 sm:text-sm mr-2">
-          ¡No pierdas tu avance!
-        </span>
-        <span className="text-[11px] font-bold uppercase tracking-wide text-slate-800 sm:text-sm">
-          Revalidamos tus materias 🎓
-        </span>
+        <span>Pre-inscripción sin pago en línea · Aparta tu lugar hoy</span>
       </div>
 
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6 lg:h-20">
@@ -86,6 +75,17 @@ export function Header() {
           >
             <Link href="/login">Portal alumnos</Link>
           </Button>
+          <Button
+            asChild
+            variant="outline"
+            className={`rounded-md font-bold ${
+              scrolled
+                ? 'border-slate-300 bg-white text-slate-950 hover:border-brand-primary hover:text-brand-primary'
+                : 'border-white/25 bg-white/10 text-white hover:bg-white hover:text-slate-950'
+            }`}
+          >
+            <Link href="/inscripcion">Apartar lugar</Link>
+          </Button>
           <Button asChild className="rounded-md bg-brand-primary px-5 font-black text-white hover:bg-brand-primary/90">
             <WhatsAppLink>
               <WhatsAppIcon className="mr-2 h-4 w-4" />
@@ -94,15 +94,20 @@ export function Header() {
           </Button>
         </div>
 
-        <button
-          className={`flex h-10 w-10 items-center justify-center rounded-full lg:hidden ${
-            scrolled ? 'text-slate-950' : 'text-white'
-          }`}
-          onClick={() => setMobileMenuOpen((open) => !open)}
-          aria-label="Abrir menú"
-        >
-          {mobileMenuOpen ? <X className="h-6 w-6 text-brand-primary" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <Button asChild size="sm" className="h-9 rounded-md bg-brand-primary px-3 text-[11px] font-black uppercase tracking-wide text-white">
+            <Link href="/inscripcion">Apartar lugar</Link>
+          </Button>
+          <button
+            className={`flex h-10 w-10 items-center justify-center rounded-full ${
+              scrolled ? 'text-slate-950' : 'text-white'
+            }`}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            aria-label="Abrir menú"
+          >
+            {mobileMenuOpen ? <X className="h-6 w-6 text-brand-primary" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
 
       <div
@@ -123,12 +128,17 @@ export function Header() {
             </Link>
           ))}
           <div className="mt-3 grid gap-3 border-t border-slate-200 pt-5">
+            <Button asChild className="h-12 rounded-md bg-brand-primary font-black text-white hover:bg-brand-primary/90">
+              <Link href="/inscripcion" onClick={() => setMobileMenuOpen(false)}>
+                Apartar mi lugar
+              </Link>
+            </Button>
             <Button asChild variant="outline" className="h-12 rounded-md border-slate-300 font-bold">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                 Portal alumnos
               </Link>
             </Button>
-            <Button asChild className="h-12 rounded-md bg-brand-primary font-black text-white hover:bg-brand-primary/90">
+            <Button asChild variant="outline" className="h-12 rounded-md border-slate-300 font-bold">
               <WhatsAppLink>
                 <WhatsAppIcon className="mr-2 h-4 w-4" />
                 Informes por WhatsApp

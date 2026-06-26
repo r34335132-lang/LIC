@@ -40,7 +40,7 @@ export function Contacto() {
               Solicita información y recibe acompañamiento para inscribirte
             </h2>
             <p className="mt-5 text-base font-medium leading-relaxed text-white/75 sm:text-lg">
-              Cuéntanos qué programa te interesa. Un asesor te contactará para confirmar costos, requisitos, RVOE y fechas de inicio.
+              Cuéntanos qué programa te interesa. Un asesor te contactará para confirmar costos, requisitos y fechas de inicio.
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">

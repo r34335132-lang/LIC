@@ -92,7 +92,6 @@ export const programas: Programa[] = [
     tipo: 'preparatoria',
     descripcion: 'Programa flexible para terminar tus estudios de nivel medio superior en menor tiempo, con clases virtuales y acompañamiento.',
     duracion: '2 años',
-    rvoe: '20230145', // RVOE
     imagen: 'https://incareersjobs.com/wp-content/uploads/2020/09/Consejos-para-tener-%C3%A9xito-en-la-preparatoria-UNAM.jpg',
     porQueEstudiar: 'El tiempo es tu recurso más valioso. Nuestro modelo intensivo de 2 años está diseñado para jóvenes y adultos que buscan avanzar rápidamente sin sacrificar la calidad educativa. Obtendrás un certificado con validez oficial SEP que te abrirá las puertas a cualquier universidad pública o privada del país, o bien, a mejores oportunidades laborales inmediatas.',
     campoLaboral: [
@@ -108,7 +107,7 @@ export const programas: Programa[] = [
       'Competencias de autoestudio y gestión del tiempo.'
     ],
     preguntasFrecuentes: [
-      { pregunta: '¿El certificado es válido para entrar a la universidad?', respuesta: 'Sí, absolutamente. Nuestro programa cuenta con RVOE y el certificado que obtienes es 100% válido para ingresar a la UNAM, Politécnico, Tec de Monterrey, o cualquier universidad de México.' },
+      { pregunta: '¿El certificado es válido para entrar a la universidad?', respuesta: 'Sí. Al concluir y cumplir los requisitos académicos obtienes un certificado del nivel medio superior válido para ingresar a universidades públicas y privadas de México.' },
       { pregunta: '¿Hay límite de edad para inscribirme?', respuesta: 'No hay límite de edad. Contamos con estudiantes desde los 15 años hasta adultos que deciden retomar sus estudios. La plataforma es amigable para todos.' }
     ],
     planEstudios: [
@@ -124,7 +123,6 @@ export const programas: Programa[] = [
     tipo: 'licenciatura',
     descripcion: 'Formación integral en ciencias jurídicas con enfoque práctico y ético para el ejercicio profesional.',
     duracion: '3 años',
-    rvoe: '20230288', // RVOE
     imagen: 'https://images.unsplash.com/photo-1589391886645-d51941baf7fb?q=80&w=2070&auto=format&fit=crop',
     porQueEstudiar: 'El sistema jurídico requiere profesionales capaces de adaptarse a las nuevas reformas (penales, laborales, digitales). Estudiar Derecho con nosotros significa aprender a argumentar, negociar y litigar mediante el estudio de casos prácticos reales, alejándonos de la memorización tradicional para enfocarnos en la estrategia legal.',
     campoLaboral: [
@@ -161,7 +159,6 @@ export const programas: Programa[] = [
     tipo: 'licenciatura',
     descripcion: 'Desarrollo de competencias para comprender y mejorar el bienestar psicológico individual y colectivo.',
     duracion: '4 años',
-    rvoe: '20230289', // RVOE
     imagen: 'https://ufhec.edu.do/wp-content/uploads/2021/08/Maestria-en-Gestion-y-Liderazgo-Pedagogico.jpg',
     porQueEstudiar: 'El cuidado de la salud mental vive un momento histórico de demanda global. Como psicólogo, tendrás el poder de transformar vidas, familias y organizaciones. Nuestro programa te da una visión integral que abarca desde la clínica y la neurociencia hasta el comportamiento organizacional, dándote un abanico inmenso de opciones laborales.',
     campoLaboral: [
@@ -198,7 +195,6 @@ export const programas: Programa[] = [
     tipo: 'licenciatura',
     descripcion: 'Formación de profesionales en educación con herramientas innovadoras para la enseñanza.',
     duracion: '3 años',
-    rvoe: '20230290', // RVOE
     imagen: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=2069&auto=format&fit=crop',
     porQueEstudiar: 'La educación está evolucionando más rápido que nunca con la llegada de las plataformas virtuales y la IA. Un pedagogo moderno no solo da clases; diseña sistemas de aprendizaje. Estudiando con nosotros te convertirás en un experto en metodologías activas, diseño curricular y tecnologías educativas, siendo indispensable en colegios y corporativos.',
     campoLaboral: [
@@ -235,7 +231,6 @@ export const programas: Programa[] = [
     tipo: 'licenciatura',
     descripcion: 'Estudio científico del delito, el delincuente y la víctima con enfoque en prevención y seguridad.',
     duracion: '3 años',
-    rvoe: '20230291', // RVOE
     imagen: 'https://utel.edu.mx/_next/image?url=https:%2F%2Fcmsutel.s3.amazonaws.com%2FLic_En_Criminologia_y_Cirminalistica_fea0de6be9.jpg&w=3840&q=75',
     porQueEstudiar: 'México y el mundo enfrentan retos de seguridad sin precedentes. Estudiar Criminología te convierte en una pieza clave para entender la mente criminal, prevenir delitos y diseñar políticas públicas. Nuestra metodología te preparará no solo para entender el crimen, sino para resolverlo y prevenirlo.',
     campoLaboral: [
@@ -272,7 +267,6 @@ export const programas: Programa[] = [
     tipo: 'maestria',
     descripcion: 'Posgrado orientado a la innovación educativa y el liderazgo en instituciones de enseñanza.',
     duracion: '1 año',
-    rvoe: '20230350', // RVOE
     imagen: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop',
     porQueEstudiar: 'Lleva tu carrera docente al siguiente nivel. Esta maestría está diseñada para profesores, directivos y profesionistas que desean asumir puestos de liderazgo (coordinaciones, direcciones) o aspiran a escalar en el escalafón magisterial incrementando sus ingresos económicos.',
     campoLaboral: [
@@ -302,7 +296,6 @@ export const programas: Programa[] = [
     tipo: 'maestria',
     descripcion: 'Especialización en la intervención psicopedagógica para mejorar procesos de aprendizaje.',
     duracion: '1 año',
-    rvoe: '20230351', // RVOE
     imagen: 'https://www.anahuac.mx/sites/default/files/gbb-uploads/Licenciatura_Psicopedagogia_Introduccion-zgbvmw.jpg',
     porQueEstudiar: 'En las aulas actuales, las barreras de aprendizaje y la necesidad de inclusión son el desafío principal. Esta maestría te convierte en el especialista más buscado por colegios y padres de familia para diagnosticar, intervenir y potenciar el aprendizaje de niños y jóvenes con necesidades especiales o talentos sobresalientes.',
     campoLaboral: [

@@ -44,7 +44,7 @@ function ProgramCard({
     >
       <span className="inline-flex min-w-0 items-center gap-2">
         <UserPlus className="h-4 w-4 shrink-0" />
-        <span className="truncate">Pre inscríbete hoy</span>
+        <span className="truncate">Apartar mi lugar</span>
       </span>
       <ArrowRight className="h-4 w-4 shrink-0" />
     </Link>
@@ -89,10 +89,6 @@ function ProgramCard({
       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(10,77,204,0.55),transparent_46%)] opacity-80" />
 
       <div className="absolute left-5 top-5 z-10 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white backdrop-blur">
-          <ShieldCheck className="h-3.5 w-3.5 text-brand-highlight" />
-          RVOE {programa.rvoe}
-        </span>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white backdrop-blur">
           <MonitorPlay className="h-3.5 w-3.5 text-brand-highlight" />
           Virtual
@@ -232,9 +228,9 @@ function ProgramGroup({
 }
 
 export function OfertaAcademica() {
-  const preparatoria = programas.filter((programa) => programa.tipo === 'preparatoria' && programa.rvoe)
-  const licenciaturas = programas.filter((programa) => programa.tipo === 'licenciatura' && programa.rvoe)
-  const maestrias = programas.filter((programa) => programa.tipo === 'maestria' && programa.rvoe)
+  const preparatoria = programas.filter((programa) => programa.tipo === 'preparatoria')
+  const licenciaturas = programas.filter((programa) => programa.tipo === 'licenciatura')
+  const maestrias = programas.filter((programa) => programa.tipo === 'maestria')
 
   return (
     <section id="oferta" className="relative overflow-hidden bg-slate-50 py-20 sm:py-24 lg:py-28">
@@ -251,13 +247,13 @@ export function OfertaAcademica() {
         >
           <div className="mb-4 inline-flex items-center gap-2 border-l-4 border-brand-highlight bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-brand-primary shadow-sm">
             <ShieldCheck className="h-4 w-4" />
-            Oferta académica con RVOE
+            Oferta académica
           </div>
           <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
             Programas en línea para estudiantes de todo México
           </h2>
           <p className="mt-5 max-w-2xl text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
-            Compara duración, modalidad y RVOE antes de solicitar informes. Estudia desde cualquier estado de México con horarios flexibles y acompañamiento académico.
+            Compara duración, modalidad y perfil de egreso antes de solicitar informes. Estudia desde cualquier estado de México con horarios flexibles y acompañamiento académico.
           </p>
         </motion.div>
 
