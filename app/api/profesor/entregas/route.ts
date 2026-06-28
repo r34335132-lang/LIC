@@ -8,6 +8,21 @@ import type {
   Perfil,
 } from '@/types/database'
 
+export type EntregaConAlumno = ActividadEntrega & {
+  alumno: Pick<Perfil, 'id' | 'nombre_completo' | 'email' | 'matricula'> | null
+}
+
+export type TareaConEntregas = {
+  actividad: Actividad
+  materia: Materia | null
+  entregas: EntregaConAlumno[]
+  stats: {
+    total: number
+    porRevisar: number
+    revisadas: number
+  }
+}
+
 export async function GET() {
   try {
     const session = await getPerfilFromSession()
@@ -37,7 +52,7 @@ export async function GET() {
     }
 
     if (materiaIds.length === 0) {
-      return NextResponse.json({ entregas: [] })
+      return NextResponse.json({ tareas: [], entregas: [] })
     }
 
     const { data: actividades } = await admin
@@ -45,21 +60,20 @@ export async function GET() {
       .select('*')
       .in('materia_id', materiaIds)
       .eq('activo', true)
+      .order('fecha_entrega', { ascending: false, nullsFirst: false })
 
     const acts = (actividades ?? []) as Actividad[]
     const actIds = acts.map((a) => a.id)
-    const actMap = new Map(acts.map((a) => [a.id, a]))
 
-    const materiaIdSet = new Set(materiaIds)
     const { data: materiasData } = await admin
       .from('materias')
       .select('*')
-      .in('id', [...materiaIdSet])
+      .in('id', materiaIds)
 
     const materiaMap = new Map((materiasData ?? []).map((m) => [m.id, m as Materia]))
 
     if (actIds.length === 0) {
-      return NextResponse.json({ entregas: [] })
+      return NextResponse.json({ tareas: [], entregas: [] })
     }
 
     const { data: entData, error } = await admin
@@ -85,18 +99,43 @@ export async function GET() {
       ])
     )
 
-    const entregas = (entData ?? []).map((e) => {
-      const act = actMap.get(e.actividad_id)
-      const materia = act ? materiaMap.get(act.materia_id) ?? null : null
+    const entregasPorActividad = new Map<string, EntregaConAlumno[]>()
+    for (const row of entData ?? []) {
+      const entrega: EntregaConAlumno = {
+        ...(row as ActividadEntrega),
+        alumno: alumnoMap.get(row.alumno_id) ?? null,
+      }
+      const list = entregasPorActividad.get(row.actividad_id) ?? []
+      list.push(entrega)
+      entregasPorActividad.set(row.actividad_id, list)
+    }
+
+    const tareas: TareaConEntregas[] = acts.map((actividad) => {
+      const entregas = entregasPorActividad.get(actividad.id) ?? []
+      const porRevisar = entregas.filter((e) => e.estado !== 'revisada').length
+      const revisadas = entregas.filter((e) => e.estado === 'revisada').length
       return {
-        ...(e as ActividadEntrega),
-        actividad: act ?? null,
-        materia,
-        alumno: alumnoMap.get(e.alumno_id) ?? null,
+        actividad,
+        materia: materiaMap.get(actividad.materia_id) ?? null,
+        entregas,
+        stats: {
+          total: entregas.length,
+          porRevisar,
+          revisadas,
+        },
       }
     })
 
-    return NextResponse.json({ entregas })
+    // Compatibilidad con consumidores que esperan lista plana
+    const entregas = tareas.flatMap((t) =>
+      t.entregas.map((e) => ({
+        ...e,
+        actividad: t.actividad,
+        materia: t.materia,
+      }))
+    )
+
+    return NextResponse.json({ tareas, entregas })
   } catch (error) {
     console.error('Profesor entregas GET error:', error)
     return NextResponse.json({ error: 'Error al obtener entregas' }, { status: 500 })
