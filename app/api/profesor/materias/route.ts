@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
+import type { Programa } from '@/types/database'
 
 type MateriaStats = {
   actividadesActivas: number
@@ -34,6 +35,25 @@ export async function GET() {
 
     const materias = data ?? []
     const materiaIds = materias.map((pm) => pm.materia_id).filter(Boolean)
+    const programaIds = [
+      ...new Set(
+        materias
+          .map((pm) => pm.materia?.programa_id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      ),
+    ]
+
+    const programasById = new Map<string, Pick<Programa, 'id' | 'nombre' | 'tipo'>>()
+    if (programaIds.length > 0) {
+      const { data: programas } = await admin
+        .from('programas')
+        .select('id, nombre, tipo')
+        .in('id', programaIds)
+
+      for (const programa of (programas ?? []) as Pick<Programa, 'id' | 'nombre' | 'tipo'>[]) {
+        programasById.set(programa.id, programa)
+      }
+    }
 
     const statsByMateria: Record<string, MateriaStats> = {}
     for (const id of materiaIds) {
@@ -87,6 +107,12 @@ export async function GET() {
 
     const materiasConStats = materias.map((pm) => ({
       ...pm,
+      materia: pm.materia
+        ? {
+            ...pm.materia,
+            programa: programasById.get(pm.materia.programa_id) ?? null,
+          }
+        : pm.materia,
       stats: statsByMateria[pm.materia_id] ?? {
         actividadesActivas: 0,
         proximaEntrega: null,
