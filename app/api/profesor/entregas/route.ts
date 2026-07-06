@@ -6,6 +6,7 @@ import type {
   ActividadEntrega,
   Materia,
   Perfil,
+  Programa,
 } from '@/types/database'
 
 export type EntregaConAlumno = ActividadEntrega & {
@@ -14,7 +15,7 @@ export type EntregaConAlumno = ActividadEntrega & {
 
 export type TareaConEntregas = {
   actividad: Actividad
-  materia: Materia | null
+  materia: (Materia & { programa?: Pick<Programa, 'id' | 'nombre' | 'tipo'> | null }) | null
   entregas: EntregaConAlumno[]
   stats: {
     total: number
@@ -71,6 +72,25 @@ export async function GET() {
       .in('id', materiaIds)
 
     const materiaMap = new Map((materiasData ?? []).map((m) => [m.id, m as Materia]))
+    const programaIds = [
+      ...new Set(
+        (materiasData ?? [])
+          .map((m) => m.programa_id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      ),
+    ]
+    const programasById = new Map<string, Pick<Programa, 'id' | 'nombre' | 'tipo'>>()
+
+    if (programaIds.length > 0) {
+      const { data: programas } = await admin
+        .from('programas')
+        .select('id, nombre, tipo')
+        .in('id', programaIds)
+
+      for (const programa of (programas ?? []) as Pick<Programa, 'id' | 'nombre' | 'tipo'>[]) {
+        programasById.set(programa.id, programa)
+      }
+    }
 
     if (actIds.length === 0) {
       return NextResponse.json({ tareas: [], entregas: [] })
@@ -116,7 +136,13 @@ export async function GET() {
       const revisadas = entregas.filter((e) => e.estado === 'revisada').length
       return {
         actividad,
-        materia: materiaMap.get(actividad.materia_id) ?? null,
+        materia: materiaMap.get(actividad.materia_id)
+          ? {
+              ...materiaMap.get(actividad.materia_id)!,
+              programa:
+                programasById.get(materiaMap.get(actividad.materia_id)!.programa_id) ?? null,
+            }
+          : null,
         entregas,
         stats: {
           total: entregas.length,

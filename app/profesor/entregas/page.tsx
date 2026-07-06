@@ -8,6 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Calendar,
   CheckCircle,
   ClipboardList,
@@ -19,7 +26,8 @@ import {
   User,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Actividad, ActividadEntrega, Materia, Perfil } from '@/types/database'
+import { labelTipoPrograma } from '@/lib/programa-utils'
+import type { Actividad, ActividadEntrega, Materia, Perfil, Programa } from '@/types/database'
 
 type EntregaRow = ActividadEntrega & {
   alumno: Pick<Perfil, 'id' | 'nombre_completo' | 'email' | 'matricula'> | null
@@ -27,7 +35,7 @@ type EntregaRow = ActividadEntrega & {
 
 type TareaRow = {
   actividad: Actividad
-  materia: Materia | null
+  materia: (Materia & { programa?: Pick<Programa, 'id' | 'nombre' | 'tipo'> | null }) | null
   entregas: EntregaRow[]
   stats: {
     total: number
@@ -57,6 +65,7 @@ export default function ProfesorEntregasPage() {
   const [tareas, setTareas] = useState<TareaRow[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
+  const [programaFiltro, setProgramaFiltro] = useState('todos')
   const [tareaId, setTareaId] = useState<string | null>(null)
   const [entregaId, setEntregaId] = useState<string | null>(null)
   const [calificacion, setCalificacion] = useState('')
@@ -86,20 +95,62 @@ export default function ProfesorEntregasPage() {
     load()
   }, [load])
 
+  const programas = useMemo(() => {
+    const map = new Map<string, { id: string; nombre: string; tipo: string; total: number }>()
+
+    for (const tarea of tareas) {
+      const materia = tarea.materia
+      const programaId = materia?.programa_id
+      if (!programaId) continue
+
+      const programa = materia.programa
+      const current = map.get(programaId)
+      if (current) {
+        current.total += 1
+      } else {
+        map.set(programaId, {
+          id: programaId,
+          nombre: programa?.nombre ?? programaId,
+          tipo: programa?.tipo ? labelTipoPrograma(programa.tipo) : 'Programa',
+          total: 1,
+        })
+      }
+    }
+
+    return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  }, [tareas])
+
   const tareasFiltradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
-    if (!q) return tareas
     return tareas.filter((t) => {
+      if (programaFiltro !== 'todos' && t.materia?.programa_id !== programaFiltro) {
+        return false
+      }
+      if (!q) return true
       const titulo = t.actividad.titulo.toLowerCase()
       const materia = t.materia?.nombre?.toLowerCase() ?? ''
-      return titulo.includes(q) || materia.includes(q)
+      const programa = t.materia?.programa?.nombre?.toLowerCase() ?? ''
+      return titulo.includes(q) || materia.includes(q) || programa.includes(q)
     })
-  }, [tareas, busqueda])
+  }, [tareas, busqueda, programaFiltro])
 
   const tareaSeleccionada = useMemo(
-    () => tareas.find((t) => t.actividad.id === tareaId) ?? null,
-    [tareas, tareaId]
+    () => tareasFiltradas.find((t) => t.actividad.id === tareaId) ?? null,
+    [tareasFiltradas, tareaId]
   )
+
+  useEffect(() => {
+    if (!tareasFiltradas.length) {
+      setTareaId(null)
+      return
+    }
+
+    setTareaId((prev) => {
+      if (prev && tareasFiltradas.some((t) => t.actividad.id === prev)) return prev
+      const conEntregas = tareasFiltradas.find((t) => t.stats.total > 0)
+      return conEntregas?.actividad.id ?? tareasFiltradas[0]?.actividad.id ?? null
+    })
+  }, [tareasFiltradas])
 
   const entregaSeleccionada = useMemo(() => {
     if (!tareaSeleccionada || !entregaId) return null
@@ -208,14 +259,37 @@ export default function ProfesorEntregasPage() {
         </Card>
       ) : (
         <>
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar tarea o materia..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="pl-10"
-            />
+          <div className="grid gap-3 sm:max-w-3xl sm:grid-cols-[minmax(240px,1fr)_minmax(260px,1fr)]">
+            {programas.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-slate-800">Carrera o curso</label>
+                <Select value={programaFiltro} onValueChange={setProgramaFiltro}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por carrera o curso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas las carreras y cursos ({tareas.length})</SelectItem>
+                    {programas.map((programa) => (
+                      <SelectItem key={programa.id} value={programa.id}>
+                        {programa.nombre} · {programa.tipo} ({programa.total})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-bold text-slate-800">Buscar</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar tarea, materia o carrera..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(280px,340px)_minmax(240px,300px)_1fr]">
@@ -244,6 +318,11 @@ export default function ProfesorEntregasPage() {
                         <p className="font-bold leading-snug">{t.actividad.titulo}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{t.materia?.nombre ?? 'Sin materia'}</p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
+                          {(t.materia?.programa?.nombre || t.materia?.programa_id) && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {t.materia?.programa?.nombre ?? t.materia?.programa_id}
+                            </Badge>
+                          )}
                           <Badge variant="outline" className="text-[10px]">
                             {t.stats.total} entrega{t.stats.total !== 1 ? 's' : ''}
                           </Badge>
@@ -328,6 +407,8 @@ export default function ProfesorEntregasPage() {
                           <CardTitle className="text-xl">{tareaSeleccionada.actividad.titulo}</CardTitle>
                           <p className="mt-1 text-sm text-muted-foreground">
                             {tareaSeleccionada.materia?.nombre}
+                            {tareaSeleccionada.materia?.programa?.nombre &&
+                              ` · ${tareaSeleccionada.materia.programa.nombre}`}
                             {tareaSeleccionada.actividad.unidad &&
                               ` · ${tareaSeleccionada.actividad.unidad}`}
                           </p>
