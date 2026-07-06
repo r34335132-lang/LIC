@@ -27,7 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { CreditCard, Plus, Pencil } from 'lucide-react'
+import { CreditCard, Plus, Pencil, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Mensualidad, Perfil } from '@/types/database'
 import type { EstadoMensualidadEfectivo } from '@/lib/academico-utils'
@@ -38,14 +38,21 @@ type MensualidadAdmin = Mensualidad & {
   alumno: Pick<Perfil, 'id' | 'nombre_completo' | 'email' | 'matricula'> | null
 }
 
+type AlumnoOption = Pick<Perfil, 'id' | 'nombre_completo' | 'email' | 'matricula'>
+
 export default function AdminPagosPage() {
   const [mensualidades, setMensualidades] = useState<MensualidadAdmin[]>([])
+  const [alumnos, setAlumnos] = useState<AlumnoOption[]>([])
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [loading, setLoading] = useState(true)
   const [generando, setGenerando] = useState(false)
+  const [creando, setCreando] = useState(false)
+  const [recordando, setRecordando] = useState<string | null>(null)
   const [dialogGenerar, setDialogGenerar] = useState(false)
+  const [dialogCrear, setDialogCrear] = useState(false)
   const [editando, setEditando] = useState<MensualidadAdmin | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const [busquedaAlumno, setBusquedaAlumno] = useState('')
   const [editForm, setEditForm] = useState({
     estado: 'pendiente',
     estado_pago: '',
@@ -59,6 +66,23 @@ export default function AdminPagosPage() {
     monto: String(mensualidadMontoDefault()),
     fecha_vencimiento: '',
   })
+  const [formAlumno, setFormAlumno] = useState({
+    alumno_id: '',
+    mes: String(new Date().getMonth() + 1),
+    anio: String(new Date().getFullYear()),
+    monto: String(mensualidadMontoDefault()),
+    fecha_vencimiento: '',
+  })
+
+  const loadAlumnos = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/alumnos', { credentials: 'include' })
+      const data = await res.json()
+      if (res.ok) setAlumnos(data.alumnos ?? [])
+    } catch {
+      // silencioso — el selector mostrará vacío
+    }
+  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -77,7 +101,72 @@ export default function AdminPagosPage() {
   useEffect(() => {
     setLoading(true)
     load()
-  }, [load])
+    loadAlumnos()
+  }, [load, loadAlumnos])
+
+  const alumnosFiltrados = alumnos.filter((a) => {
+    const q = busquedaAlumno.trim().toLowerCase()
+    if (!q) return true
+    return (
+      (a.nombre_completo ?? '').toLowerCase().includes(q) ||
+      (a.email ?? '').toLowerCase().includes(q) ||
+      (a.matricula ?? '').toLowerCase().includes(q)
+    )
+  })
+
+  const crearPorAlumno = async () => {
+    if (!formAlumno.alumno_id) {
+      toast.error('Selecciona un alumno')
+      return
+    }
+    setCreando(true)
+    try {
+      const res = await fetch('/api/admin/mensualidades', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alumno_id: formAlumno.alumno_id,
+          mes: Number(formAlumno.mes),
+          anio: Number(formAlumno.anio),
+          monto: Number(formAlumno.monto),
+          fecha_vencimiento: formAlumno.fecha_vencimiento || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al crear')
+      toast.success('Mensualidad creada para el alumno')
+      setDialogCrear(false)
+      await load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al crear')
+    } finally {
+      setCreando(false)
+    }
+  }
+
+  const recordarPago = async (m: MensualidadAdmin) => {
+    if (!m.alumno_id) return
+    setRecordando(m.id)
+    try {
+      const res = await fetch('/api/admin/avisos', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alumno_id: m.alumno_id,
+          mensualidad_id: m.id,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al enviar recordatorio')
+      toast.success(`Recordatorio enviado a ${m.alumno?.nombre_completo ?? 'alumno'}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al enviar recordatorio')
+    } finally {
+      setRecordando(null)
+    }
+  }
 
   const generar = async () => {
     setGenerando(true)
@@ -191,10 +280,16 @@ export default function AdminPagosPage() {
           <h1 className="text-3xl font-black">Pagos</h1>
           <p className="text-muted-foreground">Administración de mensualidades de alumnos.</p>
         </div>
-        <Button className="bg-brand-primary" onClick={() => setDialogGenerar(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Generar mensualidades del mes
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setDialogCrear(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Crear por alumno
+          </Button>
+          <Button className="bg-brand-primary" onClick={() => setDialogGenerar(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Generar del mes
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -279,9 +374,22 @@ export default function AdminPagosPage() {
                         : '—'}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => abrirEditar(m)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        {(m.estadoEfectivo === 'pendiente' || m.estadoEfectivo === 'vencido') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Recordar pago"
+                            onClick={() => recordarPago(m)}
+                            disabled={recordando === m.id}
+                          >
+                            <Bell className="h-4 w-4 text-amber-600" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => abrirEditar(m)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -290,6 +398,80 @@ export default function AdminPagosPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={dialogCrear} onOpenChange={setDialogCrear}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Crear mensualidad por alumno</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Buscar alumno</Label>
+              <Input
+                placeholder="Nombre, correo o matrícula"
+                value={busquedaAlumno}
+                onChange={(e) => setBusquedaAlumno(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Alumno</Label>
+              <Select
+                value={formAlumno.alumno_id}
+                onValueChange={(v) => setFormAlumno({ ...formAlumno, alumno_id: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecciona alumno" /></SelectTrigger>
+                <SelectContent>
+                  {alumnosFiltrados.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.nombre_completo}
+                      {a.matricula ? ` (${a.matricula})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Mes</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={formAlumno.mes}
+                  onChange={(e) => setFormAlumno({ ...formAlumno, mes: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Año</Label>
+                <Input
+                  type="number"
+                  value={formAlumno.anio}
+                  onChange={(e) => setFormAlumno({ ...formAlumno, anio: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Monto (MXN)</Label>
+              <Input
+                type="number"
+                value={formAlumno.monto}
+                onChange={(e) => setFormAlumno({ ...formAlumno, monto: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Fecha de vencimiento (opcional)</Label>
+              <Input
+                type="date"
+                value={formAlumno.fecha_vencimiento}
+                onChange={(e) => setFormAlumno({ ...formAlumno, fecha_vencimiento: e.target.value })}
+              />
+            </div>
+            <Button className="w-full bg-brand-primary" onClick={crearPorAlumno} disabled={creando}>
+              {creando ? 'Creando...' : 'Crear mensualidad'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogGenerar} onOpenChange={setDialogGenerar}>
         <DialogContent>

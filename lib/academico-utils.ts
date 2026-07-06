@@ -61,6 +61,26 @@ export type EstadoMensualidadEfectivo =
   | 'cancelado'
   | 'fallido'
 
+export function buildRecordatorioPagoMensualidad(params: {
+  periodo: string
+  monto: number
+  fecha_vencimiento: string | null
+}): { titulo: string; contenido: string } {
+  const montoFmt = `$${Number(params.monto).toLocaleString('es-MX')}`
+  const vencimiento = params.fecha_vencimiento
+    ? new Date(params.fecha_vencimiento).toLocaleDateString('es-MX', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : 'sin fecha definida'
+
+  return {
+    titulo: `Recordatorio de pago — ${params.periodo}`,
+    contenido: `Tienes una mensualidad pendiente de ${montoFmt} correspondiente a ${params.periodo}.\n\nFecha de vencimiento: ${vencimiento}.\n\nIngresa a la sección Pagos de tu campus virtual para realizar el pago a tiempo.`,
+  }
+}
+
 export function resolverEstadoMensualidad(
   estado: string,
   fechaVencimiento: string | null | undefined

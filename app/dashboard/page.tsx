@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { BookOpen, ArrowRight, Megaphone, AlertTriangle, Video } from 'lucide-react'
+import { BookOpen, ArrowRight, Megaphone, AlertTriangle, Video, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface MateriaResumen {
@@ -99,7 +99,7 @@ export default function DashboardPage() {
             {avisos.map((aviso) => (
               <Card
                 key={aviso.id}
-                className={aviso.tipo === 'urgente' ? 'border-red-200 bg-red-50/40' : aviso.tipo === 'clase' ? 'border-blue-200' : ''}
+                className={aviso.tipo === 'urgente' ? 'border-red-200 bg-red-50/40' : aviso.tipo === 'clase' ? 'border-blue-200' : aviso.tipo === 'pago' ? 'border-amber-200 bg-amber-50/30' : ''}
               >
                 <CardContent className="p-4">
                   <div className="flex gap-3">
@@ -107,6 +107,8 @@ export default function DashboardPage() {
                       <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
                     ) : aviso.tipo === 'clase' ? (
                       <Video className="h-5 w-5 shrink-0 text-blue-600" />
+                    ) : aviso.tipo === 'pago' ? (
+                      <CreditCard className="h-5 w-5 shrink-0 text-amber-600" />
                     ) : (
                       <Megaphone className="h-5 w-5 shrink-0 text-brand-primary" />
                     )}

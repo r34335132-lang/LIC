@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Bell, Megaphone, AlertTriangle, BookOpen, Video } from 'lucide-react'
+import { Bell, Megaphone, AlertTriangle, BookOpen, Video, CreditCard } from 'lucide-react'
 import type { Aviso, Materia, TipoAviso } from '@/types/database'
 
 type AvisoRow = Aviso & {
@@ -55,6 +55,12 @@ export default function AvisosPage() {
             <BookOpen className="mr-1 h-3 w-3" /> Materia
           </Badge>
         )
+      case 'pago':
+        return (
+          <Badge className="bg-amber-100 text-amber-800">
+            <CreditCard className="mr-1 h-3 w-3" /> Pago
+          </Badge>
+        )
       default:
         return (
           <Badge variant="outline">
@@ -72,6 +78,8 @@ export default function AvisosPage() {
         return <Video className="h-6 w-6 text-blue-600" />
       case 'materia':
         return <BookOpen className="h-6 w-6 text-primary" />
+      case 'pago':
+        return <CreditCard className="h-6 w-6 text-amber-600" />
       default:
         return <Megaphone className="h-6 w-6 text-brand-primary" />
     }
@@ -90,7 +98,7 @@ export default function AvisosPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground md:text-3xl">Avisos</h1>
         <p className="text-muted-foreground">
-          Anuncios de tus profesores sobre clases, tareas y avisos importantes.
+          Anuncios de tus profesores y recordatorios de administración.
         </p>
       </div>
 
@@ -98,7 +106,7 @@ export default function AvisosPage() {
         {avisos.map((aviso) => (
           <Card
             key={aviso.id}
-            className={`transition-all hover:shadow-md ${aviso.tipo === 'urgente' ? 'border-destructive/50 bg-red-50/30' : aviso.tipo === 'clase' ? 'border-blue-200/60' : ''}`}
+            className={`transition-all hover:shadow-md ${aviso.tipo === 'urgente' ? 'border-destructive/50 bg-red-50/30' : aviso.tipo === 'clase' ? 'border-blue-200/60' : aviso.tipo === 'pago' ? 'border-amber-200/60 bg-amber-50/20' : ''}`}
           >
             <CardContent className="flex gap-4 p-6">
               <div
@@ -107,7 +115,9 @@ export default function AvisosPage() {
                     ? 'bg-destructive/10'
                     : aviso.tipo === 'clase'
                       ? 'bg-blue-100'
-                      : 'bg-brand-primary/10'
+                      : aviso.tipo === 'pago'
+                        ? 'bg-amber-100'
+                        : 'bg-brand-primary/10'
                 }`}
               >
                 {getIcono(aviso.tipo)}
