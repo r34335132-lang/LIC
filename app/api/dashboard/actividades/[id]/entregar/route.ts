@@ -14,17 +14,49 @@ export async function POST(
     }
 
     const { id: actividadId } = await params
-    const body = await request.json()
+    const formData = await request.formData()
     const texto_respuesta =
-      typeof body.texto_respuesta === 'string' ? body.texto_respuesta.trim() : null
+      typeof formData.get('texto_respuesta') === 'string'
+        ? String(formData.get('texto_respuesta')).trim()
+        : null
     const link_entrega =
-      typeof body.link_entrega === 'string' ? body.link_entrega.trim() : null
+      typeof formData.get('link_entrega') === 'string'
+        ? String(formData.get('link_entrega')).trim()
+        : null
     const archivo_url =
-      typeof body.archivo_url === 'string' ? body.archivo_url.trim() : null
+      typeof formData.get('archivo_url') === 'string'
+        ? String(formData.get('archivo_url')).trim()
+        : null
+    const imagenes = formData
+      .getAll('imagenes')
+      .filter((value): value is File => value instanceof File && value.size > 0)
+    let imagenesExistentes: string[] = []
+    try {
+      const parsed = JSON.parse(String(formData.get('imagenes_existentes') ?? '[]'))
+      if (Array.isArray(parsed)) {
+        imagenesExistentes = parsed.filter((value): value is string => typeof value === 'string')
+      }
+    } catch {
+      return NextResponse.json({ error: 'La lista de imagenes no es valida' }, { status: 400 })
+    }
 
-    if (!texto_respuesta && !link_entrega && !archivo_url) {
+    if (imagenes.length + imagenesExistentes.length > 6) {
+      return NextResponse.json({ error: 'Puedes adjuntar hasta 6 imagenes' }, { status: 400 })
+    }
+
+    const tiposPermitidos = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
+    for (const imagen of imagenes) {
+      if (!tiposPermitidos.has(imagen.type)) {
+        return NextResponse.json({ error: 'Solo se permiten imagenes JPG, PNG, WEBP o HEIC' }, { status: 400 })
+      }
+      if (imagen.size > 8 * 1024 * 1024) {
+        return NextResponse.json({ error: 'Cada imagen debe pesar menos de 8 MB' }, { status: 400 })
+      }
+    }
+
+    if (!texto_respuesta && !link_entrega && !archivo_url && !imagenes.length && !imagenesExistentes.length) {
       return NextResponse.json(
-        { error: 'Debes incluir respuesta, link de entrega o archivo' },
+        { error: 'Debes incluir una respuesta, enlace, archivo o imagen de tu libreta' },
         { status: 400 }
       )
     }
@@ -73,12 +105,44 @@ export async function POST(
       )
     }
 
+    const urlsGuardadas = Array.isArray(existente?.imagenes_urls)
+      ? existente.imagenes_urls.filter((value): value is string => typeof value === 'string')
+      : []
+    imagenesExistentes = imagenesExistentes.filter((url) => urlsGuardadas.includes(url))
+
+    if (!texto_respuesta && !link_entrega && !archivo_url && !imagenes.length && !imagenesExistentes.length) {
+      return NextResponse.json(
+        { error: 'Debes incluir una respuesta, enlace, archivo o imagen de tu libreta' },
+        { status: 400 }
+      )
+    }
+
+    const imagenesUrls = [...imagenesExistentes]
+    for (const [index, imagen] of imagenes.entries()) {
+      const extension = imagen.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+      const path = `${session.userId}/${actividadId}/${Date.now()}-${index}.${extension}`
+      const { error: uploadError } = await admin.storage
+        .from('entregas-imagenes')
+        .upload(path, Buffer.from(await imagen.arrayBuffer()), {
+          contentType: imagen.type,
+          upsert: false,
+        })
+
+      if (uploadError) {
+        return NextResponse.json({ error: `No se pudo subir ${imagen.name}: ${uploadError.message}` }, { status: 400 })
+      }
+
+      const { data } = admin.storage.from('entregas-imagenes').getPublicUrl(path)
+      imagenesUrls.push(data.publicUrl)
+    }
+
     const payload = {
       actividad_id: actividadId,
       alumno_id: session.userId,
       texto_respuesta,
       link_entrega,
       archivo_url,
+      imagenes_urls: imagenesUrls,
       estado: 'entregada' as const,
       updated_at: new Date().toISOString(),
     }

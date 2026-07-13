@@ -27,6 +27,9 @@ import {
   ExternalLink,
   Video,
   BookOpen,
+  Camera,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
@@ -72,6 +75,8 @@ export default function TareasPage() {
   const [textoRespuesta, setTextoRespuesta] = useState('')
   const [linkEntrega, setLinkEntrega] = useState('')
   const [archivoUrl, setArchivoUrl] = useState('')
+  const [imagenesExistentes, setImagenesExistentes] = useState<string[]>([])
+  const [imagenes, setImagenes] = useState<File[]>([])
   const [enviando, setEnviando] = useState(false)
 
   const load = useCallback(async () => {
@@ -157,23 +162,27 @@ export default function TareasPage() {
     setTextoRespuesta(tarea.entrega?.texto_respuesta ?? '')
     setLinkEntrega(tarea.entrega?.link_entrega ?? '')
     setArchivoUrl(tarea.entrega?.archivo_url ?? '')
+    setImagenesExistentes(tarea.entrega?.imagenes_urls ?? [])
+    setImagenes([])
   }
 
   const entregar = async () => {
     if (!modalTarea) return
     setEnviando(true)
     try {
+      const formData = new FormData()
+      if (textoRespuesta) formData.append('texto_respuesta', textoRespuesta)
+      if (linkEntrega) formData.append('link_entrega', linkEntrega)
+      if (archivoUrl) formData.append('archivo_url', archivoUrl)
+      formData.append('imagenes_existentes', JSON.stringify(imagenesExistentes))
+      imagenes.forEach((imagen) => formData.append('imagenes', imagen))
+
       const res = await fetch(
         `/api/dashboard/actividades/${modalTarea.actividad.id}/entregar`,
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            texto_respuesta: textoRespuesta || undefined,
-            link_entrega: linkEntrega || undefined,
-            archivo_url: archivoUrl || undefined,
-          }),
+          body: formData,
         }
       )
       const data = await res.json()
@@ -549,6 +558,66 @@ export default function TareasPage() {
                       onChange={(e) => setArchivoUrl(e.target.value)}
                       placeholder="https://drive.google.com/..."
                     />
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="flex items-center gap-2">
+                        <Camera className="h-4 w-4" /> Fotos de tu libreta
+                      </Label>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Toma o elige hasta 6 fotos claras. Cada imagen puede pesar hasta 8 MB.
+                      </p>
+                    </div>
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-primary/30 bg-brand-primary/5 px-4 py-5 font-semibold text-brand-primary transition hover:bg-brand-primary/10">
+                      <ImageIcon className="h-5 w-5" />
+                      Tomar o elegir fotos
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                        capture="environment"
+                        multiple
+                        className="sr-only"
+                        onChange={(event) => {
+                          const seleccionadas = Array.from(event.target.files ?? [])
+                          const disponibles = 6 - imagenesExistentes.length - imagenes.length
+                          if (seleccionadas.length > disponibles) {
+                            toast.error(`Solo puedes agregar ${Math.max(disponibles, 0)} foto(s) mas`)
+                          }
+                          setImagenes((actuales) => [...actuales, ...seleccionadas.slice(0, Math.max(disponibles, 0))])
+                          event.target.value = ''
+                        }}
+                      />
+                    </label>
+                    {(imagenesExistentes.length > 0 || imagenes.length > 0) && (
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {imagenesExistentes.map((url, index) => (
+                          <div key={url} className="relative overflow-hidden rounded-xl border bg-muted">
+                            <img src={url} alt={`Foto de libreta ${index + 1}`} className="aspect-square w-full object-cover" />
+                            <button
+                              type="button"
+                              aria-label="Quitar foto"
+                              onClick={() => setImagenesExistentes((actuales) => actuales.filter((item) => item !== url))}
+                              className="absolute right-2 top-2 rounded-full bg-black/70 p-1.5 text-white"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                        {imagenes.map((imagen, index) => (
+                          <div key={`${imagen.name}-${imagen.lastModified}-${index}`} className="relative overflow-hidden rounded-xl border bg-muted">
+                            <img src={URL.createObjectURL(imagen)} alt={`Nueva foto ${index + 1}`} className="aspect-square w-full object-cover" />
+                            <button
+                              type="button"
+                              aria-label="Quitar foto"
+                              onClick={() => setImagenes((actuales) => actuales.filter((_, itemIndex) => itemIndex !== index))}
+                              className="absolute right-2 top-2 rounded-full bg-black/70 p-1.5 text-white"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <Button
                     className="w-full bg-brand-primary"

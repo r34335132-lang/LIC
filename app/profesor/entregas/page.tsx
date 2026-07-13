@@ -529,9 +529,38 @@ export default function ProfesorEntregasPage() {
                           </div>
                         )}
 
+                        {entregaSeleccionada.imagenes_urls?.length > 0 && (
+                          <div>
+                            <p className="mb-3 text-xs font-black uppercase tracking-widest text-muted-foreground">
+                              Fotos de la libreta
+                            </p>
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                              {entregaSeleccionada.imagenes_urls.map((url, index) => (
+                                <a
+                                  key={url}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group relative overflow-hidden rounded-xl border bg-muted"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`Foto de libreta ${index + 1}`}
+                                    className="aspect-square w-full object-cover transition group-hover:scale-105"
+                                  />
+                                  <span className="absolute bottom-2 right-2 rounded-full bg-black/70 p-2 text-white">
+                                    <ExternalLink className="h-4 w-4" />
+                                  </span>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {!entregaSeleccionada.archivo_url &&
                           !entregaSeleccionada.link_entrega &&
-                          !entregaSeleccionada.texto_respuesta && (
+                          !entregaSeleccionada.texto_respuesta &&
+                          !entregaSeleccionada.imagenes_urls?.length && (
                             <p className="text-sm text-muted-foreground">
                               El alumno no adjuntó archivo ni texto en esta entrega.
                             </p>

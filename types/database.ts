@@ -261,6 +261,7 @@ export interface ActividadEntrega {
   texto_respuesta: string | null
   link_entrega: string | null
   archivo_url: string | null
+  imagenes_urls: string[]
   estado: EstadoActividadEntrega
   calificacion: number | null
   retroalimentacion: string | null
