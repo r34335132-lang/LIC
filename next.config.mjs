@@ -8,7 +8,6 @@ const nextConfig = {
     root: rootDir,
   },
   experimental: {
-    middlewareClientMaxBodySize: '50mb',
     proxyClientMaxBodySize: '50mb',
   },
   typescript: {
