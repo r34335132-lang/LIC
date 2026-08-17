@@ -41,6 +41,7 @@ import type {
 } from '@/types/database'
 import type { EstadoEntregaTarea } from '@/lib/academico-utils'
 import { cuatrimestreLabel } from '@/lib/academico-utils'
+import { comprimirImagenesEntrega } from '@/lib/comprimir-imagen'
 
 type TareaRow = {
   actividad: Actividad
@@ -170,12 +171,13 @@ export default function TareasPage() {
     if (!modalTarea) return
     setEnviando(true)
     try {
+      const imagenesListas = await comprimirImagenesEntrega(imagenes)
       const formData = new FormData()
       if (textoRespuesta) formData.append('texto_respuesta', textoRespuesta)
       if (linkEntrega) formData.append('link_entrega', linkEntrega)
       if (archivoUrl) formData.append('archivo_url', archivoUrl)
       formData.append('imagenes_existentes', JSON.stringify(imagenesExistentes))
-      imagenes.forEach((imagen) => formData.append('imagenes', imagen))
+      imagenesListas.forEach((imagen) => formData.append('imagenes', imagen))
 
       const res = await fetch(
         `/api/dashboard/actividades/${modalTarea.actividad.id}/entregar`,
@@ -185,8 +187,13 @@ export default function TareasPage() {
           body: formData,
         }
       )
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'No se pudo entregar')
+      const data = await res.json().catch(() => ({} as { error?: string }))
+      if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error('Las fotos son demasiado pesadas. Intenta con menos imágenes o de menor tamaño.')
+        }
+        throw new Error(data.error ?? 'No se pudo entregar')
+      }
       toast.success('Tarea entregada correctamente')
       setModalTarea(null)
       await load()
@@ -565,7 +572,7 @@ export default function TareasPage() {
                         <Camera className="h-4 w-4" /> Fotos de tu libreta
                       </Label>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Toma o elige hasta 6 fotos claras. Cada imagen puede pesar hasta 8 MB.
+                        Toma o elige hasta 6 fotos claras. Se comprimen automáticamente antes de subirlas.
                       </p>
                     </div>
                     <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-primary/30 bg-brand-primary/5 px-4 py-5 font-semibold text-brand-primary transition hover:bg-brand-primary/10">
@@ -573,8 +580,7 @@ export default function TareasPage() {
                       Tomar o elegir fotos
                       <input
                         type="file"
-                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                        capture="environment"
+                        accept="image/*,image/jpeg,image/png,image/webp,image/heic,image/heif"
                         multiple
                         className="sr-only"
                         onChange={(event) => {
@@ -624,7 +630,7 @@ export default function TareasPage() {
                     onClick={entregar}
                     disabled={enviando}
                   >
-                    {enviando ? 'Enviando...' : 'Enviar entrega'}
+                    {enviando ? 'Subiendo entrega...' : 'Enviar entrega'}
                   </Button>
                 </section>
               )}

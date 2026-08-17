@@ -9,7 +9,10 @@ import type {
   Programa,
 } from '@/types/database'
 
-export type EntregaConAlumno = ActividadEntrega & {
+export type EntregaConAlumno = Omit<ActividadEntrega, 'id' | 'estado'> & {
+  id: string | null
+  estado: 'pendiente' | 'entregada' | 'revisada'
+  sinEntrega: boolean
   alumno: Pick<Perfil, 'id' | 'nombre_completo' | 'email' | 'matricula'> | null
 }
 
@@ -19,8 +22,33 @@ export type TareaConEntregas = {
   entregas: EntregaConAlumno[]
   stats: {
     total: number
+    entregadas: number
     porRevisar: number
     revisadas: number
+    sinEntregar: number
+  }
+}
+
+function placeholderEntrega(
+  actividadId: string,
+  alumnoId: string,
+  alumno: EntregaConAlumno['alumno']
+): EntregaConAlumno {
+  return {
+    id: null,
+    actividad_id: actividadId,
+    alumno_id: alumnoId,
+    texto_respuesta: null,
+    link_entrega: null,
+    archivo_url: null,
+    imagenes_urls: [],
+    estado: 'pendiente',
+    calificacion: null,
+    retroalimentacion: null,
+    created_at: '',
+    updated_at: '',
+    sinEntrega: true,
+    alumno,
   }
 }
 
@@ -92,6 +120,20 @@ export async function GET() {
       }
     }
 
+    const { data: inscritosData } = await admin
+      .from('alumno_materias')
+      .select('alumno_id, materia_id')
+      .in('materia_id', materiaIds)
+
+    const alumnosPorMateria = new Map<string, string[]>()
+    const alumnoIds = new Set<string>()
+    for (const row of inscritosData ?? []) {
+      alumnoIds.add(row.alumno_id)
+      const list = alumnosPorMateria.get(row.materia_id) ?? []
+      if (!list.includes(row.alumno_id)) list.push(row.alumno_id)
+      alumnosPorMateria.set(row.materia_id, list)
+    }
+
     if (actIds.length === 0) {
       return NextResponse.json({ tareas: [], entregas: [] })
     }
@@ -106,11 +148,14 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    const alumnoIds = [...new Set((entData ?? []).map((e) => e.alumno_id))]
+    for (const row of entData ?? []) {
+      alumnoIds.add(row.alumno_id)
+    }
+
     const { data: alumnosData } = await admin
       .from('perfiles')
       .select('id, nombre_completo, email, matricula')
-      .in('id', alumnoIds.length ? alumnoIds : ['00000000-0000-0000-0000-000000000000'])
+      .in('id', alumnoIds.size ? [...alumnoIds] : ['00000000-0000-0000-0000-000000000000'])
 
     const alumnoMap = new Map(
       (alumnosData ?? []).map((a) => [
@@ -119,21 +164,51 @@ export async function GET() {
       ])
     )
 
-    const entregasPorActividad = new Map<string, EntregaConAlumno[]>()
+    const entregasPorActividad = new Map<string, Map<string, EntregaConAlumno>>()
     for (const row of entData ?? []) {
       const entrega: EntregaConAlumno = {
         ...(row as ActividadEntrega),
+        estado: row.estado === 'revisada' ? 'revisada' : 'entregada',
+        sinEntrega: false,
         alumno: alumnoMap.get(row.alumno_id) ?? null,
       }
-      const list = entregasPorActividad.get(row.actividad_id) ?? []
-      list.push(entrega)
-      entregasPorActividad.set(row.actividad_id, list)
+      const porAlumno = entregasPorActividad.get(row.actividad_id) ?? new Map()
+      porAlumno.set(row.alumno_id, entrega)
+      entregasPorActividad.set(row.actividad_id, porAlumno)
     }
 
     const tareas: TareaConEntregas[] = acts.map((actividad) => {
-      const entregas = entregasPorActividad.get(actividad.id) ?? []
-      const porRevisar = entregas.filter((e) => e.estado !== 'revisada').length
+      const porAlumno = new Map(entregasPorActividad.get(actividad.id) ?? [])
+      const inscritos = alumnosPorMateria.get(actividad.materia_id) ?? []
+
+      for (const alumnoId of inscritos) {
+        if (!porAlumno.has(alumnoId)) {
+          porAlumno.set(
+            alumnoId,
+            placeholderEntrega(actividad.id, alumnoId, alumnoMap.get(alumnoId) ?? null)
+          )
+        }
+      }
+
+      const entregas = [...porAlumno.values()].sort((a, b) => {
+        const orden = (e: EntregaConAlumno) => {
+          if (e.estado === 'entregada') return 0
+          if (e.sinEntrega) return 1
+          return 2
+        }
+        const diff = orden(a) - orden(b)
+        if (diff !== 0) return diff
+        return (a.alumno?.nombre_completo ?? '').localeCompare(
+          b.alumno?.nombre_completo ?? '',
+          'es'
+        )
+      })
+
+      const entregadas = entregas.filter((e) => !e.sinEntrega).length
+      const porRevisar = entregas.filter((e) => e.estado === 'entregada').length
       const revisadas = entregas.filter((e) => e.estado === 'revisada').length
+      const sinEntregar = entregas.filter((e) => e.sinEntrega).length
+
       return {
         actividad,
         materia: materiaMap.get(actividad.materia_id)
@@ -146,13 +221,14 @@ export async function GET() {
         entregas,
         stats: {
           total: entregas.length,
+          entregadas,
           porRevisar,
           revisadas,
+          sinEntregar,
         },
       }
     })
 
-    // Compatibilidad con consumidores que esperan lista plana
     const entregas = tareas.flatMap((t) =>
       t.entregas.map((e) => ({
         ...e,
@@ -179,7 +255,10 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json()
-    const id = typeof body.id === 'string' ? body.id : ''
+    const id = typeof body.id === 'string' && body.id.trim() ? body.id.trim() : ''
+    const actividadId =
+      typeof body.actividad_id === 'string' ? body.actividad_id.trim() : ''
+    const alumnoId = typeof body.alumno_id === 'string' ? body.alumno_id.trim() : ''
     const calificacion =
       body.calificacion !== undefined ? Number(body.calificacion) : undefined
     const retroalimentacion =
@@ -187,8 +266,11 @@ export async function PATCH(request: Request) {
         ? body.retroalimentacion.trim()
         : undefined
 
-    if (!id) {
-      return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
+    if (!id && (!actividadId || !alumnoId)) {
+      return NextResponse.json(
+        { error: 'ID de entrega o actividad y alumno requeridos' },
+        { status: 400 }
+      )
     }
 
     if (calificacion === undefined && retroalimentacion === undefined) {
@@ -210,17 +292,66 @@ export async function PATCH(request: Request) {
 
     const admin = createAdminClient()
 
-    const { data: entrega } = await admin
-      .from('actividad_entregas')
-      .select('*, actividad:actividades(materia_id)')
-      .eq('id', id)
-      .maybeSingle()
+    let entrega = null as
+      | (ActividadEntrega & { actividad?: { materia_id: string } | null })
+      | null
 
-    if (!entrega) {
-      return NextResponse.json({ error: 'Entrega no encontrada' }, { status: 404 })
+    if (id) {
+      const { data } = await admin
+        .from('actividad_entregas')
+        .select('*, actividad:actividades(materia_id)')
+        .eq('id', id)
+        .maybeSingle()
+      entrega = data as typeof entrega
+    } else {
+      const { data } = await admin
+        .from('actividad_entregas')
+        .select('*, actividad:actividades(materia_id)')
+        .eq('actividad_id', actividadId)
+        .eq('alumno_id', alumnoId)
+        .maybeSingle()
+      entrega = data as typeof entrega
     }
 
-    const materiaId = (entrega.actividad as { materia_id: string } | null)?.materia_id
+    const materiaIdFromEntrega = (
+      entrega?.actividad as { materia_id: string } | null | undefined
+    )?.materia_id
+
+    let materiaId = materiaIdFromEntrega ?? ''
+    let actividadDestino = entrega?.actividad_id ?? actividadId
+    let alumnoDestino = entrega?.alumno_id ?? alumnoId
+
+    if (!materiaId) {
+      if (!actividadDestino || !alumnoDestino) {
+        return NextResponse.json({ error: 'Entrega no encontrada' }, { status: 404 })
+      }
+
+      const { data: actividad } = await admin
+        .from('actividades')
+        .select('id, materia_id, activo')
+        .eq('id', actividadDestino)
+        .maybeSingle()
+
+      if (!actividad) {
+        return NextResponse.json({ error: 'Actividad no encontrada' }, { status: 404 })
+      }
+
+      materiaId = actividad.materia_id
+
+      const { data: inscrito } = await admin
+        .from('alumno_materias')
+        .select('id')
+        .eq('alumno_id', alumnoDestino)
+        .eq('materia_id', materiaId)
+        .maybeSingle()
+
+      if (!inscrito) {
+        return NextResponse.json(
+          { error: 'El alumno no está inscrito en esta materia' },
+          { status: 400 }
+        )
+      }
+    }
 
     if (session.perfil.rol === 'profesor' && materiaId) {
       const { data: pm } = await admin
@@ -237,16 +368,23 @@ export async function PATCH(request: Request) {
     }
 
     const updates: Record<string, unknown> = {
+      actividad_id: actividadDestino,
+      alumno_id: alumnoDestino,
       estado: 'revisada',
       updated_at: new Date().toISOString(),
     }
     if (calificacion !== undefined) updates.calificacion = calificacion
     if (retroalimentacion !== undefined) updates.retroalimentacion = retroalimentacion
+    if (!entrega) {
+      updates.texto_respuesta = null
+      updates.link_entrega = null
+      updates.archivo_url = null
+      updates.imagenes_urls = []
+    }
 
     const { data, error } = await admin
       .from('actividad_entregas')
-      .update(updates)
-      .eq('id', id)
+      .upsert(updates, { onConflict: 'actividad_id,alumno_id' })
       .select()
       .single()
 

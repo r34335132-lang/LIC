@@ -29,7 +29,10 @@ import { toast } from 'sonner'
 import { labelTipoPrograma } from '@/lib/programa-utils'
 import type { Actividad, ActividadEntrega, Materia, Perfil, Programa } from '@/types/database'
 
-type EntregaRow = ActividadEntrega & {
+type EntregaRow = Omit<ActividadEntrega, 'id' | 'estado'> & {
+  id: string | null
+  estado: 'pendiente' | 'entregada' | 'revisada'
+  sinEntrega?: boolean
   alumno: Pick<Perfil, 'id' | 'nombre_completo' | 'email' | 'matricula'> | null
 }
 
@@ -39,17 +42,38 @@ type TareaRow = {
   entregas: EntregaRow[]
   stats: {
     total: number
+    entregadas?: number
     porRevisar: number
     revisadas: number
+    sinEntregar?: number
   }
 }
 
-function EntregaBadge({ estado, calificacion }: { estado: EntregaRow['estado']; calificacion: number | null }) {
+function entregaKey(entrega: EntregaRow) {
+  return entrega.id ?? `pendiente:${entrega.alumno_id}`
+}
+
+function EntregaBadge({
+  estado,
+  calificacion,
+  sinEntrega,
+}: {
+  estado: EntregaRow['estado']
+  calificacion: number | null
+  sinEntrega?: boolean
+}) {
   if (estado === 'revisada') {
     return (
       <Badge className="bg-emerald-100 text-emerald-800 shrink-0">
         <CheckCircle className="mr-1 h-3 w-3" />
         {calificacion != null ? `${calificacion}/10` : 'Revisada'}
+      </Badge>
+    )
+  }
+  if (sinEntrega || estado === 'pendiente') {
+    return (
+      <Badge variant="outline" className="shrink-0 text-muted-foreground">
+        Sin entregar
       </Badge>
     )
   }
@@ -154,7 +178,7 @@ export default function ProfesorEntregasPage() {
 
   const entregaSeleccionada = useMemo(() => {
     if (!tareaSeleccionada || !entregaId) return null
-    return tareaSeleccionada.entregas.find((e) => e.id === entregaId) ?? null
+    return tareaSeleccionada.entregas.find((e) => entregaKey(e) === entregaId) ?? null
   }, [tareaSeleccionada, entregaId])
 
   useEffect(() => {
@@ -163,9 +187,18 @@ export default function ProfesorEntregasPage() {
       return
     }
     setEntregaId((prev) => {
-      if (prev && tareaSeleccionada.entregas.some((e) => e.id === prev)) return prev
-      const pendiente = tareaSeleccionada.entregas.find((e) => e.estado !== 'revisada')
-      return pendiente?.id ?? tareaSeleccionada.entregas[0]?.id ?? null
+      if (prev && tareaSeleccionada.entregas.some((e) => entregaKey(e) === prev)) return prev
+      const alumnoId = prev?.startsWith('pendiente:')
+        ? prev.slice('pendiente:'.length)
+        : tareaSeleccionada.entregas.find((e) => e.id === prev)?.alumno_id
+      if (alumnoId) {
+        const misma = tareaSeleccionada.entregas.find((e) => e.alumno_id === alumnoId)
+        if (misma) return entregaKey(misma)
+      }
+      const pendiente = tareaSeleccionada.entregas.find((e) => e.estado === 'entregada')
+      return pendiente ? entregaKey(pendiente) : tareaSeleccionada.entregas[0]
+        ? entregaKey(tareaSeleccionada.entregas[0])
+        : null
     })
   }, [tareaSeleccionada])
 
@@ -187,7 +220,7 @@ export default function ProfesorEntregasPage() {
   }
 
   const seleccionarEntrega = (e: EntregaRow) => {
-    setEntregaId(e.id)
+    setEntregaId(entregaKey(e))
   }
 
   const calificar = async () => {
@@ -210,14 +243,20 @@ export default function ProfesorEntregasPage() {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: entregaSeleccionada.id,
+          id: entregaSeleccionada.id ?? undefined,
+          actividad_id: tareaSeleccionada?.actividad.id,
+          alumno_id: entregaSeleccionada.alumno_id,
           calificacion: calificacionNumerica,
           retroalimentacion,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Error al calificar')
-      toast.success('Entrega calificada')
+      toast.success(
+        entregaSeleccionada.sinEntrega
+          ? 'Calificación guardada aunque el alumno no haya entregado'
+          : 'Entrega calificada'
+      )
       await load()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al calificar')
@@ -241,7 +280,7 @@ export default function ProfesorEntregasPage() {
       <div>
         <h1 className="text-3xl font-black">Entregas / Tareas</h1>
         <p className="text-muted-foreground">
-          Selecciona una tarea, revisa la entrega del alumno y califica desde un solo lugar.
+          Selecciona una tarea, revisa la entrega del alumno y califica desde un solo lugar. También puedes registrar la nota aunque el alumno aún no haya subido su trabajo.
         </p>
         {totalPorRevisar > 0 && (
           <Badge className="mt-3 bg-amber-100 text-amber-800">
@@ -324,8 +363,13 @@ export default function ProfesorEntregasPage() {
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-[10px]">
-                            {t.stats.total} entrega{t.stats.total !== 1 ? 's' : ''}
+                            {t.stats.total} alumno{t.stats.total !== 1 ? 's' : ''}
                           </Badge>
+                          {(t.stats.sinEntregar ?? 0) > 0 && (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                              {t.stats.sinEntregar} sin entregar
+                            </Badge>
+                          )}
                           {t.stats.porRevisar > 0 && (
                             <Badge className="bg-amber-100 text-amber-800 text-[10px]">
                               {t.stats.porRevisar} por revisar
@@ -346,8 +390,12 @@ export default function ProfesorEntregasPage() {
                 {tareaSeleccionada && (
                   <p className="text-xs text-muted-foreground">
                     {tareaSeleccionada.stats.total === 0
-                      ? 'Aún no hay entregas en esta tarea'
-                      : `${tareaSeleccionada.stats.total} alumno${tareaSeleccionada.stats.total !== 1 ? 's' : ''}`}
+                      ? 'No hay alumnos inscritos en esta materia'
+                      : `${tareaSeleccionada.stats.total} alumno${tareaSeleccionada.stats.total !== 1 ? 's' : ''}${
+                          (tareaSeleccionada.stats.sinEntregar ?? 0) > 0
+                            ? ` · ${tareaSeleccionada.stats.sinEntregar} sin entregar`
+                            : ''
+                        }`}
                   </p>
                 )}
               </CardHeader>
@@ -356,14 +404,14 @@ export default function ProfesorEntregasPage() {
                   <p className="px-2 py-4 text-sm text-muted-foreground">Selecciona una tarea.</p>
                 ) : tareaSeleccionada.entregas.length === 0 ? (
                   <p className="px-2 py-4 text-sm text-muted-foreground">
-                    Nadie ha entregado esta tarea todavía.
+                    No hay alumnos inscritos en esta materia.
                   </p>
                 ) : (
                   tareaSeleccionada.entregas.map((e) => {
-                    const activa = e.id === entregaId
+                    const activa = entregaKey(e) === entregaId
                     return (
                       <button
-                        key={e.id}
+                        key={entregaKey(e)}
                         type="button"
                         onClick={() => seleccionarEntrega(e)}
                         className={`w-full rounded-xl border p-3 text-left transition ${
@@ -381,9 +429,13 @@ export default function ProfesorEntregasPage() {
                               <p className="text-xs text-muted-foreground">{e.alumno.matricula}</p>
                             )}
                           </div>
-                          <EntregaBadge estado={e.estado} calificacion={e.calificacion} />
+                          <EntregaBadge
+                            estado={e.estado}
+                            calificacion={e.calificacion}
+                            sinEntrega={e.sinEntrega}
+                          />
                         </div>
-                        {(e.archivo_url || e.link_entrega) && (
+                        {(e.archivo_url || e.link_entrega || e.imagenes_urls?.length) && (
                           <p className="mt-2 flex items-center gap-1 text-xs text-brand-primary">
                             <FileText className="h-3 w-3" />
                             Archivo adjunto
@@ -474,6 +526,7 @@ export default function ProfesorEntregasPage() {
                           <EntregaBadge
                             estado={entregaSeleccionada.estado}
                             calificacion={entregaSeleccionada.calificacion}
+                            sinEntrega={entregaSeleccionada.sinEntrega}
                           />
                         </div>
                         {entregaSeleccionada.alumno?.email && (
@@ -481,6 +534,15 @@ export default function ProfesorEntregasPage() {
                         )}
                       </CardHeader>
                       <CardContent className="space-y-5">
+                        {entregaSeleccionada.sinEntrega ? (
+                          <div className="rounded-xl border border-dashed bg-muted/20 p-4">
+                            <p className="text-sm font-semibold">Este alumno aún no ha subido la tarea.</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              Puedes registrar su calificación y retroalimentación de todas formas.
+                            </p>
+                          </div>
+                        ) : (
+                          <>
                         <div className="grid gap-3 sm:grid-cols-2">
                           {entregaSeleccionada.archivo_url && (
                             <a
@@ -565,9 +627,15 @@ export default function ProfesorEntregasPage() {
                               El alumno no adjuntó archivo ni texto en esta entrega.
                             </p>
                           )}
+                          </>
+                        )}
 
                         <div className="space-y-4 border-t pt-5">
-                          <h3 className="font-black">Calificar entrega</h3>
+                          <h3 className="font-black">
+                            {entregaSeleccionada.sinEntrega
+                              ? 'Calificar aunque no haya entregado'
+                              : 'Calificar entrega'}
+                          </h3>
                           <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
                             <div>
                               <Label>Calificación (0-10)</Label>

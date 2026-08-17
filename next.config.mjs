@@ -7,6 +7,10 @@ const nextConfig = {
   turbopack: {
     root: rootDir,
   },
+  experimental: {
+    middlewareClientMaxBodySize: '50mb',
+    proxyClientMaxBodySize: '50mb',
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession, canAccessAlumno } from '@/lib/auth-server'
 import type { ActividadEntrega } from '@/types/database'
+import {
+  ENTREGAS_IMAGENES_BUCKET,
+  asegurarBucketEntregas,
+  esArchivoSubido,
+  resolverTipoImagen,
+} from '@/lib/entrega-imagenes-server'
+
+export const maxDuration = 60
 
 export async function POST(
   request: Request,
@@ -27,9 +35,7 @@ export async function POST(
       typeof formData.get('archivo_url') === 'string'
         ? String(formData.get('archivo_url')).trim()
         : null
-    const imagenes = formData
-      .getAll('imagenes')
-      .filter((value): value is File => value instanceof File && value.size > 0)
+    const imagenes = formData.getAll('imagenes').filter(esArchivoSubido)
     let imagenesExistentes: string[] = []
     try {
       const parsed = JSON.parse(String(formData.get('imagenes_existentes') ?? '[]'))
@@ -44,17 +50,29 @@ export async function POST(
       return NextResponse.json({ error: 'Puedes adjuntar hasta 6 imagenes' }, { status: 400 })
     }
 
-    const tiposPermitidos = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
+    const imagenesPreparadas: { archivo: File; buffer: Buffer; contentType: string }[] = []
     for (const imagen of imagenes) {
-      if (!tiposPermitidos.has(imagen.type)) {
-        return NextResponse.json({ error: 'Solo se permiten imagenes JPG, PNG, WEBP o HEIC' }, { status: 400 })
-      }
       if (imagen.size > 8 * 1024 * 1024) {
         return NextResponse.json({ error: 'Cada imagen debe pesar menos de 8 MB' }, { status: 400 })
       }
+      const buffer = Buffer.from(await imagen.arrayBuffer())
+      const contentType = resolverTipoImagen(imagen, buffer)
+      if (!contentType) {
+        return NextResponse.json(
+          { error: 'Solo se permiten imagenes JPG, PNG, WEBP o HEIC' },
+          { status: 400 }
+        )
+      }
+      imagenesPreparadas.push({ archivo: imagen, buffer, contentType })
     }
 
-    if (!texto_respuesta && !link_entrega && !archivo_url && !imagenes.length && !imagenesExistentes.length) {
+    if (
+      !texto_respuesta &&
+      !link_entrega &&
+      !archivo_url &&
+      !imagenesPreparadas.length &&
+      !imagenesExistentes.length
+    ) {
       return NextResponse.json(
         { error: 'Debes incluir una respuesta, enlace, archivo o imagen de tu libreta' },
         { status: 400 }
@@ -110,7 +128,13 @@ export async function POST(
       : []
     imagenesExistentes = imagenesExistentes.filter((url) => urlsGuardadas.includes(url))
 
-    if (!texto_respuesta && !link_entrega && !archivo_url && !imagenes.length && !imagenesExistentes.length) {
+    if (
+      !texto_respuesta &&
+      !link_entrega &&
+      !archivo_url &&
+      !imagenesPreparadas.length &&
+      !imagenesExistentes.length
+    ) {
       return NextResponse.json(
         { error: 'Debes incluir una respuesta, enlace, archivo o imagen de tu libreta' },
         { status: 400 }
@@ -118,21 +142,43 @@ export async function POST(
     }
 
     const imagenesUrls = [...imagenesExistentes]
-    for (const [index, imagen] of imagenes.entries()) {
-      const extension = imagen.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    for (const [index, imagen] of imagenesPreparadas.entries()) {
+      const extension =
+        imagen.archivo.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') ||
+        imagen.contentType.split('/')[1]?.replace('jpeg', 'jpg') ||
+        'jpg'
       const path = `${session.userId}/${actividadId}/${Date.now()}-${index}.${extension}`
       const { error: uploadError } = await admin.storage
-        .from('entregas-imagenes')
-        .upload(path, Buffer.from(await imagen.arrayBuffer()), {
-          contentType: imagen.type,
+        .from(ENTREGAS_IMAGENES_BUCKET)
+        .upload(path, imagen.buffer, {
+          contentType: imagen.contentType,
           upsert: false,
         })
 
       if (uploadError) {
-        return NextResponse.json({ error: `No se pudo subir ${imagen.name}: ${uploadError.message}` }, { status: 400 })
+        if (/bucket not found/i.test(uploadError.message)) {
+          await asegurarBucketEntregas(admin)
+          const { error: retryError } = await admin.storage
+            .from(ENTREGAS_IMAGENES_BUCKET)
+            .upload(path, imagen.buffer, {
+              contentType: imagen.contentType,
+              upsert: false,
+            })
+          if (retryError) {
+            return NextResponse.json(
+              { error: `No se pudo subir ${imagen.archivo.name}: ${retryError.message}` },
+              { status: 400 }
+            )
+          }
+        } else {
+          return NextResponse.json(
+            { error: `No se pudo subir ${imagen.archivo.name}: ${uploadError.message}` },
+            { status: 400 }
+          )
+        }
       }
 
-      const { data } = admin.storage.from('entregas-imagenes').getPublicUrl(path)
+      const { data } = admin.storage.from(ENTREGAS_IMAGENES_BUCKET).getPublicUrl(path)
       imagenesUrls.push(data.publicUrl)
     }
 
