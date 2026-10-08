@@ -78,13 +78,15 @@ async function replaceRecursos(
     .eq('tarea_id', tareaId)
 
   if (deleteError) throw deleteError
-  if (recursos.length === 0) return
+  if (recursos.length === 0) return []
 
-  const { error: insertError } = await admin
+  const { data, error: insertError } = await admin
     .from('tarea_recursos')
     .insert(recursos.map((recurso) => ({ ...recurso, tarea_id: tareaId })))
+    .select()
 
   if (insertError) throw insertError
+  return data ?? []
 }
 
 export async function POST(request: Request) {
@@ -150,9 +152,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
+    let recursosGuardados: Record<string, unknown>[] = []
     if (recursos && recursos.length > 0) {
       try {
-        await replaceRecursos(admin, data.id, recursos)
+        recursosGuardados = await replaceRecursos(admin, data.id, recursos)
       } catch (resourceError) {
         await admin.from('actividades').delete().eq('id', data.id)
         const message =
@@ -163,7 +166,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data: { ...data, recursos: recursosGuardados } })
   } catch (error) {
     console.error('Crear actividad error:', error)
     return NextResponse.json({ error: 'Error al crear actividad' }, { status: 500 })
@@ -271,9 +274,10 @@ export async function PATCH(request: Request) {
       }
     }
 
+    let recursosGuardados: Record<string, unknown>[] | undefined
     if (recursos !== null) {
       try {
-        await replaceRecursos(admin, id, recursos)
+        recursosGuardados = await replaceRecursos(admin, id, recursos)
       } catch (resourceError) {
         const message =
           resourceError instanceof Error
@@ -283,7 +287,13 @@ export async function PATCH(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true })
+    const { data: actualizada } = await admin
+      .from('actividades')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+
+    return NextResponse.json({ success: true, data: actualizada, recursos: recursosGuardados })
   } catch (error) {
     console.error('Actualizar actividad error:', error)
     return NextResponse.json(

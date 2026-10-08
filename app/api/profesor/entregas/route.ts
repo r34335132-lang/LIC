@@ -245,6 +245,141 @@ export async function GET() {
   }
 }
 
+type ResultadoCalificacion =
+  | { ok: true; entrega: ActividadEntrega }
+  | { ok: false; error: string; status: number }
+
+async function calificarEntrega(
+  admin: ReturnType<typeof createAdminClient>,
+  session: { userId: string; rol: string },
+  body: Record<string, unknown>
+): Promise<ResultadoCalificacion> {
+  const id = typeof body.id === 'string' && body.id.trim() ? body.id.trim() : ''
+  const actividadId =
+    typeof body.actividad_id === 'string' ? body.actividad_id.trim() : ''
+  const alumnoId = typeof body.alumno_id === 'string' ? body.alumno_id.trim() : ''
+  const calificacion =
+    body.calificacion !== undefined ? Number(body.calificacion) : undefined
+  const retroalimentacion =
+    typeof body.retroalimentacion === 'string'
+      ? body.retroalimentacion.trim()
+      : undefined
+
+  if (!id && (!actividadId || !alumnoId)) {
+    return { ok: false, error: 'ID de entrega o actividad y alumno requeridos', status: 400 }
+  }
+
+  if (calificacion === undefined && retroalimentacion === undefined) {
+    return { ok: false, error: 'calificacion o retroalimentacion requeridos', status: 400 }
+  }
+
+  if (
+    calificacion !== undefined &&
+    (!Number.isFinite(calificacion) || calificacion < 0 || calificacion > 10)
+  ) {
+    return { ok: false, error: 'La calificación debe ser un número entre 0 y 10', status: 400 }
+  }
+
+  let entrega = null as
+    | (ActividadEntrega & { actividad?: { materia_id: string } | null })
+    | null
+
+  if (id) {
+    const { data } = await admin
+      .from('actividad_entregas')
+      .select('*, actividad:actividades(materia_id)')
+      .eq('id', id)
+      .maybeSingle()
+    entrega = data as typeof entrega
+  } else {
+    const { data } = await admin
+      .from('actividad_entregas')
+      .select('*, actividad:actividades(materia_id)')
+      .eq('actividad_id', actividadId)
+      .eq('alumno_id', alumnoId)
+      .maybeSingle()
+    entrega = data as typeof entrega
+  }
+
+  const materiaIdFromEntrega = (
+    entrega?.actividad as { materia_id: string } | null | undefined
+  )?.materia_id
+
+  let materiaId = materiaIdFromEntrega ?? ''
+  const actividadDestino = entrega?.actividad_id ?? actividadId
+  const alumnoDestino = entrega?.alumno_id ?? alumnoId
+
+  if (!materiaId) {
+    if (!actividadDestino || !alumnoDestino) {
+      return { ok: false, error: 'Entrega no encontrada', status: 404 }
+    }
+
+    const { data: actividad } = await admin
+      .from('actividades')
+      .select('id, materia_id, activo')
+      .eq('id', actividadDestino)
+      .maybeSingle()
+
+    if (!actividad) {
+      return { ok: false, error: 'Actividad no encontrada', status: 404 }
+    }
+
+    materiaId = actividad.materia_id
+
+    const { data: inscrito } = await admin
+      .from('alumno_materias')
+      .select('id')
+      .eq('alumno_id', alumnoDestino)
+      .eq('materia_id', materiaId)
+      .maybeSingle()
+
+    if (!inscrito) {
+      return { ok: false, error: 'El alumno no está inscrito en esta materia', status: 400 }
+    }
+  }
+
+  if (session.rol === 'profesor' && materiaId) {
+    const { data: pm } = await admin
+      .from('profesor_materias')
+      .select('id')
+      .eq('profesor_id', session.userId)
+      .eq('materia_id', materiaId)
+      .eq('activo', true)
+      .maybeSingle()
+
+    if (!pm) {
+      return { ok: false, error: 'No autorizado', status: 403 }
+    }
+  }
+
+  const updates: Record<string, unknown> = {
+    actividad_id: actividadDestino,
+    alumno_id: alumnoDestino,
+    estado: 'revisada',
+    updated_at: new Date().toISOString(),
+  }
+  if (calificacion !== undefined) updates.calificacion = calificacion
+  if (retroalimentacion !== undefined) updates.retroalimentacion = retroalimentacion
+  if (!entrega) {
+    updates.texto_respuesta = null
+    updates.link_entrega = null
+    updates.archivo_url = null
+    updates.imagenes_urls = []
+  }
+
+  const { data, error } = await admin
+    .from('actividad_entregas')
+    .upsert(updates, { onConflict: 'actividad_id,alumno_id' })
+    .select()
+    .single()
+
+  if (error) {
+    return { ok: false, error: error.message, status: 400 }
+  }
+
+  return { ok: true, entrega: data as ActividadEntrega }
+}
+
 export async function PATCH(request: Request) {
   try {
     const session = await getPerfilFromSession()
@@ -256,144 +391,32 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json()
-    const id = typeof body.id === 'string' && body.id.trim() ? body.id.trim() : ''
-    const actividadId =
-      typeof body.actividad_id === 'string' ? body.actividad_id.trim() : ''
-    const alumnoId = typeof body.alumno_id === 'string' ? body.alumno_id.trim() : ''
-    const calificacion =
-      body.calificacion !== undefined ? Number(body.calificacion) : undefined
-    const retroalimentacion =
-      typeof body.retroalimentacion === 'string'
-        ? body.retroalimentacion.trim()
-        : undefined
-
-    if (!id && (!actividadId || !alumnoId)) {
-      return NextResponse.json(
-        { error: 'ID de entrega o actividad y alumno requeridos' },
-        { status: 400 }
-      )
-    }
-
-    if (calificacion === undefined && retroalimentacion === undefined) {
-      return NextResponse.json(
-        { error: 'calificacion o retroalimentacion requeridos' },
-        { status: 400 }
-      )
-    }
-
-    if (
-      calificacion !== undefined &&
-      (!Number.isFinite(calificacion) || calificacion < 0 || calificacion > 10)
-    ) {
-      return NextResponse.json(
-        { error: 'La calificación debe ser un número entre 0 y 10' },
-        { status: 400 }
-      )
-    }
-
     const admin = createAdminClient()
+    const sesion = { userId: session.userId, rol: session.perfil.rol }
 
-    let entrega = null as
-      | (ActividadEntrega & { actividad?: { materia_id: string } | null })
-      | null
-
-    if (id) {
-      const { data } = await admin
-        .from('actividad_entregas')
-        .select('*, actividad:actividades(materia_id)')
-        .eq('id', id)
-        .maybeSingle()
-      entrega = data as typeof entrega
-    } else {
-      const { data } = await admin
-        .from('actividad_entregas')
-        .select('*, actividad:actividades(materia_id)')
-        .eq('actividad_id', actividadId)
-        .eq('alumno_id', alumnoId)
-        .maybeSingle()
-      entrega = data as typeof entrega
-    }
-
-    const materiaIdFromEntrega = (
-      entrega?.actividad as { materia_id: string } | null | undefined
-    )?.materia_id
-
-    let materiaId = materiaIdFromEntrega ?? ''
-    let actividadDestino = entrega?.actividad_id ?? actividadId
-    let alumnoDestino = entrega?.alumno_id ?? alumnoId
-
-    if (!materiaId) {
-      if (!actividadDestino || !alumnoDestino) {
-        return NextResponse.json({ error: 'Entrega no encontrada' }, { status: 404 })
+    if (Array.isArray(body.items)) {
+      const items = (body.items as unknown[])
+        .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+        .slice(0, 200)
+      if (items.length === 0) {
+        return NextResponse.json({ error: 'No hay calificaciones para guardar' }, { status: 400 })
       }
 
-      const { data: actividad } = await admin
-        .from('actividades')
-        .select('id, materia_id, activo')
-        .eq('id', actividadDestino)
-        .maybeSingle()
-
-      if (!actividad) {
-        return NextResponse.json({ error: 'Actividad no encontrada' }, { status: 404 })
-      }
-
-      materiaId = actividad.materia_id
-
-      const { data: inscrito } = await admin
-        .from('alumno_materias')
-        .select('id')
-        .eq('alumno_id', alumnoDestino)
-        .eq('materia_id', materiaId)
-        .maybeSingle()
-
-      if (!inscrito) {
-        return NextResponse.json(
-          { error: 'El alumno no está inscrito en esta materia' },
-          { status: 400 }
-        )
-      }
+      const resultados = await Promise.all(
+        items.map((item) => calificarEntrega(admin, sesion, item))
+      )
+      const entregas = resultados.flatMap((r) => (r.ok ? [r.entrega] : []))
+      const errores = resultados.flatMap((r, index) =>
+        r.ok ? [] : [{ alumno_id: items[index].alumno_id ?? null, error: r.error }]
+      )
+      return NextResponse.json({ entregas, errores })
     }
 
-    if (session.perfil.rol === 'profesor' && materiaId) {
-      const { data: pm } = await admin
-        .from('profesor_materias')
-        .select('id')
-        .eq('profesor_id', session.userId)
-        .eq('materia_id', materiaId)
-        .eq('activo', true)
-        .maybeSingle()
-
-      if (!pm) {
-        return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-      }
+    const resultado = await calificarEntrega(admin, sesion, body)
+    if (!resultado.ok) {
+      return NextResponse.json({ error: resultado.error }, { status: resultado.status })
     }
-
-    const updates: Record<string, unknown> = {
-      actividad_id: actividadDestino,
-      alumno_id: alumnoDestino,
-      estado: 'revisada',
-      updated_at: new Date().toISOString(),
-    }
-    if (calificacion !== undefined) updates.calificacion = calificacion
-    if (retroalimentacion !== undefined) updates.retroalimentacion = retroalimentacion
-    if (!entrega) {
-      updates.texto_respuesta = null
-      updates.link_entrega = null
-      updates.archivo_url = null
-      updates.imagenes_urls = []
-    }
-
-    const { data, error } = await admin
-      .from('actividad_entregas')
-      .upsert(updates, { onConflict: 'actividad_id,alumno_id' })
-      .select()
-      .single()
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
-
-    return NextResponse.json({ entrega: data })
+    return NextResponse.json({ entrega: resultado.entrega })
   } catch (error) {
     console.error('Profesor entregas PATCH error:', error)
     return NextResponse.json({ error: 'Error al calificar entrega' }, { status: 500 })

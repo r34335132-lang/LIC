@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Pencil, ExternalLink, Copy, Users, Clock, Video, Trash2, Megaphone, ClipboardList, FileText } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, ExternalLink, Copy, Users, Clock, Video, Trash2, Megaphone, ClipboardList, FileText, Sparkles, RefreshCw, Check, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +38,7 @@ import type {
 import { MateriaRubricaSection } from '@/components/profesor/materia-rubrica-section'
 import { MateriaExamenesSection } from '@/components/profesor/materia-examenes-section'
 import { MateriaResumenAlumnosSection } from '@/components/profesor/materia-resumen-alumnos-section'
+import type { SugerenciaTarea } from '@/lib/sugerencias-tareas'
 
 type AlumnoRow = AlumnoMateria & {
   alumno: Pick<Perfil, 'id' | 'nombre_completo' | 'matricula' | 'email'>
@@ -86,6 +87,11 @@ export default function ProfesorMateriaDetailPage({
   const [actOpen, setActOpen] = useState(false)
   const [newAct, setNewAct] = useState(emptyAct)
   const [editAct, setEditAct] = useState<ActividadConRecursos | null>(null)
+  const [guardandoAct, setGuardandoAct] = useState(false)
+  const [sugerencias, setSugerencias] = useState<SugerenciaTarea[]>([])
+  const [rondaSugerencias, setRondaSugerencias] = useState(0)
+  const [cargandoSugerencias, setCargandoSugerencias] = useState(false)
+  const [publicandoSugerencias, setPublicandoSugerencias] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     try {
@@ -107,12 +113,12 @@ export default function ProfesorMateriaDetailPage({
     load()
   }, [load])
 
-  const callApi = async (
+  const callApi = async <T extends Record<string, unknown>>(
     url: string,
     method: 'POST' | 'PATCH',
     body: Record<string, unknown>,
-    successMsg: string
-  ): Promise<boolean> => {
+    successMsg?: string
+  ): Promise<T | null> => {
     try {
       const res = await fetch(url, {
         method,
@@ -123,60 +129,148 @@ export default function ProfesorMateriaDetailPage({
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         toast.error(data.error ?? 'Ocurrió un error')
-        return false
+        return null
       }
-      toast.success(successMsg)
-      await load()
-      return true
+      if (successMsg) toast.success(successMsg)
+      return data as T
     } catch {
       toast.error('Error de conexión')
-      return false
+      return null
     }
   }
 
-  const updateAlumno = (
+  const updateAlumno = async (
     amId: string,
-    updates: { estado?: string; calificacion?: number | null }
-  ) => callApi('/api/profesor/alumno-materias', 'PATCH', { id: amId, ...updates }, 'Alumno actualizado')
+    updates: { estado?: AlumnoMateria['estado']; calificacion?: number | null }
+  ) => {
+    const anterior = alumnos
+    setAlumnos((actuales) => actuales.map((am) => (am.id === amId ? { ...am, ...updates } : am)))
+    const ok = await callApi('/api/profesor/alumno-materias', 'PATCH', { id: amId, ...updates }, 'Guardado')
+    if (!ok) setAlumnos(anterior)
+  }
 
-  const updatePm = (updates: Partial<ProfesorMateria>) =>
-    callApi('/api/profesor/profesor-materias', 'PATCH', { id, ...updates }, 'Clase actualizada')
+  const updatePm = async (updates: Partial<ProfesorMateria>) => {
+    const anterior = pm
+    setPm((actual) => (actual ? { ...actual, ...updates } : actual))
+    const ok = await callApi('/api/profesor/profesor-materias', 'PATCH', { id, ...updates }, 'Clase actualizada')
+    if (!ok) setPm(anterior)
+  }
 
-  const createActividad = async () => {
+  const publicarActividad = async (draft: ActividadDraft, successMsg = 'Tarea publicada') => {
+    const res = await callApi<{ data: ActividadConRecursos }>(
+      '/api/profesor/actividades',
+      'POST',
+      { profesor_materia_id: id, ...draft },
+      successMsg
+    )
+    if (res?.data) {
+      setActividades((actuales) => [{ ...res.data, recursos: res.data.recursos ?? [] }, ...actuales])
+    }
+    return Boolean(res?.data)
+  }
+
+  const createActividad = async (crearOtra = false) => {
     if (!newAct.titulo.trim()) {
       toast.error('El título es requerido')
       return
     }
-    const ok = await callApi(
-      '/api/profesor/actividades',
-      'POST',
-      { profesor_materia_id: id, ...newAct },
-      'Actividad creada'
-    )
+    setGuardandoAct(true)
+    const ok = await publicarActividad(newAct)
+    setGuardandoAct(false)
     if (ok) {
-      setActOpen(false)
-      setNewAct(emptyAct)
+      setNewAct(crearOtra ? { ...emptyAct, unidad: newAct.unidad } : emptyAct)
+      if (!crearOtra) setActOpen(false)
     }
   }
 
   const updateActividad = async (updates: Partial<ActividadConRecursos>) => {
     if (!editAct) return
-    const ok = await callApi(
+    const actividadId = editAct.id
+    setGuardandoAct(true)
+    const res = await callApi<{ data?: Actividad | null; recursos?: RecursoFormulario[] }>(
       '/api/profesor/actividades',
       'PATCH',
-      { id: editAct.id, ...updates },
+      { id: actividadId, ...updates },
       'Actividad actualizada'
     )
-    if (ok) setEditAct(null)
+    setGuardandoAct(false)
+    if (res) {
+      setActividades((actuales) =>
+        actuales.map((act) =>
+          act.id === actividadId
+            ? {
+                ...act,
+                ...(res.data ?? {}),
+                recursos: res.recursos ?? act.recursos,
+              }
+            : act
+        )
+      )
+      setEditAct(null)
+    }
   }
 
-  const toggleActividad = (act: Actividad) =>
-    callApi(
+  const toggleActividad = async (act: Actividad) => {
+    const setActivo = (activo: boolean) =>
+      setActividades((actuales) => actuales.map((a) => (a.id === act.id ? { ...a, activo } : a)))
+    setActivo(!act.activo)
+    const ok = await callApi(
       '/api/profesor/actividades',
       'PATCH',
       { id: act.id, activo: !act.activo },
       act.activo ? 'Actividad desactivada' : 'Actividad activada'
     )
+    if (!ok) setActivo(act.activo)
+  }
+
+  const cargarSugerencias = async (siguienteRonda = 0) => {
+    setCargandoSugerencias(true)
+    try {
+      const res = await fetch(`/api/profesor/materias/${id}/sugerencias?ronda=${siguienteRonda}`, {
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'No se pudieron generar sugerencias')
+      setSugerencias(data.sugerencias ?? [])
+      setRondaSugerencias(siguienteRonda)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudieron generar sugerencias')
+    } finally {
+      setCargandoSugerencias(false)
+    }
+  }
+
+  const sugerenciaADraft = (s: SugerenciaTarea): ActividadDraft => ({
+    ...emptyAct,
+    titulo: s.titulo,
+    unidad: s.unidad,
+    descripcion: s.descripcion,
+    instrucciones: s.instrucciones,
+    fecha_entrega: s.fecha_entrega,
+  })
+
+  const publicarSugerencia = async (s: SugerenciaTarea) => {
+    setPublicandoSugerencias((actual) => new Set(actual).add(s.clave))
+    const ok = await publicarActividad(sugerenciaADraft(s))
+    setPublicandoSugerencias((actual) => {
+      const siguiente = new Set(actual)
+      siguiente.delete(s.clave)
+      return siguiente
+    })
+    if (ok) setSugerencias((actuales) => actuales.filter((item) => item.clave !== s.clave))
+  }
+
+  const publicarTodasSugerencias = async () => {
+    for (const s of sugerencias) {
+      await publicarSugerencia(s)
+    }
+  }
+
+  const editarSugerencia = (s: SugerenciaTarea) => {
+    setNewAct(sugerenciaADraft(s))
+    setSugerencias((actuales) => actuales.filter((item) => item.clave !== s.clave))
+    setActOpen(true)
+  }
 
   const updateNewRecurso = (index: number, updates: Partial<RecursoDraft>) => {
     setNewAct((current) => ({
@@ -338,7 +432,14 @@ export default function ProfesorMateriaDetailPage({
 
       <Card className="mt-6" id="alumnos">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Alumnos ({alumnos.length})</CardTitle>
+          <div>
+            <CardTitle>Alumnos ({alumnos.length})</CardTitle>
+            {isOwner && alumnos.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Escribe la calificación final y presiona Enter para pasar al siguiente alumno; se guarda sola.
+              </p>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {alumnos.length === 0 && (
@@ -352,7 +453,7 @@ export default function ProfesorMateriaDetailPage({
               </div>
               {isOwner && (
                 <div className="flex gap-2">
-                  <Select value={am.estado} onValueChange={(v) => updateAlumno(am.id, { estado: v })}>
+                  <Select value={am.estado} onValueChange={(v) => updateAlumno(am.id, { estado: v as AlumnoMateria['estado'] })}>
                     <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pendiente">Pendiente</SelectItem>
@@ -364,7 +465,19 @@ export default function ProfesorMateriaDetailPage({
                   <Input
                     type="number" min={0} max={10} step={0.1}
                     className="w-20 h-9"
+                    placeholder="0-10"
+                    data-calif-final
                     defaultValue={am.calificacion ?? ''}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return
+                      e.preventDefault()
+                      const inputs = Array.from(
+                        document.querySelectorAll<HTMLInputElement>('input[data-calif-final]')
+                      )
+                      const siguiente = inputs[inputs.indexOf(e.currentTarget) + 1]
+                      if (siguiente) siguiente.focus()
+                      else e.currentTarget.blur()
+                    }}
                     onBlur={(e) => {
                       const raw = e.target.value
                       const value = raw ? parseFloat(raw) : null
@@ -450,13 +563,111 @@ export default function ProfesorMateriaDetailPage({
                       </div>
                     ))}
                   </div>
-                  <Button onClick={createActividad} className="w-full bg-brand-primary">Crear</Button>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button onClick={() => createActividad(false)} disabled={guardandoAct} className="bg-brand-primary">
+                      {guardandoAct ? 'Publicando...' : 'Publicar'}
+                    </Button>
+                    <Button onClick={() => createActividad(true)} disabled={guardandoAct} variant="outline">
+                      Publicar y crear otra
+                    </Button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
           )}
         </CardHeader>
         <CardContent className="space-y-2">
+          {isOwner && (
+            <div className="mb-4 rounded-xl border border-dashed border-brand-primary/40 bg-white p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="flex items-center gap-2 font-bold">
+                    <Sparkles className="h-4 w-4 text-brand-primary" />
+                    Sugerencias de tareas
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Ideas listas para publicar según la materia y lo que ya tienes. Publica con un clic o edítalas antes.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {sugerencias.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={publicarTodasSugerencias}
+                      disabled={publicandoSugerencias.size > 0}
+                    >
+                      <Check className="mr-1 h-4 w-4" /> Publicar todas
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    className="bg-brand-primary"
+                    onClick={() => cargarSugerencias(sugerencias.length > 0 ? rondaSugerencias + 1 : 0)}
+                    disabled={cargandoSugerencias}
+                  >
+                    {sugerencias.length > 0 ? (
+                      <RefreshCw className={`mr-1 h-4 w-4 ${cargandoSugerencias ? 'animate-spin' : ''}`} />
+                    ) : (
+                      <Sparkles className="mr-1 h-4 w-4" />
+                    )}
+                    {cargandoSugerencias
+                      ? 'Generando...'
+                      : sugerencias.length > 0
+                        ? 'Otras ideas'
+                        : 'Sugerir tareas'}
+                  </Button>
+                </div>
+              </div>
+              {sugerencias.length > 0 && (
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {sugerencias.map((s) => {
+                    const publicando = publicandoSugerencias.has(s.clave)
+                    return (
+                      <div key={s.clave} className="flex flex-col rounded-lg border bg-muted/20 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-bold leading-snug">{s.titulo}</p>
+                          <button
+                            type="button"
+                            aria-label="Descartar sugerencia"
+                            onClick={() =>
+                              setSugerencias((actuales) => actuales.filter((item) => item.clave !== s.clave))
+                            }
+                            className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          <Badge variant="outline" className="text-[10px]">{s.unidad}</Badge>
+                          <Badge variant="outline" className="text-[10px]">
+                            <Clock className="mr-1 h-3 w-3" />
+                            {new Date(s.fecha_entrega).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-sm text-muted-foreground">{s.descripcion}</p>
+                        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-slate-600">{s.instrucciones}</p>
+                        <div className="mt-3 flex gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-brand-primary"
+                            onClick={() => publicarSugerencia(s)}
+                            disabled={publicando}
+                          >
+                            <Check className="mr-1 h-4 w-4" />
+                            {publicando ? 'Publicando...' : 'Publicar'}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => editarSugerencia(s)} disabled={publicando}>
+                            <Pencil className="mr-1 h-4 w-4" /> Editar
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           {actividades.length === 0 && (
             <p className="text-sm text-muted-foreground">Sin actividades.</p>
           )}
@@ -618,7 +829,8 @@ export default function ProfesorMateriaDetailPage({
                   </div>
                 ))}
               </div>
-              <Button
+                <Button
+                disabled={guardandoAct}
                 onClick={() =>
                   updateActividad({
                     titulo: editAct.titulo,

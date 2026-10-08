@@ -25,12 +25,15 @@ import {
   FileText,
   FileType,
   Link as LinkIcon,
+  Save,
   Search,
   User,
+  Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { labelTipoPrograma } from '@/lib/programa-utils'
 import { esDocumentoPdf, formatearTamanoArchivo } from '@/lib/entrega-documentos'
+import { useProgramaFiltro } from '@/lib/use-programa-filtro'
 import type { Actividad, ActividadEntrega, Materia, Perfil, Programa } from '@/types/database'
 
 type EntregaRow = Omit<ActividadEntrega, 'id' | 'estado'> & {
@@ -59,6 +62,36 @@ function entregaKey(entrega: EntregaRow) {
 
 function materiaKey(tarea: TareaRow) {
   return tarea.materia?.id ?? 'sin-materia'
+}
+
+function calcularStats(entregas: EntregaRow[]): TareaRow['stats'] {
+  return {
+    total: entregas.length,
+    entregadas: entregas.filter((e) => !e.sinEntrega).length,
+    porRevisar: entregas.filter((e) => e.estado === 'entregada').length,
+    revisadas: entregas.filter((e) => e.estado === 'revisada').length,
+    sinEntregar: entregas.filter((e) => e.sinEntrega).length,
+  }
+}
+
+function aplicarCalificaciones(tareas: TareaRow[], guardadas: ActividadEntrega[]): TareaRow[] {
+  if (guardadas.length === 0) return tareas
+  return tareas.map((tarea) => {
+    const deEstaTarea = guardadas.filter((g) => g.actividad_id === tarea.actividad.id)
+    if (deEstaTarea.length === 0) return tarea
+    const entregas = tarea.entregas.map((entrega) => {
+      const guardada = deEstaTarea.find((g) => g.alumno_id === entrega.alumno_id)
+      if (!guardada) return entrega
+      return {
+        ...entrega,
+        ...guardada,
+        estado: 'revisada' as const,
+        sinEntrega: false,
+        alumno: entrega.alumno,
+      }
+    })
+    return { ...tarea, entregas, stats: calcularStats(entregas) }
+  })
 }
 
 function EntregaBadge({
@@ -97,8 +130,11 @@ export default function ProfesorEntregasPage() {
   const [tareas, setTareas] = useState<TareaRow[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [programaFiltro, setProgramaFiltro] = useState('todos')
+  const [programaFiltro, setProgramaFiltro] = useProgramaFiltro()
   const [materiaFiltro, setMateriaFiltro] = useState('todas')
+  const [modoRapido, setModoRapido] = useState(false)
+  const [notasRapidas, setNotasRapidas] = useState<Record<string, string>>({})
+  const [guardandoRapido, setGuardandoRapido] = useState(false)
   const [tareaId, setTareaId] = useState<string | null>(null)
   const [entregaId, setEntregaId] = useState<string | null>(null)
   const [calificacion, setCalificacion] = useState('')
@@ -152,6 +188,12 @@ export default function ProfesorEntregasPage() {
 
     return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
   }, [tareas])
+
+  useEffect(() => {
+    if (!loading && programaFiltro !== 'todos' && !programas.some((p) => p.id === programaFiltro)) {
+      setProgramaFiltro('todos')
+    }
+  }, [loading, programas, programaFiltro, setProgramaFiltro])
 
   const materias = useMemo(() => {
     const map = new Map<string, { id: string; nombre: string; total: number; porRevisar: number }>()
@@ -311,11 +353,74 @@ export default function ProfesorEntregasPage() {
           ? 'Calificación guardada aunque el alumno no haya entregado'
           : 'Entrega calificada'
       )
-      await load()
+      setTareas((actuales) => aplicarCalificaciones(actuales, [data.entrega as ActividadEntrega]))
+      const siguiente = tareaSeleccionada?.entregas.find(
+        (e) => e.estado === 'entregada' && e.alumno_id !== entregaSeleccionada.alumno_id
+      )
+      if (siguiente) setEntregaId(entregaKey(siguiente))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al calificar')
     } finally {
       setGuardando(false)
+    }
+  }
+
+  useEffect(() => {
+    setNotasRapidas({})
+  }, [tareaId])
+
+  const cambiosRapidos = useMemo(() => {
+    if (!tareaSeleccionada) return []
+    return tareaSeleccionada.entregas.flatMap((e) => {
+      const valor = notasRapidas[e.alumno_id]
+      if (valor === undefined || valor.trim() === '') return []
+      const numero = Number(valor)
+      if (numero === e.calificacion) return []
+      return [{ entrega: e, numero, valido: Number.isFinite(numero) && numero >= 0 && numero <= 10 }]
+    })
+  }, [tareaSeleccionada, notasRapidas])
+
+  const guardarRapido = async () => {
+    if (!tareaSeleccionada || cambiosRapidos.length === 0) return
+    if (cambiosRapidos.some((c) => !c.valido)) {
+      toast.error('Revisa las calificaciones: deben estar entre 0 y 10')
+      return
+    }
+    setGuardandoRapido(true)
+    try {
+      const res = await fetch('/api/profesor/entregas', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cambiosRapidos.map(({ entrega, numero }) => ({
+            id: entrega.id ?? undefined,
+            actividad_id: tareaSeleccionada.actividad.id,
+            alumno_id: entrega.alumno_id,
+            calificacion: numero,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al guardar calificaciones')
+      const guardadas = (data.entregas ?? []) as ActividadEntrega[]
+      setTareas((actuales) => aplicarCalificaciones(actuales, guardadas))
+      setNotasRapidas((actuales) => {
+        const siguiente = { ...actuales }
+        for (const g of guardadas) delete siguiente[g.alumno_id]
+        return siguiente
+      })
+      const errores = (data.errores ?? []) as { error: string }[]
+      if (errores.length > 0) {
+        toast.error(`${errores.length} no se guardaron: ${errores[0].error}`)
+      }
+      if (guardadas.length > 0) {
+        toast.success(`${guardadas.length} calificación${guardadas.length !== 1 ? 'es' : ''} guardada${guardadas.length !== 1 ? 's' : ''}`)
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar calificaciones')
+    } finally {
+      setGuardandoRapido(false)
     }
   }
 
@@ -621,7 +726,137 @@ export default function ProfesorEntregasPage() {
                     </CardContent>
                   </Card>
 
-                  {entregaSeleccionada ? (
+                  {tareaSeleccionada.entregas.length > 0 && (
+                    <div className="inline-flex rounded-xl border bg-muted/40 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setModoRapido(false)}
+                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                          !modoRapido ? 'bg-white shadow-sm' : 'text-muted-foreground'
+                        }`}
+                      >
+                        Revisar una por una
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModoRapido(true)}
+                        className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                          modoRapido ? 'bg-white shadow-sm' : 'text-muted-foreground'
+                        }`}
+                      >
+                        <Zap className="h-4 w-4 text-amber-500" />
+                        Calificación rápida
+                      </button>
+                    </div>
+                  )}
+
+                  {modoRapido && tareaSeleccionada.entregas.length > 0 ? (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <CardTitle className="text-lg">Calificación rápida</CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                              Escribe las calificaciones y presiona Enter para pasar al siguiente alumno. Guarda todas al final.
+                            </p>
+                          </div>
+                          <Button
+                            className="bg-brand-primary"
+                            onClick={guardarRapido}
+                            disabled={guardandoRapido || cambiosRapidos.length === 0}
+                          >
+                            <Save className="mr-2 h-4 w-4" />
+                            {guardandoRapido
+                              ? 'Guardando...'
+                              : `Guardar ${cambiosRapidos.length || ''} calificaci${cambiosRapidos.length === 1 ? 'ón' : 'ones'}`}
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="divide-y">
+                          {tareaSeleccionada.entregas.map((e) => {
+                            const valor =
+                              notasRapidas[e.alumno_id] ??
+                              (e.calificacion != null ? String(e.calificacion) : '')
+                            const numero = Number(valor)
+                            const invalido =
+                              valor.trim() !== '' && (!Number.isFinite(numero) || numero < 0 || numero > 10)
+                            const cambiado =
+                              notasRapidas[e.alumno_id] !== undefined &&
+                              notasRapidas[e.alumno_id].trim() !== '' &&
+                              numero !== e.calificacion
+                            const tieneAdjunto = Boolean(
+                              e.archivo_url ||
+                                e.link_entrega ||
+                                e.texto_respuesta ||
+                                e.imagenes_urls?.length ||
+                                e.documentos?.length
+                            )
+                            return (
+                              <div
+                                key={entregaKey(e)}
+                                className={`flex items-center gap-3 px-4 py-2.5 ${cambiado ? 'bg-amber-50' : ''}`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-semibold">{e.alumno?.nombre_completo ?? 'Alumno'}</p>
+                                  <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                                    <EntregaBadge
+                                      estado={e.estado}
+                                      calificacion={e.calificacion}
+                                      sinEntrega={e.sinEntrega}
+                                    />
+                                    {tieneAdjunto && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEntregaId(entregaKey(e))
+                                          setModoRapido(false)
+                                        }}
+                                        className="flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+                                      >
+                                        <FileText className="h-3 w-3" /> Ver entrega
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                                <Input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={0}
+                                  max={10}
+                                  step={0.1}
+                                  placeholder="0-10"
+                                  data-calif-rapida
+                                  value={valor}
+                                  onChange={(ev) =>
+                                    setNotasRapidas((actuales) => ({
+                                      ...actuales,
+                                      [e.alumno_id]: ev.target.value,
+                                    }))
+                                  }
+                                  onKeyDown={(ev) => {
+                                    if (ev.key !== 'Enter') return
+                                    ev.preventDefault()
+                                    const inputs = Array.from(
+                                      document.querySelectorAll<HTMLInputElement>('input[data-calif-rapida]')
+                                    )
+                                    const siguiente = inputs[inputs.indexOf(ev.currentTarget) + 1]
+                                    if (siguiente) {
+                                      siguiente.focus()
+                                      siguiente.select()
+                                    } else {
+                                      guardarRapido()
+                                    }
+                                  }}
+                                  className={`w-24 text-center font-bold ${invalido ? 'border-red-500 text-red-600' : ''}`}
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : entregaSeleccionada ? (
                     <Card>
                       <CardHeader className="pb-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -789,6 +1024,12 @@ export default function ProfesorEntregasPage() {
                                 step={0.1}
                                 value={calificacion}
                                 onChange={(ev) => setCalificacion(ev.target.value)}
+                                onKeyDown={(ev) => {
+                                  if (ev.key === 'Enter') {
+                                    ev.preventDefault()
+                                    calificar()
+                                  }
+                                }}
                                 className="mt-1"
                               />
                             </div>
