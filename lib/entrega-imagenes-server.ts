@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { MAX_BYTES_DOCUMENTO, MIME_DOCUMENTOS_PERMITIDOS } from '@/lib/entrega-documentos'
 
 const BUCKET = 'entregas-imagenes'
 const MIME_PERMITIDOS = new Set([
@@ -77,6 +78,20 @@ export function resolverTipoImagen(archivo: File, buffer: Buffer): string | null
   return null
 }
 
+const CONFIG_BUCKET = {
+  public: true,
+  fileSizeLimit: MAX_BYTES_DOCUMENTO,
+  allowedMimeTypes: [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+    ...MIME_DOCUMENTOS_PERMITIDOS,
+  ],
+}
+
 export async function asegurarBucketEntregas(
   admin: ReturnType<typeof createAdminClient>
 ) {
@@ -86,21 +101,25 @@ export async function asegurarBucketEntregas(
     return
   }
 
-  const existe = (buckets ?? []).some((bucket) => bucket.id === BUCKET)
-  if (existe) return
+  const bucket = (buckets ?? []).find((item) => item.id === BUCKET)
+  if (bucket) {
+    const permitidos = bucket.allowed_mime_types ?? []
+    const faltanTipos =
+      permitidos.length > 0 &&
+      CONFIG_BUCKET.allowedMimeTypes.some((tipo) => !permitidos.includes(tipo))
+    const limiteBajo =
+      typeof bucket.file_size_limit === 'number' &&
+      bucket.file_size_limit < CONFIG_BUCKET.fileSizeLimit
+    if (faltanTipos || limiteBajo) {
+      const { error: updateError } = await admin.storage.updateBucket(BUCKET, CONFIG_BUCKET)
+      if (updateError) {
+        console.warn('No se pudo actualizar el bucket de entregas:', updateError.message)
+      }
+    }
+    return
+  }
 
-  const { error: createError } = await admin.storage.createBucket(BUCKET, {
-    public: true,
-    fileSizeLimit: 8 * 1024 * 1024,
-    allowedMimeTypes: [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/webp',
-      'image/heic',
-      'image/heif',
-    ],
-  })
+  const { error: createError } = await admin.storage.createBucket(BUCKET, CONFIG_BUCKET)
 
   if (createError && !/already exists|duplicate/i.test(createError.message)) {
     console.warn('No se pudo crear el bucket de entregas:', createError.message)

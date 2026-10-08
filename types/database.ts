@@ -254,6 +254,14 @@ export interface Mensualidad {
 
 export type EstadoActividadEntrega = 'entregada' | 'revisada'
 
+export interface EntregaDocumento {
+  nombre: string
+  url: string
+  path: string
+  tipo: string
+  tamano: number
+}
+
 export interface ActividadEntrega {
   id: string
   actividad_id: string
@@ -262,6 +270,7 @@ export interface ActividadEntrega {
   link_entrega: string | null
   archivo_url: string | null
   imagenes_urls: string[]
+  documentos: EntregaDocumento[]
   estado: EstadoActividadEntrega
   calificacion: number | null
   retroalimentacion: string | null

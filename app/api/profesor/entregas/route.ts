@@ -42,6 +42,7 @@ function placeholderEntrega(
     link_entrega: null,
     archivo_url: null,
     imagenes_urls: [],
+    documentos: [],
     estado: 'pendiente',
     calificacion: null,
     retroalimentacion: null,

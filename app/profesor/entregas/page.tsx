@@ -15,18 +15,22 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  BookOpen,
   Calendar,
   CheckCircle,
   ClipboardList,
   Clock,
+  Download,
   ExternalLink,
   FileText,
+  FileType,
   Link as LinkIcon,
   Search,
   User,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { labelTipoPrograma } from '@/lib/programa-utils'
+import { esDocumentoPdf, formatearTamanoArchivo } from '@/lib/entrega-documentos'
 import type { Actividad, ActividadEntrega, Materia, Perfil, Programa } from '@/types/database'
 
 type EntregaRow = Omit<ActividadEntrega, 'id' | 'estado'> & {
@@ -51,6 +55,10 @@ type TareaRow = {
 
 function entregaKey(entrega: EntregaRow) {
   return entrega.id ?? `pendiente:${entrega.alumno_id}`
+}
+
+function materiaKey(tarea: TareaRow) {
+  return tarea.materia?.id ?? 'sin-materia'
 }
 
 function EntregaBadge({
@@ -90,6 +98,7 @@ export default function ProfesorEntregasPage() {
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [programaFiltro, setProgramaFiltro] = useState('todos')
+  const [materiaFiltro, setMateriaFiltro] = useState('todas')
   const [tareaId, setTareaId] = useState<string | null>(null)
   const [entregaId, setEntregaId] = useState<string | null>(null)
   const [calificacion, setCalificacion] = useState('')
@@ -144,19 +153,64 @@ export default function ProfesorEntregasPage() {
     return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
   }, [tareas])
 
+  const materias = useMemo(() => {
+    const map = new Map<string, { id: string; nombre: string; total: number; porRevisar: number }>()
+    for (const tarea of tareas) {
+      if (programaFiltro !== 'todos' && tarea.materia?.programa_id !== programaFiltro) continue
+      const id = materiaKey(tarea)
+      const actual = map.get(id) ?? {
+        id,
+        nombre: tarea.materia?.nombre ?? 'Sin materia',
+        total: 0,
+        porRevisar: 0,
+      }
+      actual.total += 1
+      actual.porRevisar += tarea.stats.porRevisar
+      map.set(id, actual)
+    }
+    return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  }, [tareas, programaFiltro])
+
+  useEffect(() => {
+    if (materiaFiltro !== 'todas' && !materias.some((m) => m.id === materiaFiltro)) {
+      setMateriaFiltro('todas')
+    }
+  }, [materias, materiaFiltro])
+
   const tareasFiltradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
-    return tareas.filter((t) => {
-      if (programaFiltro !== 'todos' && t.materia?.programa_id !== programaFiltro) {
-        return false
+    return tareas
+      .filter((t) => {
+        if (programaFiltro !== 'todos' && t.materia?.programa_id !== programaFiltro) {
+          return false
+        }
+        if (materiaFiltro !== 'todas' && materiaKey(t) !== materiaFiltro) return false
+        if (!q) return true
+        const titulo = t.actividad.titulo.toLowerCase()
+        const materia = t.materia?.nombre?.toLowerCase() ?? ''
+        const programa = t.materia?.programa?.nombre?.toLowerCase() ?? ''
+        return titulo.includes(q) || materia.includes(q) || programa.includes(q)
+      })
+      .sort((a, b) =>
+        (a.materia?.nombre ?? 'Sin materia').localeCompare(b.materia?.nombre ?? 'Sin materia', 'es')
+      )
+  }, [tareas, busqueda, programaFiltro, materiaFiltro])
+
+  const tareasPorMateria = useMemo(() => {
+    const map = new Map<string, { nombre: string; porRevisar: number; items: TareaRow[] }>()
+    for (const t of tareasFiltradas) {
+      const key = materiaKey(t)
+      const grupo = map.get(key) ?? {
+        nombre: t.materia?.nombre ?? 'Sin materia',
+        porRevisar: 0,
+        items: [],
       }
-      if (!q) return true
-      const titulo = t.actividad.titulo.toLowerCase()
-      const materia = t.materia?.nombre?.toLowerCase() ?? ''
-      const programa = t.materia?.programa?.nombre?.toLowerCase() ?? ''
-      return titulo.includes(q) || materia.includes(q) || programa.includes(q)
-    })
-  }, [tareas, busqueda, programaFiltro])
+      grupo.porRevisar += t.stats.porRevisar
+      grupo.items.push(t)
+      map.set(key, grupo)
+    }
+    return [...map.entries()]
+  }, [tareasFiltradas])
 
   const tareaSeleccionada = useMemo(
     () => tareasFiltradas.find((t) => t.actividad.id === tareaId) ?? null,
@@ -298,7 +352,26 @@ export default function ProfesorEntregasPage() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-3 sm:max-w-3xl sm:grid-cols-[minmax(240px,1fr)_minmax(260px,1fr)]">
+          <div className="grid gap-3 sm:grid-cols-2 xl:max-w-5xl xl:grid-cols-3">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-bold text-slate-800">Materia</label>
+              <Select value={materiaFiltro} onValueChange={setMateriaFiltro}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por materia" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">
+                    Todas las materias ({materias.reduce((acc, m) => acc + m.total, 0)})
+                  </SelectItem>
+                  {materias.map((materia) => (
+                    <SelectItem key={materia.id} value={materia.id}>
+                      {materia.nombre} ({materia.total}
+                      {materia.porRevisar > 0 ? ` · ${materia.porRevisar} por revisar` : ''})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {programas.length > 0 && (
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-slate-800">Carrera o curso</label>
@@ -337,48 +410,76 @@ export default function ProfesorEntregasPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Tareas</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 p-3 pt-0">
+              <CardContent className="space-y-4 p-3 pt-0 xl:max-h-[calc(100vh-12rem)] xl:overflow-y-auto">
                 {tareasFiltradas.length === 0 ? (
                   <p className="px-2 py-4 text-sm text-muted-foreground">Sin resultados.</p>
                 ) : (
-                  tareasFiltradas.map((t) => {
-                    const activa = t.actividad.id === tareaId
-                    return (
-                      <button
-                        key={t.actividad.id}
-                        type="button"
-                        onClick={() => seleccionarTarea(t.actividad.id)}
-                        className={`w-full rounded-xl border p-3 text-left transition ${
-                          activa
-                            ? 'border-brand-primary bg-brand-primary/5 shadow-sm'
-                            : 'border-border hover:border-brand-primary/40 hover:bg-muted/40'
-                        }`}
-                      >
-                        <p className="font-bold leading-snug">{t.actividad.titulo}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{t.materia?.nombre ?? 'Sin materia'}</p>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {(t.materia?.programa?.nombre || t.materia?.programa_id) && (
-                            <Badge variant="outline" className="text-[10px]">
-                              {t.materia?.programa?.nombre ?? t.materia?.programa_id}
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-[10px]">
-                            {t.stats.total} alumno{t.stats.total !== 1 ? 's' : ''}
+                  tareasPorMateria.map(([key, grupo]) => (
+                    <div key={key} className="space-y-2">
+                      <div className="z-10 flex items-center xl:sticky xl:top-0 justify-between gap-2 rounded-lg bg-muted/80 px-3 py-2 backdrop-blur">
+                        <p className="flex min-w-0 items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700">
+                          <BookOpen className="h-3.5 w-3.5 shrink-0 text-brand-primary" />
+                          <span className="truncate">{grupo.nombre}</span>
+                        </p>
+                        <div className="flex shrink-0 gap-1">
+                          <Badge variant="outline" className="bg-white text-[10px]">
+                            {grupo.items.length}
                           </Badge>
-                          {(t.stats.sinEntregar ?? 0) > 0 && (
-                            <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                              {t.stats.sinEntregar} sin entregar
-                            </Badge>
-                          )}
-                          {t.stats.porRevisar > 0 && (
+                          {grupo.porRevisar > 0 && (
                             <Badge className="bg-amber-100 text-amber-800 text-[10px]">
-                              {t.stats.porRevisar} por revisar
+                              {grupo.porRevisar}
                             </Badge>
                           )}
                         </div>
-                      </button>
-                    )
-                  })
+                      </div>
+                      {grupo.items.map((t) => {
+                        const activa = t.actividad.id === tareaId
+                        return (
+                          <button
+                            key={t.actividad.id}
+                            type="button"
+                            onClick={() => seleccionarTarea(t.actividad.id)}
+                            className={`w-full rounded-xl border p-3 text-left transition ${
+                              activa
+                                ? 'border-brand-primary bg-brand-primary/5 shadow-sm'
+                                : 'border-border hover:border-brand-primary/40 hover:bg-muted/40'
+                            }`}
+                          >
+                            <p className="font-bold leading-snug">{t.actividad.titulo}</p>
+                            {t.actividad.fecha_entrega && (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Entrega:{' '}
+                                {new Date(t.actividad.fecha_entrega).toLocaleDateString('es-MX', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                })}
+                              </p>
+                            )}
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {(t.materia?.programa?.nombre || t.materia?.programa_id) && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {t.materia?.programa?.nombre ?? t.materia?.programa_id}
+                                </Badge>
+                              )}
+                              <Badge variant="outline" className="text-[10px]">
+                                {t.stats.total} alumno{t.stats.total !== 1 ? 's' : ''}
+                              </Badge>
+                              {(t.stats.sinEntregar ?? 0) > 0 && (
+                                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                                  {t.stats.sinEntregar} sin entregar
+                                </Badge>
+                              )}
+                              {t.stats.porRevisar > 0 && (
+                                <Badge className="bg-amber-100 text-amber-800 text-[10px]">
+                                  {t.stats.porRevisar} por revisar
+                                </Badge>
+                              )}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ))
                 )}
               </CardContent>
             </Card>
@@ -435,7 +536,12 @@ export default function ProfesorEntregasPage() {
                             sinEntrega={e.sinEntrega}
                           />
                         </div>
-                        {(e.archivo_url || e.link_entrega || e.imagenes_urls?.length) && (
+                        {Boolean(
+                          e.archivo_url ||
+                            e.link_entrega ||
+                            e.imagenes_urls?.length ||
+                            e.documentos?.length
+                        ) && (
                           <p className="mt-2 flex items-center gap-1 text-xs text-brand-primary">
                             <FileText className="h-3 w-3" />
                             Archivo adjunto
@@ -591,6 +697,42 @@ export default function ProfesorEntregasPage() {
                           </div>
                         )}
 
+                        {(entregaSeleccionada.documentos?.length ?? 0) > 0 && (
+                          <div>
+                            <p className="mb-3 text-xs font-black uppercase tracking-widest text-muted-foreground">
+                              Documentos
+                            </p>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {entregaSeleccionada.documentos.map((doc) => (
+                                <a
+                                  key={doc.path}
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center justify-between gap-3 rounded-xl border p-4 transition hover:border-brand-primary hover:bg-brand-primary/5"
+                                >
+                                  <span className="flex min-w-0 items-center gap-3">
+                                    {esDocumentoPdf(doc) ? (
+                                      <FileText className="h-6 w-6 shrink-0 text-red-600" />
+                                    ) : (
+                                      <FileType className="h-6 w-6 shrink-0 text-blue-600" />
+                                    )}
+                                    <span className="min-w-0">
+                                      <span className="block truncate font-bold">{doc.nombre}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {esDocumentoPdf(doc) ? 'PDF' : 'Word'}
+                                        {formatearTamanoArchivo(doc.tamano) &&
+                                          ` · ${formatearTamanoArchivo(doc.tamano)}`}
+                                      </span>
+                                    </span>
+                                  </span>
+                                  <Download className="h-4 w-4 shrink-0" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {entregaSeleccionada.imagenes_urls?.length > 0 && (
                           <div>
                             <p className="mb-3 text-xs font-black uppercase tracking-widest text-muted-foreground">
@@ -622,7 +764,8 @@ export default function ProfesorEntregasPage() {
                         {!entregaSeleccionada.archivo_url &&
                           !entregaSeleccionada.link_entrega &&
                           !entregaSeleccionada.texto_respuesta &&
-                          !entregaSeleccionada.imagenes_urls?.length && (
+                          !entregaSeleccionada.imagenes_urls?.length &&
+                          !entregaSeleccionada.documentos?.length && (
                             <p className="text-sm text-muted-foreground">
                               El alumno no adjuntó archivo ni texto en esta entrega.
                             </p>

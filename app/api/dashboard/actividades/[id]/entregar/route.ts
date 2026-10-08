@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession, canAccessAlumno } from '@/lib/auth-server'
-import type { ActividadEntrega } from '@/types/database'
+import type { ActividadEntrega, EntregaDocumento } from '@/types/database'
 import {
   ENTREGAS_IMAGENES_BUCKET,
   asegurarBucketEntregas,
   esArchivoSubido,
   resolverTipoImagen,
 } from '@/lib/entrega-imagenes-server'
+import {
+  MAX_DOCUMENTOS_ENTREGA,
+  normalizarDocumentos,
+  resolverTipoDocumento,
+} from '@/lib/entrega-documentos'
 
 export const maxDuration = 60
 
@@ -46,6 +51,22 @@ export async function POST(
       return NextResponse.json({ error: 'La lista de imagenes no es valida' }, { status: 400 })
     }
 
+    let documentosSolicitados: EntregaDocumento[] = []
+    try {
+      documentosSolicitados = normalizarDocumentos(
+        JSON.parse(String(formData.get('documentos') ?? '[]'))
+      )
+    } catch {
+      return NextResponse.json({ error: 'La lista de documentos no es valida' }, { status: 400 })
+    }
+
+    if (documentosSolicitados.length > MAX_DOCUMENTOS_ENTREGA) {
+      return NextResponse.json(
+        { error: `Puedes adjuntar hasta ${MAX_DOCUMENTOS_ENTREGA} documentos` },
+        { status: 400 }
+      )
+    }
+
     if (imagenes.length + imagenesExistentes.length > 6) {
       return NextResponse.json({ error: 'Puedes adjuntar hasta 6 imagenes' }, { status: 400 })
     }
@@ -71,10 +92,11 @@ export async function POST(
       !link_entrega &&
       !archivo_url &&
       !imagenesPreparadas.length &&
-      !imagenesExistentes.length
+      !imagenesExistentes.length &&
+      !documentosSolicitados.length
     ) {
       return NextResponse.json(
-        { error: 'Debes incluir una respuesta, enlace, archivo o imagen de tu libreta' },
+        { error: 'Debes incluir una respuesta, enlace, documento o imagen de tu libreta' },
         { status: 400 }
       )
     }
@@ -124,19 +146,36 @@ export async function POST(
     }
 
     const urlsGuardadas = Array.isArray(existente?.imagenes_urls)
-      ? existente.imagenes_urls.filter((value): value is string => typeof value === 'string')
+      ? existente.imagenes_urls.filter((value: unknown): value is string => typeof value === 'string')
       : []
     imagenesExistentes = imagenesExistentes.filter((url) => urlsGuardadas.includes(url))
+
+    const prefijoDocumentos = `${session.userId}/${actividadId}/docs/`
+    const documentos: EntregaDocumento[] = documentosSolicitados
+      .filter((doc) => doc.path.startsWith(prefijoDocumentos) && !doc.path.includes('..'))
+      .map((doc) => {
+        const tipo = resolverTipoDocumento(doc.nombre, doc.tipo) ?? resolverTipoDocumento(doc.path)
+        const { data } = admin.storage.from(ENTREGAS_IMAGENES_BUCKET).getPublicUrl(doc.path)
+        return {
+          nombre: doc.nombre.slice(0, 200),
+          url: data.publicUrl,
+          path: doc.path,
+          tipo: tipo ?? '',
+          tamano: doc.tamano,
+        }
+      })
+      .filter((doc) => doc.tipo)
 
     if (
       !texto_respuesta &&
       !link_entrega &&
       !archivo_url &&
       !imagenesPreparadas.length &&
-      !imagenesExistentes.length
+      !imagenesExistentes.length &&
+      !documentos.length
     ) {
       return NextResponse.json(
-        { error: 'Debes incluir una respuesta, enlace, archivo o imagen de tu libreta' },
+        { error: 'Debes incluir una respuesta, enlace, documento o imagen de tu libreta' },
         { status: 400 }
       )
     }
@@ -191,6 +230,9 @@ export async function POST(
       imagenes_urls: imagenesUrls,
       estado: 'entregada' as const,
       updated_at: new Date().toISOString(),
+      ...(documentos.length > 0 || normalizarDocumentos(existente?.documentos).length > 0
+        ? { documentos }
+        : {}),
     }
 
     const { data: entrega, error: upsertError } = await admin
@@ -200,6 +242,15 @@ export async function POST(
       .single()
 
     if (upsertError) {
+      if (/documentos/i.test(upsertError.message)) {
+        return NextResponse.json(
+          {
+            error:
+              'La plataforma aún no está lista para recibir documentos. Avisa a la administración.',
+          },
+          { status: 500 }
+        )
+      }
       return NextResponse.json({ error: upsertError.message }, { status: 400 })
     }
 

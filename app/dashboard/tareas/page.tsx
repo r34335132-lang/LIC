@@ -30,11 +30,14 @@ import {
   Camera,
   Image as ImageIcon,
   X,
+  Paperclip,
+  FileType,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
   Actividad,
   ActividadEntrega,
+  EntregaDocumento,
   Materia,
   Perfil,
   TareaRecurso,
@@ -42,6 +45,14 @@ import type {
 import type { EstadoEntregaTarea } from '@/lib/academico-utils'
 import { cuatrimestreLabel } from '@/lib/academico-utils'
 import { comprimirImagenesEntrega } from '@/lib/comprimir-imagen'
+import {
+  ACCEPT_DOCUMENTOS,
+  MAX_BYTES_DOCUMENTO,
+  MAX_DOCUMENTOS_ENTREGA,
+  esDocumentoPdf,
+  formatearTamanoArchivo,
+  resolverTipoDocumento,
+} from '@/lib/entrega-documentos'
 
 type TareaRow = {
   actividad: Actividad
@@ -61,6 +72,65 @@ type Resumen = {
   promedioRevisadas: number | null
 }
 
+type SubidaDocumento = {
+  nombre: string
+  tamano: number
+  tipo: string
+  path: string
+  signedUrl: string
+}
+
+function materiaKey(tarea: TareaRow) {
+  return tarea.materia?.id ?? 'sin-materia'
+}
+
+async function subirDocumentos(actividadId: string, archivos: File[]) {
+  if (archivos.length === 0) return []
+
+  const res = await fetch(`/api/dashboard/actividades/${actividadId}/documentos`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      archivos: archivos.map((archivo) => ({
+        nombre: archivo.name,
+        tipo: archivo.type,
+        tamano: archivo.size,
+      })),
+    }),
+  })
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string
+    subidas?: SubidaDocumento[]
+    apikey?: string | null
+  }
+  if (!res.ok || !data.subidas) throw new Error(data.error ?? 'No se pudieron preparar los documentos')
+
+  return Promise.all(
+    data.subidas.map(async (subida, index) => {
+      const body = new FormData()
+      body.append('cacheControl', '3600')
+      body.append('', new Blob([archivos[index]], { type: subida.tipo }), subida.nombre)
+      const upload = await fetch(subida.signedUrl, {
+        method: 'PUT',
+        headers: data.apikey ? { apikey: data.apikey, 'x-upsert': 'false' } : { 'x-upsert': 'false' },
+        body,
+      })
+      if (!upload.ok) {
+        const detalle = await upload.json().catch(() => null)
+        throw new Error(`No se pudo subir ${subida.nombre}${detalle?.message ? `: ${detalle.message}` : ''}`)
+      }
+      return {
+        nombre: subida.nombre,
+        url: '',
+        path: subida.path,
+        tipo: subida.tipo,
+        tamano: subida.tamano,
+      } satisfies EntregaDocumento
+    })
+  )
+}
+
 export default function TareasPage() {
   const [tareas, setTareas] = useState<TareaRow[]>([])
   const [resumen, setResumen] = useState<Resumen>({
@@ -78,6 +148,9 @@ export default function TareasPage() {
   const [archivoUrl, setArchivoUrl] = useState('')
   const [imagenesExistentes, setImagenesExistentes] = useState<string[]>([])
   const [imagenes, setImagenes] = useState<File[]>([])
+  const [documentosExistentes, setDocumentosExistentes] = useState<EntregaDocumento[]>([])
+  const [documentos, setDocumentos] = useState<File[]>([])
+  const [filtroMateria, setFiltroMateria] = useState<string>('todas')
   const [enviando, setEnviando] = useState(false)
 
   const load = useCallback(async () => {
@@ -98,6 +171,23 @@ export default function TareasPage() {
     load()
   }, [load])
 
+  const materias = useMemo(() => {
+    const map = new Map<string, { id: string; nombre: string; total: number; pendientes: number }>()
+    for (const t of tareas) {
+      const id = materiaKey(t)
+      const actual = map.get(id) ?? {
+        id,
+        nombre: t.materia?.nombre ?? 'Sin materia',
+        total: 0,
+        pendientes: 0,
+      }
+      actual.total += 1
+      if (t.estadoEntrega === 'pendiente' || t.estadoEntrega === 'vencida') actual.pendientes += 1
+      map.set(id, actual)
+    }
+    return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  }, [tareas])
+
   const tareasFiltradas = useMemo(() => {
     return tareas.filter((t) => {
       const titulo = t.actividad.titulo.toLowerCase()
@@ -111,18 +201,25 @@ export default function TareasPage() {
           (t.estadoEntrega === 'pendiente' || t.estadoEntrega === 'vencida')) ||
         (filtroEstado === 'entregada' && t.estadoEntrega === 'entregada') ||
         (filtroEstado === 'revisada' && t.estadoEntrega === 'revisada')
-      return coincideBusqueda && coincideEstado
+      const coincideMateria = filtroMateria === 'todas' || materiaKey(t) === filtroMateria
+      return coincideBusqueda && coincideEstado && coincideMateria
     })
-  }, [tareas, busqueda, filtroEstado])
+  }, [tareas, busqueda, filtroEstado, filtroMateria])
 
   const grouped = useMemo(() => {
-    const map = new Map<string, TareaRow[]>()
+    const map = new Map<string, { nombre: string; periodo: number | null; items: TareaRow[] }>()
     for (const t of tareasFiltradas) {
-      const key = t.materia?.nombre ?? 'Sin materia'
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(t)
+      const key = materiaKey(t)
+      if (!map.has(key)) {
+        map.set(key, {
+          nombre: t.materia?.nombre ?? 'Sin materia',
+          periodo: t.materia?.periodo ?? null,
+          items: [],
+        })
+      }
+      map.get(key)!.items.push(t)
     }
-    return map
+    return [...map.entries()].sort(([, a], [, b]) => a.nombre.localeCompare(b.nombre, 'es'))
   }, [tareasFiltradas])
 
   const getEstadoBadge = (estado: EstadoEntregaTarea) => {
@@ -165,18 +262,47 @@ export default function TareasPage() {
     setArchivoUrl(tarea.entrega?.archivo_url ?? '')
     setImagenesExistentes(tarea.entrega?.imagenes_urls ?? [])
     setImagenes([])
+    setDocumentosExistentes(tarea.entrega?.documentos ?? [])
+    setDocumentos([])
+  }
+
+  const agregarDocumentos = (seleccionados: File[]) => {
+    const validos = seleccionados.filter((archivo) => {
+      if (!resolverTipoDocumento(archivo.name, archivo.type)) {
+        toast.error(`${archivo.name} no es PDF ni Word`)
+        return false
+      }
+      if (archivo.size > MAX_BYTES_DOCUMENTO) {
+        toast.error(`${archivo.name} pesa más de ${MAX_BYTES_DOCUMENTO / (1024 * 1024)} MB`)
+        return false
+      }
+      return true
+    })
+    const disponibles = Math.max(
+      MAX_DOCUMENTOS_ENTREGA - documentosExistentes.length - documentos.length,
+      0
+    )
+    if (validos.length > disponibles) {
+      toast.error(`Solo puedes agregar ${disponibles} documento(s) más`)
+    }
+    setDocumentos((actuales) => [...actuales, ...validos.slice(0, disponibles)])
   }
 
   const entregar = async () => {
     if (!modalTarea) return
     setEnviando(true)
     try {
+      const documentosNuevos = await subirDocumentos(modalTarea.actividad.id, documentos)
       const imagenesListas = await comprimirImagenesEntrega(imagenes)
       const formData = new FormData()
       if (textoRespuesta) formData.append('texto_respuesta', textoRespuesta)
       if (linkEntrega) formData.append('link_entrega', linkEntrega)
       if (archivoUrl) formData.append('archivo_url', archivoUrl)
       formData.append('imagenes_existentes', JSON.stringify(imagenesExistentes))
+      formData.append(
+        'documentos',
+        JSON.stringify([...documentosExistentes, ...documentosNuevos])
+      )
       imagenesListas.forEach((imagen) => formData.append('imagenes', imagen))
 
       const res = await fetch(
@@ -276,10 +402,66 @@ export default function TareasPage() {
         </div>
       </div>
 
-      {[...grouped.entries()].map(([materiaNombre, items]) => (
-        <div key={materiaNombre} className="space-y-4">
-          <h2 className="text-lg font-bold text-foreground">{materiaNombre}</h2>
-          {items.map((tarea) => {
+      {materias.length > 1 && (
+        <div className="space-y-2">
+          <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
+            <BookOpen className="h-4 w-4" /> Materias
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {[{ id: 'todas', nombre: 'Todas', total: tareas.length, pendientes: resumen.pendientes }, ...materias].map(
+              (materia) => {
+                const activa = filtroMateria === materia.id
+                return (
+                  <button
+                    key={materia.id}
+                    type="button"
+                    onClick={() => setFiltroMateria(materia.id)}
+                    className={`flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                      activa
+                        ? 'border-brand-primary bg-brand-primary text-white shadow-md shadow-brand-primary/20'
+                        : 'border-border/60 bg-white/60 text-foreground hover:border-brand-primary/40 dark:bg-black/30'
+                    }`}
+                  >
+                    {materia.nombre}
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-xs ${
+                        activa ? 'bg-white/20' : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {materia.total}
+                    </span>
+                    {materia.pendientes > 0 && (
+                      <span
+                        className={`rounded-md px-1.5 py-0.5 text-xs ${
+                          activa ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {materia.pendientes} pend.
+                      </span>
+                    )}
+                  </button>
+                )
+              }
+            )}
+          </div>
+        </div>
+      )}
+
+      {grouped.map(([key, grupo]) => (
+        <section key={key} className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3 border-b border-border/60 pb-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/10">
+              <BookOpen className="h-5 w-5 text-brand-primary" />
+            </div>
+            <h2 className="text-xl font-black text-foreground">{grupo.nombre}</h2>
+            {grupo.periodo != null && (
+              <Badge variant="outline">{cuatrimestreLabel(grupo.periodo)}</Badge>
+            )}
+            <span className="text-sm text-muted-foreground">
+              {grupo.items.length} tarea{grupo.items.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          {grupo.items.map((tarea) => {
             const diasRestantes = tarea.actividad.fecha_entrega
               ? Math.ceil(
                   (new Date(tarea.actividad.fecha_entrega).getTime() - Date.now()) /
@@ -321,11 +503,6 @@ export default function TareasPage() {
                           </p>
                         )}
                         <div className="flex flex-wrap items-center gap-3 text-sm pt-1">
-                          {tarea.materia?.periodo && (
-                            <Badge variant="outline">
-                              {cuatrimestreLabel(tarea.materia.periodo)}
-                            </Badge>
-                          )}
                           {tarea.profesor && (
                             <span className="text-muted-foreground">
                               Prof. {tarea.profesor.nombre_completo}
@@ -401,7 +578,7 @@ export default function TareasPage() {
               </Card>
             )
           })}
-        </div>
+        </section>
       ))}
 
       {tareasFiltradas.length === 0 && (
@@ -565,6 +742,104 @@ export default function TareasPage() {
                       onChange={(e) => setArchivoUrl(e.target.value)}
                       placeholder="https://drive.google.com/..."
                     />
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="flex items-center gap-2">
+                        <Paperclip className="h-4 w-4" /> Documentos (PDF o Word)
+                      </Label>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Sube hasta {MAX_DOCUMENTOS_ENTREGA} archivos .pdf, .doc o .docx de máximo{' '}
+                        {MAX_BYTES_DOCUMENTO / (1024 * 1024)} MB cada uno.
+                      </p>
+                    </div>
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-primary/30 bg-brand-primary/5 px-4 py-5 font-semibold text-brand-primary transition hover:bg-brand-primary/10">
+                      <Upload className="h-5 w-5" />
+                      Elegir documentos
+                      <input
+                        type="file"
+                        accept={ACCEPT_DOCUMENTOS}
+                        multiple
+                        className="sr-only"
+                        onChange={(event) => {
+                          agregarDocumentos(Array.from(event.target.files ?? []))
+                          event.target.value = ''
+                        }}
+                      />
+                    </label>
+                    {(documentosExistentes.length > 0 || documentos.length > 0) && (
+                      <ul className="space-y-2">
+                        {documentosExistentes.map((doc) => (
+                          <li
+                            key={doc.path}
+                            className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3"
+                          >
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex min-w-0 items-center gap-3 hover:text-brand-primary"
+                            >
+                              {esDocumentoPdf(doc) ? (
+                                <FileText className="h-5 w-5 shrink-0 text-red-600" />
+                              ) : (
+                                <FileType className="h-5 w-5 shrink-0 text-blue-600" />
+                              )}
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-semibold">{doc.nombre}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Ya subido {formatearTamanoArchivo(doc.tamano) && `· ${formatearTamanoArchivo(doc.tamano)}`}
+                                </span>
+                              </span>
+                            </a>
+                            <button
+                              type="button"
+                              aria-label="Quitar documento"
+                              onClick={() =>
+                                setDocumentosExistentes((actuales) =>
+                                  actuales.filter((item) => item.path !== doc.path)
+                                )
+                              }
+                              className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </li>
+                        ))}
+                        {documentos.map((archivo, index) => (
+                          <li
+                            key={`${archivo.name}-${archivo.lastModified}-${index}`}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-3"
+                          >
+                            <span className="flex min-w-0 items-center gap-3">
+                              {resolverTipoDocumento(archivo.name, archivo.type) === 'application/pdf' ? (
+                                <FileText className="h-5 w-5 shrink-0 text-red-600" />
+                              ) : (
+                                <FileType className="h-5 w-5 shrink-0 text-blue-600" />
+                              )}
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-semibold">{archivo.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Nuevo · {formatearTamanoArchivo(archivo.size)}
+                                </span>
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Quitar documento"
+                              onClick={() =>
+                                setDocumentos((actuales) =>
+                                  actuales.filter((_, itemIndex) => itemIndex !== index)
+                                )
+                              }
+                              className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <div className="space-y-3">
                     <div>
