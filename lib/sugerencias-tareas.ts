@@ -28,7 +28,7 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Organiza visualmente los conceptos principales revisados en ${m} y sus relaciones.`,
     instrucciones: () =>
-      '1. Identifica al menos 10 conceptos centrales del tema visto en clase.\n2. Relaciónalos con conectores claros.\n3. Agrega un ejemplo en al menos 3 conceptos.\n4. Entrega en PDF o foto legible.',
+      '1. Revisa el material de la unidad e identifica al menos 10 conceptos centrales.\n2. Relaciónalos con conectores claros.\n3. Agrega un ejemplo en al menos 3 conceptos.\n4. Entrega en PDF o foto legible.',
   },
   {
     tipo: 'Cuadro comparativo',
@@ -36,7 +36,7 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Compara dos o más autores, teorías o enfoques estudiados en ${m}.`,
     instrucciones: () =>
-      '1. Elige 2 o 3 enfoques vistos en clase.\n2. Compara: postulados, autores, ventajas, limitaciones y aplicación.\n3. Cierra con una conclusión personal de 5 a 8 líneas.\n4. Cita al menos 2 fuentes en formato APA.',
+      '1. Elige 2 o 3 enfoques del material de la unidad.\n2. Compara: postulados, autores, ventajas, limitaciones y aplicación.\n3. Cierra con una conclusión personal de 5 a 8 líneas.\n4. Cita al menos 2 fuentes en formato APA.',
   },
   {
     tipo: 'Reporte de lectura',
@@ -75,7 +75,7 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Sintetiza un tema de ${m} en un formato visual y fácil de compartir.`,
     instrucciones: () =>
-      '1. Elige un tema visto en las últimas sesiones.\n2. Incluye título, datos clave, imágenes o íconos y fuentes.\n3. Usa lenguaje claro para un público no especializado.\n4. Entrega en PDF o imagen.',
+      '1. Elige un tema de la unidad que estás estudiando.\n2. Incluye título, datos clave, imágenes o íconos y fuentes.\n3. Usa lenguaje claro para un público no especializado.\n4. Entrega en PDF o imagen.',
   },
   {
     tipo: 'Cuestionario',
@@ -83,7 +83,7 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Repasa los contenidos de la unidad de ${m} respondiendo preguntas guía.`,
     instrucciones: () =>
-      '1. Responde las preguntas proporcionadas en clase con tus propias palabras.\n2. Fundamenta cada respuesta con el material de la unidad.\n3. Agrega al final 2 dudas que te hayan surgido.',
+      '1. Elabora 10 preguntas clave sobre el material de la unidad.\n2. Respóndelas con tus propias palabras, fundamentando cada respuesta en las lecturas.\n3. Agrega al final 2 dudas que te hayan surgido.',
   },
   {
     tipo: 'Glosario',
@@ -110,12 +110,12 @@ const PLANTILLAS: Plantilla[] = [
       '1. ¿Qué fue lo más significativo de la unidad?\n2. ¿Cómo lo aplicarías en tu práctica profesional?\n3. ¿Qué te gustaría profundizar?\nExtensión: 1 a 2 cuartillas.',
   },
   {
-    tipo: 'Exposición',
-    titulo: (m) => `Presentación en equipo sobre ${m}`,
+    tipo: 'Presentación',
+    titulo: (m) => `Presentación en diapositivas sobre ${m}`,
     descripcion: (m) =>
-      `Prepara una presentación breve para exponer un subtema de ${m}.`,
+      `Elabora una presentación que explique un subtema de ${m} de forma clara y autocontenida.`,
     instrucciones: () =>
-      '1. Formen equipos de 3 a 4 integrantes.\n2. Preparen 8 a 12 diapositivas con fuentes.\n3. Incluyan una actividad o pregunta para el grupo.\n4. Suban la presentación en PDF.',
+      '1. Elige un subtema de la unidad.\n2. Elabora de 8 a 12 diapositivas que se entiendan sin necesidad de exponerlas.\n3. Incluye ejemplos, una conclusión y fuentes en formato APA.\n4. Sube la presentación en PDF.',
   },
 ]
 
@@ -201,6 +201,8 @@ Tareas ya publicadas (no las repitas):
 ${existentes || '- Ninguna'}
 
 Propón ${cantidad} tareas nuevas, variadas y realistas para alumnos de licenciatura en línea.
+Los alumnos estudian de forma autónoma con los materiales y lecturas de la plataforma: NO hay clases en vivo ni videollamadas.
+No menciones clases, sesiones, lo "visto en clase", exposiciones orales ni trabajo presencial; cada tarea debe poder hacerse y entregarse por escrito o en archivo.
 Responde SOLO con JSON: {"sugerencias":[{"titulo":"","descripcion":"","instrucciones":""}]}
 - titulo: máximo 80 caracteres
 - descripcion: 1 o 2 oraciones
