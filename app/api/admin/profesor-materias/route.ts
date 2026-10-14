@@ -2,6 +2,106 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPerfilFromSession } from '@/lib/auth-server'
 
+async function cambiarProfesor(id: string, nuevoProfesorId: string, transferirContenido: boolean) {
+  const admin = createAdminClient()
+
+  const [{ data: clase }, { data: nuevoProfesor }] = await Promise.all([
+    admin.from('profesor_materias').select('id, profesor_id, materia_id').eq('id', id).maybeSingle(),
+    admin
+      .from('perfiles')
+      .select('id, rol, nombre_completo, email')
+      .eq('id', nuevoProfesorId)
+      .maybeSingle(),
+  ])
+
+  if (!clase) {
+    return NextResponse.json({ error: 'Clase no encontrada' }, { status: 404 })
+  }
+  if (!nuevoProfesor || nuevoProfesor.rol !== 'profesor') {
+    return NextResponse.json({ error: 'El profesor indicado no existe' }, { status: 400 })
+  }
+  if (clase.profesor_id === nuevoProfesorId) {
+    return NextResponse.json({ success: true, transferidos: null })
+  }
+
+  const { data: duplicada } = await admin
+    .from('profesor_materias')
+    .select('id')
+    .eq('profesor_id', nuevoProfesorId)
+    .eq('materia_id', clase.materia_id)
+    .maybeSingle()
+
+  if (duplicada) {
+    return NextResponse.json(
+      { error: 'Ese profesor ya tiene asignada esta materia en otra clase' },
+      { status: 409 }
+    )
+  }
+
+  const { error: updateError } = await admin
+    .from('profesor_materias')
+    .update({ profesor_id: nuevoProfesorId })
+    .eq('id', id)
+
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 400 })
+  }
+
+  const profesor = {
+    id: nuevoProfesor.id,
+    nombre_completo: nuevoProfesor.nombre_completo,
+    email: nuevoProfesor.email,
+  }
+
+  if (!transferirContenido) {
+    return NextResponse.json({ success: true, profesor, transferidos: null })
+  }
+
+  const transferir = async (tabla: 'actividades' | 'examenes' | 'avisos') => {
+    const { data, error } = await admin
+      .from(tabla)
+      .update({ profesor_id: nuevoProfesorId })
+      .eq('materia_id', clase.materia_id)
+      .eq('profesor_id', clase.profesor_id)
+      .select('id')
+    if (error) {
+      console.warn(`No se pudo transferir ${tabla}:`, error.message)
+      return null
+    }
+    return data?.length ?? 0
+  }
+
+  const [tareas, examenes, avisos] = await Promise.all([
+    transferir('actividades'),
+    transferir('examenes'),
+    transferir('avisos'),
+  ])
+
+  let rubrica = false
+  const { data: rubricaNueva } = await admin
+    .from('materia_rubricas')
+    .select('id')
+    .eq('materia_id', clase.materia_id)
+    .eq('profesor_id', nuevoProfesorId)
+    .maybeSingle()
+  if (!rubricaNueva) {
+    const { data, error } = await admin
+      .from('materia_rubricas')
+      .update({ profesor_id: nuevoProfesorId })
+      .eq('materia_id', clase.materia_id)
+      .eq('profesor_id', clase.profesor_id)
+      .select('id')
+    if (error) console.warn('No se pudo transferir la rúbrica:', error.message)
+    rubrica = (data?.length ?? 0) > 0
+  }
+
+  return NextResponse.json({
+    success: true,
+    profesor,
+    transferidos: { tareas, examenes, avisos, rubrica },
+  })
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getPerfilFromSession()
@@ -106,6 +206,10 @@ export async function PATCH(request: Request) {
 
     if (!id) {
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
+    }
+
+    if (typeof rest.profesor_id === 'string' && rest.profesor_id) {
+      return cambiarProfesor(id, rest.profesor_id, rest.transferir_contenido !== false)
     }
 
     const allowedFields = [

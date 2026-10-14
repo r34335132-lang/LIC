@@ -38,7 +38,7 @@ import type {
 import { MateriaRubricaSection } from '@/components/profesor/materia-rubrica-section'
 import { MateriaExamenesSection } from '@/components/profesor/materia-examenes-section'
 import { MateriaResumenAlumnosSection } from '@/components/profesor/materia-resumen-alumnos-section'
-import type { SugerenciaTarea } from '@/lib/sugerencias-tareas'
+import { linksDeApoyo, type SugerenciaTarea } from '@/lib/sugerencias-tareas'
 
 type AlumnoRow = AlumnoMateria & {
   alumno: Pick<Perfil, 'id' | 'nombre_completo' | 'matricula' | 'email'>
@@ -247,7 +247,18 @@ export default function ProfesorMateriaDetailPage({
     descripcion: s.descripcion,
     instrucciones: s.instrucciones,
     fecha_entrega: s.fecha_entrega,
+    recursos: s.recursos,
   })
+
+  const sugerirLinks = (titulo: string, actuales: RecursoDraft[]) => {
+    const tema = titulo.trim() || pm?.materia?.nombre || ''
+    if (!tema) {
+      toast.error('Escribe primero el título de la tarea')
+      return actuales
+    }
+    const urls = new Set(actuales.map((r) => r.url))
+    return [...actuales, ...linksDeApoyo(tema).filter((r) => !urls.has(r.url))]
+  }
 
   const publicarSugerencia = async (s: SugerenciaTarea) => {
     setPublicandoSugerencias((actual) => new Set(actual).add(s.clave))
@@ -523,24 +534,38 @@ export default function ProfesorMateriaDetailPage({
                   <div><Label>Link recurso</Label><Input value={newAct.link_recurso} onChange={(e) => setNewAct({ ...newAct, link_recurso: e.target.value })} /></div>
                   <div><Label>Fecha entrega</Label><Input type="datetime-local" value={newAct.fecha_entrega} onChange={(e) => setNewAct({ ...newAct, fecha_entrega: e.target.value })} /></div>
                   <div className="space-y-3 rounded-xl border p-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <Label>Recursos de apoyo</Label>
-                        <p className="text-xs text-muted-foreground">Videos, PDF, lecturas o documentos externos.</p>
+                        <Label>Links de apoyo</Label>
+                        <p className="text-xs text-muted-foreground">
+                          De aquí sacarán la información tus alumnos. Usa &quot;Sugerir links&quot; para buscar fuentes con el título de la tarea.
+                        </p>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setNewAct({
-                            ...newAct,
-                            recursos: [...newAct.recursos, { ...emptyRecurso }],
-                          })
-                        }
-                      >
-                        <Plus className="mr-1 h-4 w-4" /> Agregar
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setNewAct({ ...newAct, recursos: sugerirLinks(newAct.titulo, newAct.recursos) })
+                          }
+                        >
+                          <Sparkles className="mr-1 h-4 w-4" /> Sugerir links
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setNewAct({
+                              ...newAct,
+                              recursos: [...newAct.recursos, { ...emptyRecurso }],
+                            })
+                          }
+                        >
+                          <Plus className="mr-1 h-4 w-4" /> Agregar
+                        </Button>
+                      </div>
                     </div>
                     {newAct.recursos.map((recurso, index) => (
                       <div key={index} className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-2">
@@ -586,7 +611,7 @@ export default function ProfesorMateriaDetailPage({
                     Sugerencias de tareas
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Ideas listas para publicar según la materia y lo que ya tienes. Publica con un clic o edítalas antes.
+                    Ideas listas para publicar, cada una con links de apoyo para que tus alumnos saquen la información. Publica con un clic o edítalas antes.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -647,6 +672,25 @@ export default function ProfesorMateriaDetailPage({
                         </div>
                         <p className="mt-2 text-sm text-muted-foreground">{s.descripcion}</p>
                         <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-slate-600">{s.instrucciones}</p>
+                        {s.recursos.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                              Links de apoyo
+                            </p>
+                            {s.recursos.map((r) => (
+                              <a
+                                key={r.url}
+                                href={r.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 truncate text-xs font-medium text-brand-primary hover:underline"
+                              >
+                                <ExternalLink className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{r.titulo} ({r.descripcion})</span>
+                              </a>
+                            ))}
+                          </div>
+                        )}
                         <div className="mt-3 flex gap-2 pt-1">
                           <Button
                             size="sm"
@@ -792,21 +836,33 @@ export default function ProfesorMateriaDetailPage({
                 />
               </div>
               <div className="space-y-3 rounded-xl border p-4">
-                <div className="flex items-center justify-between">
-                  <Label>Recursos de apoyo</Label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      setEditAct({
-                        ...editAct,
-                        recursos: [...editAct.recursos, { ...emptyRecurso }],
-                      })
-                    }
-                  >
-                    <Plus className="mr-1 h-4 w-4" /> Agregar
-                  </Button>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Links de apoyo</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setEditAct({ ...editAct, recursos: sugerirLinks(editAct.titulo, editAct.recursos) })
+                      }
+                    >
+                      <Sparkles className="mr-1 h-4 w-4" /> Sugerir links
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setEditAct({
+                          ...editAct,
+                          recursos: [...editAct.recursos, { ...emptyRecurso }],
+                        })
+                      }
+                    >
+                      <Plus className="mr-1 h-4 w-4" /> Agregar
+                    </Button>
+                  </div>
                 </div>
                 {editAct.recursos.map((recurso, index) => (
                   <div key={recurso.id || index} className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-2">

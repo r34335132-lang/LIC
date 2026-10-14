@@ -1,3 +1,12 @@
+import type { TipoTareaRecurso } from '@/types/database'
+
+export type RecursoSugerido = {
+  titulo: string
+  descripcion: string
+  tipo: TipoTareaRecurso
+  url: string
+}
+
 export type SugerenciaTarea = {
   clave: string
   titulo: string
@@ -5,6 +14,31 @@ export type SugerenciaTarea = {
   descripcion: string
   instrucciones: string
   fecha_entrega: string
+  recursos: RecursoSugerido[]
+}
+
+export function linksDeApoyo(tema: string): RecursoSugerido[] {
+  const q = encodeURIComponent(tema.trim())
+  return [
+    {
+      titulo: `Artículos académicos: ${tema}`,
+      descripcion: 'Google Académico',
+      tipo: 'lectura',
+      url: `https://scholar.google.com/scholar?hl=es&q=${q}`,
+    },
+    {
+      titulo: `Artículos en español: ${tema}`,
+      descripcion: 'SciELO',
+      tipo: 'lectura',
+      url: `https://search.scielo.org/?lang=es&q=${q}`,
+    },
+    {
+      titulo: `Videos explicativos: ${tema}`,
+      descripcion: 'YouTube',
+      tipo: 'video',
+      url: `https://www.youtube.com/results?search_query=${q}`,
+    },
+  ]
 }
 
 type ContextoMateria = {
@@ -19,6 +53,7 @@ type Plantilla = {
   titulo: (materia: string) => string
   descripcion: (materia: string) => string
   instrucciones: (materia: string) => string
+  busqueda: (materia: string) => string
 }
 
 const PLANTILLAS: Plantilla[] = [
@@ -26,32 +61,36 @@ const PLANTILLAS: Plantilla[] = [
     tipo: 'Mapa conceptual',
     titulo: (m) => `Mapa conceptual: conceptos clave de ${m}`,
     descripcion: (m) =>
-      `Organiza visualmente los conceptos principales revisados en ${m} y sus relaciones.`,
+      `Organiza visualmente los conceptos principales de ${m} y sus relaciones.`,
     instrucciones: () =>
-      '1. Revisa el material de la unidad e identifica al menos 10 conceptos centrales.\n2. Relaciónalos con conectores claros.\n3. Agrega un ejemplo en al menos 3 conceptos.\n4. Entrega en PDF o foto legible.',
+      '1. Consulta los links de apoyo de esta tarea e identifica al menos 10 conceptos centrales.\n2. Relaciónalos con conectores claros.\n3. Agrega un ejemplo en al menos 3 conceptos.\n4. Anota al final las fuentes que usaste.\n5. Entrega en PDF o foto legible.',
+    busqueda: (m) => `${m} conceptos fundamentales`,
   },
   {
     tipo: 'Cuadro comparativo',
     titulo: (m) => `Cuadro comparativo de enfoques en ${m}`,
     descripcion: (m) =>
-      `Compara dos o más autores, teorías o enfoques estudiados en ${m}.`,
+      `Compara dos o más autores, teorías o enfoques de ${m}.`,
     instrucciones: () =>
-      '1. Elige 2 o 3 enfoques del material de la unidad.\n2. Compara: postulados, autores, ventajas, limitaciones y aplicación.\n3. Cierra con una conclusión personal de 5 a 8 líneas.\n4. Cita al menos 2 fuentes en formato APA.',
+      '1. Con ayuda de los links de apoyo, elige 2 o 3 enfoques o autores.\n2. Compara: postulados, autores, ventajas, limitaciones y aplicación.\n3. Cierra con una conclusión personal de 5 a 8 líneas.\n4. Cita al menos 2 fuentes en formato APA.',
+    busqueda: (m) => `${m} enfoques teóricos`,
   },
   {
     tipo: 'Reporte de lectura',
     titulo: (m) => `Reporte de lectura de ${m}`,
-    descripcion: (m) => `Analiza críticamente la lectura asignada de ${m}.`,
+    descripcion: (m) => `Analiza críticamente un artículo académico sobre ${m}.`,
     instrucciones: () =>
-      '1. Resume las ideas principales (máximo una cuartilla).\n2. Señala 3 aportes y 1 crítica del autor.\n3. Relaciona la lectura con un ejemplo de la vida real.\n4. Extensión: 2 a 3 cuartillas, formato APA.',
+      '1. Elige un artículo de los links de apoyo (Google Académico o SciELO).\n2. Resume las ideas principales (máximo una cuartilla).\n3. Señala 3 aportes y 1 crítica del autor.\n4. Relaciona la lectura con un ejemplo de la vida real.\n5. Extensión: 2 a 3 cuartillas, con la referencia en formato APA.',
+    busqueda: (m) => m,
   },
   {
     tipo: 'Análisis de caso',
     titulo: (m) => `Análisis de caso práctico en ${m}`,
     descripcion: (m) =>
-      `Aplica lo aprendido en ${m} al análisis de un caso real o hipotético.`,
+      `Aplica la teoría de ${m} al análisis de un caso real o hipotético.`,
     instrucciones: () =>
-      '1. Describe brevemente el caso.\n2. Identifica el problema principal y sus causas.\n3. Propón al menos 2 alternativas de intervención fundamentadas en la teoría.\n4. Justifica cuál elegirías y por qué.',
+      '1. Busca un caso en los links de apoyo o plantea uno hipotético y descríbelo brevemente.\n2. Identifica el problema principal y sus causas.\n3. Propón al menos 2 alternativas de intervención fundamentadas en las fuentes consultadas.\n4. Justifica cuál elegirías y por qué.\n5. Cita tus fuentes en formato APA.',
+    busqueda: (m) => `${m} estudio de caso`,
   },
   {
     tipo: 'Ensayo',
@@ -59,7 +98,8 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Desarrolla una postura personal fundamentada sobre un tema de ${m}.`,
     instrucciones: () =>
-      '1. Plantea una tesis clara en la introducción.\n2. Desarrolla al menos 3 argumentos con fuentes.\n3. Incluye un contraargumento y respóndelo.\n4. Extensión: 3 a 4 cuartillas, formato APA.',
+      '1. Revisa los links de apoyo y elige un tema que te interese.\n2. Plantea una tesis clara en la introducción.\n3. Desarrolla al menos 3 argumentos sustentados en las fuentes.\n4. Incluye un contraargumento y respóndelo.\n5. Extensión: 3 a 4 cuartillas, formato APA.',
+    busqueda: (m) => `${m} debate actual`,
   },
   {
     tipo: 'Línea del tiempo',
@@ -67,7 +107,8 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Representa los momentos y autores más importantes en el desarrollo de ${m}.`,
     instrucciones: () =>
-      '1. Incluye al menos 8 hitos con fecha.\n2. Agrega una breve descripción de cada uno.\n3. Señala qué cambio aportó cada hito.\n4. Puede ser digital (Canva, PowerPoint) o a mano.',
+      '1. Investiga en los links de apoyo la historia y los autores principales.\n2. Incluye al menos 8 hitos con fecha y una breve descripción.\n3. Señala qué cambio aportó cada hito.\n4. Agrega las fuentes al final.\n5. Puede ser digital (Canva, PowerPoint) o a mano.',
+    busqueda: (m) => `historia de ${m}`,
   },
   {
     tipo: 'Infografía',
@@ -75,15 +116,17 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Sintetiza un tema de ${m} en un formato visual y fácil de compartir.`,
     instrucciones: () =>
-      '1. Elige un tema de la unidad que estás estudiando.\n2. Incluye título, datos clave, imágenes o íconos y fuentes.\n3. Usa lenguaje claro para un público no especializado.\n4. Entrega en PDF o imagen.',
+      '1. Elige un tema a partir de los links de apoyo.\n2. Incluye título, datos clave, imágenes o íconos y fuentes.\n3. Usa lenguaje claro para un público no especializado.\n4. Entrega en PDF o imagen.',
+    busqueda: (m) => m,
   },
   {
     tipo: 'Cuestionario',
     titulo: (m) => `Cuestionario de repaso de ${m}`,
     descripcion: (m) =>
-      `Repasa los contenidos de la unidad de ${m} respondiendo preguntas guía.`,
+      `Repasa los temas principales de ${m} respondiendo preguntas clave.`,
     instrucciones: () =>
-      '1. Elabora 10 preguntas clave sobre el material de la unidad.\n2. Respóndelas con tus propias palabras, fundamentando cada respuesta en las lecturas.\n3. Agrega al final 2 dudas que te hayan surgido.',
+      '1. Revisa los links de apoyo de esta tarea.\n2. Elabora 10 preguntas clave sobre lo que leíste o viste.\n3. Respóndelas con tus propias palabras, citando de qué fuente sacaste cada respuesta.\n4. Agrega al final 2 dudas que te hayan surgido.',
+    busqueda: (m) => `${m} introducción`,
   },
   {
     tipo: 'Glosario',
@@ -91,7 +134,8 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Construye un glosario con la terminología esencial de ${m}.`,
     instrucciones: () =>
-      '1. Define al menos 15 términos de la unidad.\n2. Cita la fuente de cada definición.\n3. Agrega un ejemplo de uso en 5 de ellos.',
+      '1. Usa los links de apoyo para encontrar al menos 15 términos clave.\n2. Define cada uno y cita la fuente.\n3. Agrega un ejemplo de uso en 5 de ellos.',
+    busqueda: (m) => `${m} conceptos básicos`,
   },
   {
     tipo: 'Investigación',
@@ -99,15 +143,17 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Investiga en fuentes académicas un tema actual relacionado con ${m}.`,
     instrucciones: () =>
-      '1. Consulta al menos 3 artículos científicos de los últimos 5 años.\n2. Resume los hallazgos principales de cada uno.\n3. Escribe una conclusión integradora.\n4. Referencias en formato APA 7.',
+      '1. En los links de apoyo, consulta al menos 3 artículos científicos de los últimos 5 años.\n2. Resume los hallazgos principales de cada uno.\n3. Escribe una conclusión integradora.\n4. Referencias en formato APA 7.',
+    busqueda: (m) => `${m} investigación reciente`,
   },
   {
     tipo: 'Reflexión',
-    titulo: (m) => `Reflexión personal sobre lo aprendido en ${m}`,
+    titulo: (m) => `Reflexión personal sobre ${m}`,
     descripcion: (m) =>
-      `Reflexiona sobre cómo los contenidos de ${m} se relacionan con tu formación.`,
+      `Reflexiona sobre cómo los temas de ${m} se relacionan con tu formación.`,
     instrucciones: () =>
-      '1. ¿Qué fue lo más significativo de la unidad?\n2. ¿Cómo lo aplicarías en tu práctica profesional?\n3. ¿Qué te gustaría profundizar?\nExtensión: 1 a 2 cuartillas.',
+      '1. Revisa al menos 2 fuentes de los links de apoyo.\n2. ¿Qué idea te pareció más significativa y por qué?\n3. ¿Cómo la aplicarías en tu práctica profesional?\n4. ¿Qué te gustaría profundizar?\nExtensión: 1 a 2 cuartillas, con las fuentes citadas.',
+    busqueda: (m) => `${m} práctica profesional`,
   },
   {
     tipo: 'Presentación',
@@ -115,7 +161,8 @@ const PLANTILLAS: Plantilla[] = [
     descripcion: (m) =>
       `Elabora una presentación que explique un subtema de ${m} de forma clara y autocontenida.`,
     instrucciones: () =>
-      '1. Elige un subtema de la unidad.\n2. Elabora de 8 a 12 diapositivas que se entiendan sin necesidad de exponerlas.\n3. Incluye ejemplos, una conclusión y fuentes en formato APA.\n4. Sube la presentación en PDF.',
+      '1. Elige un subtema a partir de los links de apoyo.\n2. Elabora de 8 a 12 diapositivas que se entiendan sin necesidad de exponerlas.\n3. Incluye ejemplos, una conclusión y fuentes en formato APA.\n4. Sube la presentación en PDF.',
+    busqueda: (m) => m,
   },
 ]
 
@@ -178,6 +225,7 @@ export function generarSugerenciasPlantilla(
     descripcion: plantilla.descripcion(contexto.materia),
     instrucciones: plantilla.instrucciones(contexto.materia),
     fecha_entrega: fechas[index],
+    recursos: linksDeApoyo(plantilla.busqueda(contexto.materia)),
   }))
 }
 
@@ -201,12 +249,14 @@ Tareas ya publicadas (no las repitas):
 ${existentes || '- Ninguna'}
 
 Propón ${cantidad} tareas nuevas, variadas y realistas para alumnos de licenciatura en línea.
-Los alumnos estudian de forma autónoma con los materiales y lecturas de la plataforma: NO hay clases en vivo ni videollamadas.
-No menciones clases, sesiones, lo "visto en clase", exposiciones orales ni trabajo presencial; cada tarea debe poder hacerse y entregarse por escrito o en archivo.
-Responde SOLO con JSON: {"sugerencias":[{"titulo":"","descripcion":"","instrucciones":""}]}
+NO hay clases en vivo ni videollamadas: los alumnos investigan por su cuenta usando los links de apoyo que se adjuntan a cada tarea (Google Académico, SciELO y YouTube).
+No menciones clases, sesiones, lo "visto en clase", "material de la unidad", exposiciones orales ni trabajo presencial.
+Las instrucciones deben pedir que el alumno saque la información de los links de apoyo y cite sus fuentes.
+Responde SOLO con JSON: {"sugerencias":[{"titulo":"","descripcion":"","instrucciones":"","busqueda":""}]}
 - titulo: máximo 80 caracteres
 - descripcion: 1 o 2 oraciones
-- instrucciones: pasos numerados separados por \\n, incluye extensión y formato de entrega`
+- instrucciones: pasos numerados separados por \\n, incluye extensión y formato de entrega
+- busqueda: términos de búsqueda en español (3 a 6 palabras) para encontrar fuentes sobre el tema de la tarea`
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -238,6 +288,10 @@ Responde SOLO con JSON: {"sugerencias":[{"titulo":"","descripcion":"","instrucci
       const s = item as Record<string, unknown>
       const titulo = typeof s.titulo === 'string' ? s.titulo.trim().slice(0, 120) : ''
       if (!titulo) return []
+      const busqueda =
+        typeof s.busqueda === 'string' && s.busqueda.trim()
+          ? s.busqueda.trim().slice(0, 100)
+          : contexto.materia
       return [
         {
           clave: `ia-${Date.now()}-${index}`,
@@ -246,6 +300,7 @@ Responde SOLO con JSON: {"sugerencias":[{"titulo":"","descripcion":"","instrucci
           descripcion: typeof s.descripcion === 'string' ? s.descripcion.trim() : '',
           instrucciones: typeof s.instrucciones === 'string' ? s.instrucciones.trim() : '',
           fecha_entrega: fechas[index],
+          recursos: linksDeApoyo(busqueda),
         },
       ]
     })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +14,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { BulkSemesterForm } from '@/components/admin/bulk-semester-form'
+import { Search, UserCog } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Materia, Perfil, ProfesorMateria, Programa } from '@/types/database'
 
@@ -46,6 +54,69 @@ export default function AdminClasesPage() {
   const [copySourceId, setCopySourceId] = useState('')
   const [copyTarget, setCopyTarget] = useState({ ...emptyIndividual, activo: true })
   const [loading, setLoading] = useState(false)
+  const [busquedaClases, setBusquedaClases] = useState('')
+  const [claseEditando, setClaseEditando] = useState<ClaseRow | null>(null)
+  const [nuevoProfesorId, setNuevoProfesorId] = useState('')
+  const [transferirContenido, setTransferirContenido] = useState(true)
+  const [guardandoCambio, setGuardandoCambio] = useState(false)
+
+  const clasesFiltradas = useMemo(() => {
+    const q = busquedaClases.trim().toLowerCase()
+    if (!q) return clases
+    return clases.filter((c) =>
+      [c.materia?.nombre, c.materia?.clave, c.profesor?.nombre_completo, c.profesor?.email, c.grupo]
+        .filter(Boolean)
+        .some((valor) => String(valor).toLowerCase().includes(q))
+    )
+  }, [clases, busquedaClases])
+
+  const abrirCambioProfesor = (clase: ClaseRow) => {
+    setClaseEditando(clase)
+    setNuevoProfesorId('')
+    setTransferirContenido(true)
+  }
+
+  const guardarCambioProfesor = async () => {
+    if (!claseEditando || !nuevoProfesorId) return
+    setGuardandoCambio(true)
+    try {
+      const res = await fetch('/api/admin/profesor-materias', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: claseEditando.id,
+          profesor_id: nuevoProfesorId,
+          transferir_contenido: transferirContenido,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'No se pudo cambiar el profesor')
+        return
+      }
+      const profesor =
+        data.profesor ?? profesores.find((p) => p.id === nuevoProfesorId) ?? claseEditando.profesor
+      setClases((actuales) =>
+        actuales.map((c) =>
+          c.id === claseEditando.id ? { ...c, profesor_id: nuevoProfesorId, profesor } : c
+        )
+      )
+      const t = data.transferidos as
+        | { tareas: number | null; examenes: number | null; avisos: number | null; rubrica: boolean }
+        | null
+      toast.success(
+        t
+          ? `Profesor actualizado. Se pasaron ${t.tareas ?? 0} tarea(s), ${t.examenes ?? 0} examen(es) y ${t.avisos ?? 0} aviso(s)${t.rubrica ? ' y la rúbrica' : ''}.`
+          : 'Profesor actualizado'
+      )
+      setClaseEditando(null)
+    } catch {
+      toast.error('Error de conexión')
+    } finally {
+      setGuardandoCambio(false)
+    }
+  }
 
   const load = useCallback(async () => {
     const res = await fetch('/api/admin/clases', { credentials: 'include' })
@@ -238,23 +309,100 @@ export default function AdminClasesPage() {
       </Card>
 
       <Card className="mt-6">
-        <CardHeader><CardTitle>Clases registradas ({clases.length})</CardTitle></CardHeader>
-        <CardContent className="space-y-2 max-h-[400px] overflow-y-auto">
-          {clases.map((c) => (
+        <CardHeader className="space-y-3">
+          <CardTitle>Clases registradas ({clases.length})</CardTitle>
+          <div className="relative sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busquedaClases}
+              onChange={(e) => setBusquedaClases(e.target.value)}
+              placeholder="Buscar por materia, profesor o grupo..."
+              className="pl-9"
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
+          {clasesFiltradas.length === 0 && (
+            <p className="text-sm text-muted-foreground">No hay clases que coincidan.</p>
+          )}
+          {clasesFiltradas.map((c) => (
             <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
               <div>
                 <p className="font-medium">{c.materia?.nombre}</p>
-                <p className="text-muted-foreground">{c.profesor?.nombre_completo}</p>
+                <p className="text-muted-foreground">{c.profesor?.nombre_completo ?? c.profesor?.email ?? 'Sin profesor'}</p>
               </div>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 {c.grupo && <Badge variant="outline">Gr. {c.grupo}</Badge>}
                 {c.periodo_escolar && <Badge variant="secondary">{c.periodo_escolar}</Badge>}
                 {!c.activo && <Badge variant="destructive">Inactiva</Badge>}
+                <Button size="sm" variant="outline" className="ml-2" onClick={() => abrirCambioProfesor(c)}>
+                  <UserCog className="mr-1 h-4 w-4" /> Cambiar profesor
+                </Button>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
+
+      <Dialog open={!!claseEditando} onOpenChange={(open) => !open && setClaseEditando(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Cambiar profesor</DialogTitle>
+          </DialogHeader>
+          {claseEditando && (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <p className="font-semibold">{claseEditando.materia?.nombre}</p>
+                <p className="text-muted-foreground">
+                  Profesor actual: {claseEditando.profesor?.nombre_completo ?? claseEditando.profesor?.email ?? 'Sin profesor'}
+                  {claseEditando.grupo ? ` · Gr. ${claseEditando.grupo}` : ''}
+                </p>
+              </div>
+              <div>
+                <Label>Nuevo profesor</Label>
+                <Select value={nuevoProfesorId} onValueChange={setNuevoProfesorId}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar profesor" /></SelectTrigger>
+                  <SelectContent>
+                    {profesores
+                      .filter((p) => p.id !== claseEditando.profesor_id)
+                      .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.nombre_completo ?? p.email}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-start gap-3 rounded-lg border p-3 text-sm">
+                <Checkbox
+                  checked={transferirContenido}
+                  onCheckedChange={(v) => setTransferirContenido(v === true)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block font-semibold">Pasar también el contenido de la materia</span>
+                  <span className="text-muted-foreground">
+                    Las tareas, exámenes, rúbrica y avisos que el profesor anterior publicó en esta materia quedarán a nombre del nuevo, para que pueda editarlos y calificar.
+                  </span>
+                </span>
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Los alumnos inscritos, sus entregas y calificaciones no cambian.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setClaseEditando(null)} disabled={guardandoCambio}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-brand-primary"
+                  onClick={guardarCambioProfesor}
+                  disabled={!nuevoProfesorId || guardandoCambio}
+                >
+                  {guardandoCambio ? 'Guardando...' : 'Cambiar profesor'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
