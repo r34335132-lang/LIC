@@ -11,6 +11,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { labelTipoPrograma } from '@/lib/programa-utils'
 import { useProgramaFiltro } from '@/lib/use-programa-filtro'
+import { ProgramaFiltroChips } from '@/components/programa-filtro-chips'
 import type { Materia, ProfesorMateria, Programa } from '@/types/database'
 
 type MateriaStats = {
@@ -39,7 +40,16 @@ export default function ProfesorMateriasPage() {
   const { perfil } = useAuth()
   const [materias, setMaterias] = useState<ProfesorMateriaRow[]>([])
   const [cargado, setCargado] = useState(false)
-  const [programaFiltro, setProgramaFiltro] = useProgramaFiltro()
+
+  const programaIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const pm of materias) {
+      if (pm.materia?.programa_id) ids.add(pm.materia.programa_id)
+    }
+    return [...ids]
+  }, [materias])
+
+  const [programaFiltro, setProgramaFiltro] = useProgramaFiltro(programaIds)
 
   useEffect(() => {
     if (!perfil) return
@@ -88,63 +98,52 @@ export default function ProfesorMateriasPage() {
     return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
   }, [materias])
 
-  useEffect(() => {
-    if (cargado && programaFiltro !== 'todos' && !grupos.some((g) => g.id === programaFiltro)) {
-      setProgramaFiltro('todos')
-    }
-  }, [cargado, grupos, programaFiltro, setProgramaFiltro])
+  const opcionesFiltro = useMemo(
+    () =>
+      grupos
+        .filter((g) => g.id !== 'sin-programa')
+        .map((g) => ({
+          id: g.id,
+          nombre: g.nombre,
+          total: g.materias.length,
+          badge: g.porRevisar,
+          badgeLabel: 'por revisar',
+        })),
+    [grupos]
+  )
 
-  const gruposVisibles =
-    programaFiltro === 'todos' ? grupos : grupos.filter((g) => g.id === programaFiltro)
+  const gruposVisibles = useMemo(() => {
+    if (grupos.length <= 1) return grupos
+    if (programaFiltro === 'todos') return grupos
+    return grupos.filter((g) => g.id === programaFiltro)
+  }, [grupos, programaFiltro])
+
+  const unicaCarrera = grupos.length === 1 ? grupos[0] : null
 
   return (
     <div>
       <h1 className="text-3xl font-black">Mis materias</h1>
       <p className="mt-2 text-muted-foreground">
-        Tus materias organizadas por carrera o curso, con tareas activas y entregas por revisar.
+        {unicaCarrera
+          ? `Materias de ${unicaCarrera.nombre}: tareas activas y entregas por revisar.`
+          : 'Elige una carrera para revisar más rápido, o mira todas juntas.'}
       </p>
 
-      {grupos.length > 1 && (
-        <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
-          {[
-            { id: 'todos', nombre: 'Todas', total: materias.length, porRevisar: 0 },
-            ...grupos.map((g) => ({
-              id: g.id,
-              nombre: g.nombre,
-              total: g.materias.length,
-              porRevisar: g.porRevisar,
-            })),
-          ].map((opcion) => {
-            const activa = programaFiltro === opcion.id
-            return (
-              <button
-                key={opcion.id}
-                type="button"
-                onClick={() => setProgramaFiltro(opcion.id)}
-                className={`flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition ${
-                  activa
-                    ? 'border-brand-primary bg-brand-primary text-white shadow-md'
-                    : 'border-border bg-white hover:border-brand-primary/40'
-                }`}
-              >
-                {opcion.nombre}
-                <span className={`rounded-md px-1.5 py-0.5 text-xs ${activa ? 'bg-white/20' : 'bg-muted'}`}>
-                  {opcion.total}
-                </span>
-                {opcion.porRevisar > 0 && (
-                  <span
-                    className={`rounded-md px-1.5 py-0.5 text-xs ${
-                      activa ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {opcion.porRevisar} por revisar
-                  </span>
-                )}
-              </button>
-            )
-          })}
+      {unicaCarrera && (
+        <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-brand-primary/20 bg-brand-primary/5 px-4 py-2">
+          <GraduationCap className="h-4 w-4 text-brand-primary" />
+          <span className="text-sm font-bold text-slate-900">{unicaCarrera.nombre}</span>
+          <Badge variant="outline">{unicaCarrera.tipo}</Badge>
         </div>
       )}
+
+      <div className="mt-6">
+        <ProgramaFiltroChips
+          opciones={opcionesFiltro}
+          value={programaFiltro}
+          onChange={setProgramaFiltro}
+        />
+      </div>
 
       <div className="mt-8 space-y-10">
         {cargado && materias.length === 0 && (
@@ -152,16 +151,18 @@ export default function ProfesorMateriasPage() {
         )}
         {gruposVisibles.map((grupo) => (
           <section key={grupo.id} className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3 border-b pb-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/10">
-                <GraduationCap className="h-5 w-5 text-brand-primary" />
+            {grupos.length > 1 && (
+              <div className="flex flex-wrap items-center gap-3 border-b pb-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/10">
+                  <GraduationCap className="h-5 w-5 text-brand-primary" />
+                </div>
+                <h2 className="text-xl font-black">{grupo.nombre}</h2>
+                <Badge variant="outline">{grupo.tipo}</Badge>
+                <span className="text-sm text-muted-foreground">
+                  {grupo.materias.length} materia{grupo.materias.length !== 1 ? 's' : ''}
+                </span>
               </div>
-              <h2 className="text-xl font-black">{grupo.nombre}</h2>
-              <Badge variant="outline">{grupo.tipo}</Badge>
-              <span className="text-sm text-muted-foreground">
-                {grupo.materias.length} materia{grupo.materias.length !== 1 ? 's' : ''}
-              </span>
-            </div>
+            )}
             <div className="grid gap-4 lg:grid-cols-2">
               {grupo.materias.map((pm) => (
                 <Link key={pm.id} href={`/profesor/materias/${pm.id}`}>
@@ -183,7 +184,8 @@ export default function ProfesorMateriasPage() {
                         <div className="flex flex-wrap gap-2 sm:flex-col sm:items-end">
                           <Badge className="bg-brand-primary/10 font-bold text-brand-primary">
                             <ClipboardList className="mr-1 h-3 w-3" />
-                            {pm.stats.actividadesActivas} tarea{pm.stats.actividadesActivas !== 1 ? 's' : ''} activa
+                            {pm.stats.actividadesActivas} tarea
+                            {pm.stats.actividadesActivas !== 1 ? 's' : ''} activa
                             {pm.stats.actividadesActivas !== 1 ? 's' : ''}
                           </Badge>
                           {pm.stats.entregasPorRevisar > 0 && (
@@ -203,7 +205,9 @@ export default function ProfesorMateriasPage() {
                           <p className="mt-1 font-semibold text-slate-900">{pm.stats.proximaTareaTitulo}</p>
                           <p className="mt-1 flex items-center gap-1 text-sm text-brand-primary">
                             <Clock className="h-3 w-3" />
-                            {format(new Date(pm.stats.proximaEntrega), 'EEEE d MMM · HH:mm', { locale: es })}
+                            {format(new Date(pm.stats.proximaEntrega), 'EEEE d MMM · HH:mm', {
+                              locale: es,
+                            })}
                           </p>
                         </div>
                       )}

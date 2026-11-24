@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Outfit } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
 import { FloatingWhatsApp } from '@/components/marketing/floating-whatsapp'
@@ -7,8 +7,13 @@ import { Toaster } from '@/components/ui/sonner'
 import { SITE_URL } from '@/lib/marketing'
 import './globals.css'
 
-const _geist = Geist({ subsets: ['latin'] })
-const _geistMono = Geist_Mono({ subsets: ['latin'] })
+const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -115,7 +120,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className="bg-background">
+    <html lang="es" className={`${geist.variable} ${geistMono.variable} ${outfit.variable} bg-background`}>
       <body className="min-h-screen font-sans antialiased">
         <AuthProvider>
           {/* Banner Superior Global de Revalidación */}

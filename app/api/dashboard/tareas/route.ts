@@ -7,6 +7,7 @@ import type {
   ActividadEntrega,
   Materia,
   Perfil,
+  Programa,
   TareaRecurso,
 } from '@/types/database'
 
@@ -37,11 +38,34 @@ export async function GET() {
       return NextResponse.json({ tareas: [], resumen: { pendientes: 0, entregadas: 0, revisadas: 0, promedioRevisadas: null } })
     }
 
-    const materiaMap = new Map<string, Materia>()
+    const materiaMap = new Map<string, Materia & { programa?: Pick<Programa, 'id' | 'nombre' | 'tipo'> | null }>()
     for (const row of amData ?? []) {
       const relation = row.materia as Materia | Materia[] | null
       const m = Array.isArray(relation) ? relation[0] : relation
       if (m) materiaMap.set(m.id, m)
+    }
+
+    const programaIds = [
+      ...new Set(
+        [...materiaMap.values()]
+          .map((m) => m.programa_id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      ),
+    ]
+    if (programaIds.length > 0) {
+      const { data: programasData } = await admin
+        .from('programas')
+        .select('id, nombre, tipo')
+        .in('id', programaIds)
+      const programasById = new Map(
+        ((programasData ?? []) as Pick<Programa, 'id' | 'nombre' | 'tipo'>[]).map((p) => [p.id, p])
+      )
+      for (const [id, materia] of materiaMap) {
+        materiaMap.set(id, {
+          ...materia,
+          programa: programasById.get(materia.programa_id) ?? null,
+        })
+      }
     }
 
     const { data: actividades, error: actError } = await admin

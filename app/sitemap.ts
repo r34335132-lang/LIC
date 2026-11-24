@@ -20,8 +20,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: `${SITE_URL}/inscripcion`,
       lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.95,
+    },
+    {
+      url: `${SITE_URL}/licenciaturas/psicologia/plan-de-estudios`,
+      lastModified: new Date(),
       changeFrequency: 'monthly',
-      priority: 0.9,
+      priority: 0.7,
     },
     {
       url: `${SITE_URL}/aviso-de-privacidad`,

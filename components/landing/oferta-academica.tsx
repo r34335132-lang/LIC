@@ -82,7 +82,9 @@ function ProgramCard({
     >
       <img
         src={programa.imagen || '/placeholder.jpg'}
-        alt={programa.nombre}
+        alt={`${programa.nombre} en línea — Instituto Universitario de Durango`}
+        loading="lazy"
+        decoding="async"
         className="absolute inset-0 h-full w-full object-cover transition duration-1000 group-hover:scale-105"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/10" />

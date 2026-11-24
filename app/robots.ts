@@ -3,11 +3,21 @@ import { SITE_URL } from '@/lib/marketing'
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: {
-      userAgent: '*',
-      allow: '/',
-      disallow: ['/dashboard/', '/login'],
-    },
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: [
+          '/dashboard/',
+          '/admin/',
+          '/profesor/',
+          '/cuenta/',
+          '/login',
+          '/api/',
+        ],
+      },
+    ],
     sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   }
 }

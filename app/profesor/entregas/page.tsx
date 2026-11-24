@@ -34,6 +34,7 @@ import { toast } from 'sonner'
 import { labelTipoPrograma } from '@/lib/programa-utils'
 import { esDocumentoPdf, formatearTamanoArchivo } from '@/lib/entrega-documentos'
 import { useProgramaFiltro } from '@/lib/use-programa-filtro'
+import { ProgramaFiltroChips } from '@/components/programa-filtro-chips'
 import type { Actividad, ActividadEntrega, Materia, Perfil, Programa } from '@/types/database'
 
 type EntregaRow = Omit<ActividadEntrega, 'id' | 'estado'> & {
@@ -130,7 +131,6 @@ export default function ProfesorEntregasPage() {
   const [tareas, setTareas] = useState<TareaRow[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [programaFiltro, setProgramaFiltro] = useProgramaFiltro()
   const [materiaFiltro, setMateriaFiltro] = useState('todas')
   const [modoRapido, setModoRapido] = useState(false)
   const [notasRapidas, setNotasRapidas] = useState<Record<string, string>>({})
@@ -189,11 +189,8 @@ export default function ProfesorEntregasPage() {
     return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
   }, [tareas])
 
-  useEffect(() => {
-    if (!loading && programaFiltro !== 'todos' && !programas.some((p) => p.id === programaFiltro)) {
-      setProgramaFiltro('todos')
-    }
-  }, [loading, programas, programaFiltro, setProgramaFiltro])
+  const programaIds = useMemo(() => programas.map((p) => p.id), [programas])
+  const [programaFiltro, setProgramaFiltro] = useProgramaFiltro(programaIds)
 
   const materias = useMemo(() => {
     const map = new Map<string, { id: string; nombre: string; total: number; porRevisar: number }>()
@@ -457,7 +454,25 @@ export default function ProfesorEntregasPage() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:max-w-5xl xl:grid-cols-3">
+          {programas.length === 1 && (
+            <div className="inline-flex items-center gap-2 rounded-xl border border-brand-primary/20 bg-brand-primary/5 px-4 py-2 text-sm font-bold">
+              <BookOpen className="h-4 w-4 text-brand-primary" />
+              {programas[0].nombre}
+              <Badge variant="outline">{programas[0].tipo}</Badge>
+            </div>
+          )}
+
+          <ProgramaFiltroChips
+            opciones={programas.map((p) => ({
+              id: p.id,
+              nombre: p.nombre,
+              total: p.total,
+            }))}
+            value={programaFiltro}
+            onChange={setProgramaFiltro}
+          />
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:max-w-3xl">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-slate-800">Materia</label>
               <Select value={materiaFiltro} onValueChange={setMateriaFiltro}>
@@ -477,30 +492,12 @@ export default function ProfesorEntregasPage() {
                 </SelectContent>
               </Select>
             </div>
-            {programas.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-slate-800">Carrera o curso</label>
-                <Select value={programaFiltro} onValueChange={setProgramaFiltro}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por carrera o curso" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todas las carreras y cursos ({tareas.length})</SelectItem>
-                    {programas.map((programa) => (
-                      <SelectItem key={programa.id} value={programa.id}>
-                        {programa.nombre} · {programa.tipo} ({programa.total})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-slate-800">Buscar</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar tarea, materia o carrera..."
+                  placeholder="Buscar tarea o materia..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   className="pl-10"

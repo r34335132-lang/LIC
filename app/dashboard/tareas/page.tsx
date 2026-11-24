@@ -32,6 +32,7 @@ import {
   X,
   Paperclip,
   FileType,
+  GraduationCap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
@@ -40,8 +41,11 @@ import type {
   EntregaDocumento,
   Materia,
   Perfil,
+  Programa,
   TareaRecurso,
 } from '@/types/database'
+import { useProgramaFiltro } from '@/lib/use-programa-filtro'
+import { ProgramaFiltroChips } from '@/components/programa-filtro-chips'
 import type { EstadoEntregaTarea } from '@/lib/academico-utils'
 import { cuatrimestreLabel } from '@/lib/academico-utils'
 import { comprimirImagenesEntrega } from '@/lib/comprimir-imagen'
@@ -56,7 +60,7 @@ import {
 
 type TareaRow = {
   actividad: Actividad
-  materia: Materia | null
+  materia: (Materia & { programa?: Pick<Programa, 'id' | 'nombre' | 'tipo'> | null }) | null
   profesor: Pick<Perfil, 'id' | 'nombre_completo' | 'email'> | null
   entrega: ActividadEntrega | null
   estadoEntrega: EstadoEntregaTarea
@@ -153,6 +157,15 @@ export default function TareasPage() {
   const [filtroMateria, setFiltroMateria] = useState<string>('todas')
   const [enviando, setEnviando] = useState(false)
 
+  const programaIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const t of tareas) {
+      if (t.materia?.programa_id) ids.add(t.materia.programa_id)
+    }
+    return [...ids]
+  }, [tareas])
+  const [filtroPrograma, setFiltroPrograma] = useProgramaFiltro(programaIds)
+
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/dashboard/tareas', { credentials: 'include' })
@@ -171,9 +184,34 @@ export default function TareasPage() {
     load()
   }, [load])
 
+  const programas = useMemo(() => {
+    const map = new Map<string, { id: string; nombre: string; total: number; badge: number }>()
+    for (const t of tareas) {
+      const id = t.materia?.programa_id
+      if (!id) continue
+      const actual = map.get(id) ?? {
+        id,
+        nombre: t.materia?.programa?.nombre ?? id,
+        total: 0,
+        badge: 0,
+      }
+      actual.total += 1
+      if (t.estadoEntrega === 'pendiente' || t.estadoEntrega === 'vencida') actual.badge += 1
+      map.set(id, actual)
+    }
+    return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  }, [tareas])
+
   const materias = useMemo(() => {
     const map = new Map<string, { id: string; nombre: string; total: number; pendientes: number }>()
     for (const t of tareas) {
+      if (
+        programas.length > 1 &&
+        filtroPrograma !== 'todos' &&
+        t.materia?.programa_id !== filtroPrograma
+      ) {
+        continue
+      }
       const id = materiaKey(t)
       const actual = map.get(id) ?? {
         id,
@@ -186,7 +224,7 @@ export default function TareasPage() {
       map.set(id, actual)
     }
     return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-  }, [tareas])
+  }, [tareas, programas.length, filtroPrograma])
 
   const tareasFiltradas = useMemo(() => {
     return tareas.filter((t) => {
@@ -201,10 +239,14 @@ export default function TareasPage() {
           (t.estadoEntrega === 'pendiente' || t.estadoEntrega === 'vencida')) ||
         (filtroEstado === 'entregada' && t.estadoEntrega === 'entregada') ||
         (filtroEstado === 'revisada' && t.estadoEntrega === 'revisada')
+      const coincidePrograma =
+        programas.length <= 1 ||
+        filtroPrograma === 'todos' ||
+        t.materia?.programa_id === filtroPrograma
       const coincideMateria = filtroMateria === 'todas' || materiaKey(t) === filtroMateria
-      return coincideBusqueda && coincideEstado && coincideMateria
+      return coincideBusqueda && coincideEstado && coincidePrograma && coincideMateria
     })
-  }, [tareas, busqueda, filtroEstado, filtroMateria])
+  }, [tareas, busqueda, filtroEstado, filtroMateria, filtroPrograma, programas.length])
 
   const grouped = useMemo(() => {
     const map = new Map<string, { nombre: string; periodo: number | null; items: TareaRow[] }>()
@@ -402,13 +444,40 @@ export default function TareasPage() {
         </div>
       </div>
 
+      {programas.length === 1 && (
+        <div className="inline-flex items-center gap-2 rounded-xl border border-brand-primary/20 bg-brand-primary/5 px-4 py-2 text-sm font-bold">
+          <GraduationCap className="h-4 w-4 text-brand-primary" />
+          {programas[0].nombre}
+        </div>
+      )}
+
+      <ProgramaFiltroChips
+        opciones={programas.map((p) => ({
+          id: p.id,
+          nombre: p.nombre,
+          total: p.total,
+          badge: p.badge,
+          badgeLabel: 'pend.',
+        }))}
+        value={filtroPrograma}
+        onChange={(id) => {
+          setFiltroPrograma(id)
+          setFiltroMateria('todas')
+        }}
+      />
+
       {materias.length > 1 && (
         <div className="space-y-2">
           <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
             <BookOpen className="h-4 w-4" /> Materias
           </p>
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {[{ id: 'todas', nombre: 'Todas', total: tareas.length, pendientes: resumen.pendientes }, ...materias].map(
+            {[{
+              id: 'todas',
+              nombre: 'Todas',
+              total: materias.reduce((acc, m) => acc + m.total, 0),
+              pendientes: materias.reduce((acc, m) => acc + m.pendientes, 0),
+            }, ...materias].map(
               (materia) => {
                 const activa = filtroMateria === materia.id
                 return (
